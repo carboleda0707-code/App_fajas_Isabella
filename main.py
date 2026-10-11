@@ -14,12 +14,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Redireccionar la raíz '/' a la página web pública
-@app.get("/", include_in_schema=False)
-def read_root():
+# Ruta raíz para redirigir automáticamente a la página web principal
+@app.get("/")
+def home():
     return RedirectResponse(url="/web/index.html")
 
-# Servir carpeta de imágenes y archivos estáticos
+# Servir carpeta de archivos estáticos y web pública
 app.mount("/web", StaticFiles(directory="web", html=True), name="web")
 
 # Routers de la API
