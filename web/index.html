@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fajas Isabella | Tienda Online</title>
+    <!-- Tailwind CSS & FontAwesome -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .dropdown:hover .dropdown-menu { display: block; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen font-sans">
+
+    <!-- 1. BARRA SUPERIOR PROMOCIONAL -->
+    <div class="bg-black text-white text-[11px] py-1.5 px-4 text-center font-semibold tracking-wide flex justify-center items-center gap-2">
+        <span>✨ PAGOS 100% SEGUROS Y ENVÍOS A TODO EL ECUADOR</span>
+    </div>
+
+    <!-- 2. ENCABEZADO PRINCIPAL FIJO -->
+    <header class="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-xs">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                
+                <!-- Logo Oficial -->
+                <div class="flex items-center">
+                    <a href="#" onclick="filtrarCategoria('TODAS')" class="flex items-center">
+                        <img src="logo.png" alt="Fajas Isabella Logo" class="h-12 sm:h-14 w-auto object-contain transition-transform hover:scale-105">
+                    </a>
+                </div>
+
+                <!-- Menú Principal Desktop -->
+                <nav class="hidden md:flex items-center space-x-8 text-sm font-semibold text-slate-700">
+                    <a href="#" onclick="filtrarCategoria('TODAS')" class="hover:text-rose-600 transition">INICIO</a>
+                    
+                    <div class="relative dropdown py-5 cursor-pointer">
+                        <div class="flex items-center gap-1 hover:text-rose-600 transition">
+                            <span>TIENDA / CATEGORÍAS</span>
+                            <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                        </div>
+                        <div class="dropdown-menu hidden absolute top-14 left-0 w-64 bg-white border border-slate-200 rounded-xl shadow-xl py-2 z-50">
+                            <a href="#" onclick="filtrarCategoria('TODAS')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">✨ Ver Todo el Catálogo</a>
+                            <div class="border-t border-slate-100 my-1"></div>
+                            <a href="#" onclick="filtrarCategoria('PANTYS')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">🩲 Pantys & Realce</a>
+                            <a href="#" onclick="filtrarCategoria('CINTURILLAS')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">⏳ Cinturillas & Chalecos</a>
+                            <a href="#" onclick="filtrarCategoria('USO DIARIO')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">👗 Uso Diario</a>
+                            <a href="#" onclick="filtrarCategoria('POST OPERATORIO')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">🩺 Post Operatorio / Postparto</a>
+                            <a href="#" onclick="filtrarCategoria('LINEA VIRAL')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">🔥 Línea Viral Moldeadora</a>
+                        </div>
+                    </div>
+
+                    <a href="#" onclick="filtrarCategoria('LIQUIDACION')" class="text-rose-600 font-bold hover:text-rose-700 transition flex items-center gap-1">
+                        <span>🔥 LIQUIDACIÓN</span>
+                    </a>
+                    <a href="#" class="hover:text-rose-600 transition">NOSOTROS</a>
+                </nav>
+
+                <!-- Buscador + Carrito Flotante -->
+                <div class="flex items-center gap-3">
+                    <div class="relative hidden sm:block">
+                        <input type="text" id="input-busqueda" onkeyup="buscarProducto()" placeholder="Buscar faja, SKU..." 
+                            class="bg-slate-100 text-xs text-slate-800 rounded-full pl-8 pr-4 py-2 w-44 focus:w-60 focus:bg-white focus:ring-2 focus:ring-rose-500 border border-transparent focus:border-rose-500 transition-all outline-none">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-400"></i>
+                    </div>
+
+                    <button onclick="toggleCarrito()" class="relative p-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-full transition flex items-center justify-center">
+                        <i class="fa-solid fa-bag-shopping text-xl"></i>
+                        <span id="cart-count" class="absolute -top-1 -right-1 bg-rose-600 text-white text-[10px] font-extrabold rounded-full w-5 h-5 flex items-center justify-center shadow-xs">0</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 3. BARRA SECUNDARIA DE CATEGORÍAS (DINÁMICA DESDE BASE DE DATOS) -->
+    <div class="bg-white border-b border-slate-200 py-3 shadow-2xs relative">
+        <div class="max-w-7xl mx-auto px-2 relative flex items-center">
+            
+            <button onclick="scrollCategorias(-180)" 
+                class="absolute left-1 z-20 w-7 h-7 rounded-full bg-white shadow-md border border-slate-200 flex items-center justify-center text-slate-700 hover:text-rose-600 hover:scale-110 transition shrink-0">
+                <i class="fa-solid fa-chevron-left text-[11px]"></i>
+            </button>
+
+            <div id="categorias-scroll" 
+                class="overflow-x-auto no-scrollbar scroll-smooth flex items-center space-x-4 py-1 px-8 w-full select-none">
+                <div class="text-xs text-slate-400 py-2">Cargando categorías...</div>
+            </div>
+
+            <button onclick="scrollCategorias(180)" 
+                class="absolute right-1 z-20 w-7 h-7 rounded-full bg-white shadow-md border border-slate-200 flex items-center justify-center text-slate-700 hover:text-rose-600 hover:scale-110 transition shrink-0">
+                <i class="fa-solid fa-chevron-right text-[11px]"></i>
+            </button>
+
+        </div>
+    </div>
+
+    <!-- 4. CONTENIDO PRINCIPAL (CATÁLOGO) -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="flex items-center justify-between mb-6">
+            <h2 id="titulo-categoria" class="text-lg font-bold text-slate-900 tracking-tight">Todas las Prendas Disponibles</h2>
+            <span id="total-productos" class="text-xs bg-slate-200 text-slate-700 px-2.5 py-1 rounded-full font-semibold">Cargando...</span>
+        </div>
+
+        <div id="catalog-container" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            <div class="col-span-full text-center py-12 text-slate-400">
+                <i class="fa-solid fa-circle-notch fa-spin text-2xl text-rose-500 mb-2"></i>
+                <p class="text-xs">Cargando catálogo en tiempo real...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- 5. MODAL DE SELECCIÓN DE VARIANTE -->
+    <div id="modal-producto" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl p-5 relative">
+            <button onclick="cerrarModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div id="modal-contenido">
+                <!-- Se llena dinámicamente -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. DRAWER LATERAL: CARRITO DE COMPRAS -->
+    <div id="drawer-carrito" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs hidden transition-opacity">
+        <div class="fixed top-0 right-0 h-full max-w-md w-full bg-white shadow-2xl flex flex-col justify-between p-5 transform transition-transform">
+            
+            <div>
+                <div class="flex items-center justify-between pb-4 border-b border-slate-200">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-bag-shopping text-rose-600 text-xl"></i>
+                        <h3 class="text-base font-extrabold text-slate-900">Tu Carrito de Compras</h3>
+                    </div>
+                    <button onclick="toggleCarrito()" class="text-slate-400 hover:text-slate-700 text-lg">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div id="carrito-items" class="py-4 space-y-3 max-h-[55vh] overflow-y-auto no-scrollbar">
+                    <!-- Productos del Carrito -->
+                </div>
+            </div>
+
+            <!-- BOTONES DE ACCIÓN EN EL CARRITO -->
+            <div class="border-t border-slate-200 pt-4 space-y-3">
+                <div class="flex justify-between items-center text-base font-black text-slate-900">
+                    <span>Total Estimado:</span>
+                    <span id="carrito-total" class="text-rose-600 text-xl">$0.00</span>
+                </div>
+
+                <div class="grid grid-cols-1 gap-2">
+                    <button onclick="enviarPedidoFinalWhatsApp()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition">
+                        <i class="fa-brands fa-whatsapp text-xl"></i>
+                        <span>Finalizar Pedido por WhatsApp</span>
+                    </button>
+
+                    <button onclick="toggleCarrito()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs py-3 rounded-xl flex items-center justify-center gap-2 transition">
+                        <i class="fa-solid fa-arrow-left"></i>
+                        <span>Seguir Comprando</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        const API_URL = "http://127.0.0.1:8000/api/web/inventario";
+        const API_CATEGORIAS = "http://127.0.0.1:8000/api/categorias";
+        let productos = [];
+        let productosFiltrados = [];
+        let productoSeleccionado = null;
+        let tallaSeleccionada = "";
+        let colorSeleccionado = "";
+        let carrito = [];
+
+        async function inicializarTienda() {
+            await cargarCategoriasWeb();
+            await cargarInventario();
+        }
+
+        async function cargarCategoriasWeb() {
+            try {
+                const res = await fetch(API_CATEGORIAS);
+                if (res.ok) {
+                    const categorias = await res.json();
+                    renderizarCategoriasWeb(categorias);
+                }
+            } catch (e) {
+                console.error("Error al cargar categorías dinámicas:", e);
+            }
+        }
+
+        function renderizarCategoriasWeb(categorias) {
+            const contenedor = document.getElementById("categorias-scroll");
+            
+            let html = `
+                <button onclick="filtrarCategoria('TODAS')" id="btn-cat-TODAS" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none">
+                    <div class="circle-cat w-14 h-14 rounded-full overflow-hidden border-2 border-rose-500 p-0.5 transition-all shadow-xs">
+                        <img src="https://fajasisabellaec.com/wp-content/uploads/2023/11/IMG_8347-150x150.jpg" class="w-full h-full object-cover rounded-full" alt="Todas">
+                    </div>
+                    <span class="text-[10px] font-bold text-rose-600 mt-1 uppercase tracking-tight label-cat">Todas</span>
+                </button>
+            `;
+
+            categorias.forEach(cat => {
+                html += `
+                    <button onclick="filtrarCategoria('${cat.nombre}')" id="btn-cat-${cat.nombre}" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none">
+                        <div class="circle-cat w-14 h-14 rounded-full overflow-hidden border-2 border-slate-200 p-0.5 transition-all shadow-xs">
+                            <img src="${cat.imagen_url}" class="w-full h-full object-cover rounded-full" alt="${cat.nombre}">
+                        </div>
+                        <span class="text-[10px] font-bold text-slate-700 mt-1 uppercase tracking-tight label-cat">${cat.nombre}</span>
+                    </button>
+                `;
+            });
+
+            contenedor.innerHTML = html;
+        }
+
+        async function cargarInventario() {
+            try {
+                const res = await fetch(API_URL);
+                if (res.ok) {
+                    const data = await res.json();
+                    productos = formatearRespuestaAPI(data);
+                } else {
+                    productos = obtenerDemoEstructurado();
+                }
+            } catch (e) {
+                productos = obtenerDemoEstructurado();
+            }
+            productosFiltrados = [...productos];
+            renderizarCatalogo();
+        }
+
+        function formatearRespuestaAPI(data) {
+            if (!Array.isArray(data) || data.length === 0) return obtenerDemoEstructurado();
+            if (data[0].variantes) return data;
+
+            const agrupados = {};
+            data.forEach(item => {
+                const nombreBase = item.producto_nombre || "Faja Isabella";
+                const cat = item.categoria || "GENERAL";
+                
+                if (!agrupados[nombreBase]) {
+                    agrupados[nombreBase] = {
+                        id: Object.keys(agrupados).length + 1,
+                        nombre: nombreBase,
+                        categoria: cat,
+                        imagen_url: item.imagen_url || "https://fajasisabellaec.com/wp-content/uploads/2023/11/IMG_8305-150x150.jpg",
+                        en_liquidacion: item.en_liquidacion || false,
+                        variantes: []
+                    };
+                }
+                agrupados[nombreBase].variantes.push({
+                    sku: item.sku,
+                    talla: item.talla,
+                    color: item.color,
+                    precio: item.precio,
+                    stock: item.stock_disponible || item.stock
+                });
+            });
+
+            return Object.values(agrupados);
+        }
+
+        function obtenerDemoEstructurado() {
+            return [
+                {
+                    id: 1,
+                    nombre: "Faja Chaleco Modeladora",
+                    categoria: "CINTURILLAS",
+                    imagen_url: "https://fajasisabellaec.com/wp-content/uploads/2023/11/IMG_8305-150x150.jpg",
+                    en_liquidacion: true,
+                    variantes: [
+                        { sku: "FAJA-CHALECO-XS-NEGRO", talla: "XS", color: "Negro", precio: 45.0, stock: 4 },
+                        { sku: "FAJA-CHALECO-S-NEGRO", talla: "S", color: "Negro", precio: 45.0, stock: 10 }
+                    ]
+                }
+            ];
+        }
+
+        function renderizarCatalogo() {
+            const container = document.getElementById("catalog-container");
+            document.getElementById("total-productos").innerText = `${productosFiltrados.length} modelos`;
+
+            if (productosFiltrados.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center py-12 text-slate-400 text-sm">No encontramos modelos en esta sección.</div>`;
+                return;
+            }
+
+            container.innerHTML = productosFiltrados.map(p => {
+                const precios = p.variantes.map(v => v.precio);
+                const precioMin = Math.min(...precios);
+                const precioMax = Math.max(...precios);
+                const precioTexto = precioMin === precioMax ? `$${precioMin.toFixed(2)}` : `$${precioMin.toFixed(2)} - $${precioMax.toFixed(2)}`;
+                const coloresUnicos = [...new Set(p.variantes.map(v => v.color))].join(", ");
+
+                const badgeLiquidacion = p.en_liquidacion 
+                    ? `<span class="absolute top-2 left-2 bg-rose-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md animate-pulse">🔥 LIQUIDACIÓN</span>` 
+                    : '';
+
+                return `
+                    <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:shadow-lg transition flex flex-col justify-between group">
+                        <div class="relative bg-slate-50 h-48 flex items-center justify-center p-3 overflow-hidden">
+                            ${badgeLiquidacion}
+                            <img src="${p.imagen_url}" class="h-full object-contain group-hover:scale-105 transition-all duration-300" alt="${p.nombre}">
+                            <span class="absolute top-2 right-2 bg-slate-900/80 text-white text-[9px] font-bold px-2 py-0.5 rounded-full backdrop-blur-xs">
+                                ${p.variantes.length} Opciones
+                            </span>
+                        </div>
+
+                        <div class="p-3.5 flex-1 flex flex-col justify-between">
+                            <div>
+                                <span class="text-[9px] font-bold text-rose-600 tracking-wider uppercase">${p.categoria}</span>
+                                <h3 class="text-xs font-bold text-slate-800 line-clamp-1 mb-1">${p.nombre}</h3>
+                                <p class="text-[10px] text-slate-500 mb-2">Colores: <span class="font-medium text-slate-700">${coloresUnicos}</span></p>
+                            </div>
+
+                            <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
+                                <div>
+                                    <span class="text-[9px] text-slate-400 block">${p.en_liquidacion ? 'Oferta' : 'Desde'}</span>
+                                    <span class="text-sm font-black ${p.en_liquidacion ? 'text-rose-600' : 'text-slate-900'}">${precioTexto}</span>
+                                </div>
+                                <button onclick="abrirModal(${p.id})" 
+                                    class="bg-slate-900 hover:bg-rose-600 text-white font-bold text-[11px] px-3 py-1.5 rounded-xl transition shadow-xs">
+                                    Ver Tallas
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function abrirModal(productoId) {
+            productoSeleccionado = productos.find(p => p.id === productoId);
+            if (!productoSeleccionado) return;
+
+            const variantes = productoSeleccionado.variantes;
+            const tallas = [...new Set(variantes.map(v => v.talla))];
+            const colores = [...new Set(variantes.map(v => v.color))];
+
+            tallaSeleccionada = tallas[0];
+            colorSeleccionado = colores[0];
+
+            const contenido = `
+                <div class="flex gap-4 items-start mb-4">
+                    <img src="${productoSeleccionado.imagen_url}" class="w-20 h-20 object-contain rounded-2xl bg-slate-50 p-2 border border-slate-100 shrink-0">
+                    <div>
+                        <span class="text-[10px] font-bold text-rose-600 tracking-wider uppercase">${productoSeleccionado.categoria}</span>
+                        <h3 class="text-base font-extrabold text-slate-900 leading-snug">${productoSeleccionado.nombre}</h3>
+                        <p id="modal-precio" class="text-xl font-black text-rose-600 mt-1">$${variantes[0].precio.toFixed(2)}</p>
+                    </div>
+                </div>
+
+                <div class="space-y-3.5 border-t border-slate-100 pt-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-800 block mb-1.5">Talla:</label>
+                        <div class="flex gap-2 flex-wrap" id="selector-tallas">
+                            ${tallas.map((t, idx) => `
+                                <button onclick="seleccionarTalla('${t}')" id="btn-talla-${t}" 
+                                    class="btn-talla px-3.5 py-1.5 text-xs rounded-xl font-bold border ${idx === 0 ? 'bg-rose-600 text-white border-rose-600 shadow-xs' : 'bg-white text-slate-700 border-slate-300'} transition">
+                                    ${t}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-slate-800 block mb-1.5">Color:</label>
+                        <div class="flex gap-2 flex-wrap" id="selector-colores">
+                            ${colores.map((c, idx) => `
+                                <button onclick="seleccionarColor('${c}')" id="btn-color-${c}" 
+                                    class="btn-color px-3.5 py-1.5 text-xs rounded-xl font-bold border ${idx === 0 ? 'bg-slate-900 text-white border-slate-900 shadow-xs' : 'bg-white text-slate-700 border-slate-300'} transition">
+                                    ${c}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div class="bg-rose-50/60 border border-rose-100 p-3 rounded-2xl mt-3">
+                        <span class="text-[10px] font-bold text-rose-600 uppercase tracking-wider block mb-1">📋 Resumen de Selección:</span>
+                        <div class="text-xs text-slate-800 space-y-1">
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Variante:</span>
+                                <span class="font-bold text-slate-900"><span id="resumen-talla">${tallaSeleccionada}</span> / <span id="resumen-color">${colorSeleccionado}</span></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Disponibilidad:</span>
+                                <span class="font-mono text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded" id="modal-stock">Consultando...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 mt-2">
+                        <button onclick="agregarAlCarrito(false)" 
+                            class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs py-3 rounded-xl flex items-center justify-center gap-1.5 transition">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Seguir Comprando</span>
+                        </button>
+
+                        <button onclick="agregarAlCarrito(true)" 
+                            class="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-3 rounded-xl flex items-center justify-center gap-1.5 shadow-md shadow-rose-600/20 transition">
+                            <i class="fa-solid fa-cart-shopping"></i>
+                            <span>Ir al Carrito</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById("modal-contenido").innerHTML = contenido;
+            document.getElementById("modal-producto").classList.remove("hidden");
+            actualizarDetalleVariante();
+        }
+
+        function seleccionarTalla(talla) {
+            tallaSeleccionada = talla;
+            document.querySelectorAll(".btn-talla").forEach(b => {
+                b.classList.remove("bg-rose-600", "text-white", "border-rose-600");
+                b.classList.add("bg-white", "text-slate-700", "border-slate-300");
+            });
+            const btn = document.getElementById(`btn-talla-${talla}`);
+            if (btn) {
+                btn.classList.remove("bg-white", "text-slate-700", "border-slate-300");
+                btn.classList.add("bg-rose-600", "text-white", "border-rose-600");
+            }
+            actualizarDetalleVariante();
+        }
+
+        function seleccionarColor(color) {
+            colorSeleccionado = color;
+            document.querySelectorAll(".btn-color").forEach(b => {
+                b.classList.remove("bg-slate-900", "text-white", "border-slate-900");
+                b.classList.add("bg-white", "text-slate-700", "border-slate-300");
+            });
+            const btn = document.getElementById(`btn-color-${color}`);
+            if (btn) {
+                btn.classList.remove("bg-white", "text-slate-700", "border-slate-300");
+                btn.classList.add("bg-slate-900", "text-white", "border-slate-900");
+            }
+            actualizarDetalleVariante();
+        }
+
+        function actualizarDetalleVariante() {
+            if (!productoSeleccionado) return;
+            const variante = productoSeleccionado.variantes.find(v => v.talla === tallaSeleccionada && v.color === colorSeleccionado) 
+                          || productoSeleccionado.variantes.find(v => v.talla === tallaSeleccionada) 
+                          || productoSeleccionado.variantes[0];
+
+            if (variante) {
+                document.getElementById("modal-precio").innerText = `$${variante.precio.toFixed(2)}`;
+                document.getElementById("resumen-talla").innerText = tallaSeleccionada;
+                document.getElementById("resumen-color").innerText = colorSeleccionado;
+                document.getElementById("modal-stock").innerText = `Stock: ${variante.stock} disp. (${variante.sku})`;
+            }
+        }
+
+        function cerrarModal() {
+            document.getElementById("modal-producto").classList.add("hidden");
+        }
+
+        function scrollCategorias(distancia) {
+            const contenedor = document.getElementById("categorias-scroll");
+            if (contenedor) {
+                contenedor.scrollBy({ left: distancia, behavior: 'smooth' });
+            }
+        }
+
+        function filtrarCategoria(cat) {
+            if (cat === 'LIQUIDACION') {
+                document.getElementById("titulo-categoria").innerText = "🔥 Productos en Liquidación / Oferta Especial";
+                productosFiltrados = productos.filter(p => p.en_liquidacion === true);
+                
+                document.querySelectorAll(".circle-cat").forEach(c => {
+                    c.classList.remove("border-rose-500");
+                    c.classList.add("border-slate-200");
+                });
+                document.querySelectorAll(".label-cat").forEach(l => {
+                    l.classList.remove("text-rose-600");
+                    l.classList.add("text-slate-700");
+                });
+            } else {
+                document.getElementById("titulo-categoria").innerText = cat === 'TODAS' ? 'Todas las Prendas Disponibles' : `Categoría: ${cat}`;
+                
+                document.querySelectorAll(".btn-categoria").forEach(btn => {
+                    const circle = btn.querySelector(".circle-cat");
+                    const label = btn.querySelector(".label-cat");
+                    if (circle) {
+                        circle.classList.remove("border-rose-500");
+                        circle.classList.add("border-slate-200");
+                    }
+                    if (label) {
+                        label.classList.remove("text-rose-600");
+                        label.classList.add("text-slate-700");
+                    }
+                });
+
+                const btnActivo = document.getElementById(`btn-cat-${cat}`);
+                if (btnActivo) {
+                    const circle = btnActivo.querySelector(".circle-cat");
+                    const label = btnActivo.querySelector(".label-cat");
+                    if (circle) {
+                        circle.classList.remove("border-slate-200");
+                        circle.classList.add("border-rose-500");
+                    }
+                    if (label) {
+                        label.classList.remove("text-slate-700");
+                        label.classList.add("text-rose-600");
+                    }
+                }
+
+                if (cat === 'TODAS') {
+                    productosFiltrados = [...productos];
+                } else {
+                    productosFiltrados = productos.filter(p => (p.categoria || '').toUpperCase().includes(cat));
+                }
+            }
+
+            renderizarCatalogo();
+        }
+
+        function buscarProducto() {
+            const query = document.getElementById("input-busqueda").value.toLowerCase();
+            productosFiltrados = productos.filter(p => 
+                p.nombre.toLowerCase().includes(query) || 
+                p.categoria.toLowerCase().includes(query) ||
+                p.variantes.some(v => v.sku.toLowerCase().includes(query))
+            );
+            renderizarCatalogo();
+        }
+
+        function agregarAlCarrito(abrirCarritoDrawer = false) {
+            const variante = productoSeleccionado.variantes.find(v => v.talla === tallaSeleccionada && v.color === colorSeleccionado) || productoSeleccionado.variantes[0];
+
+            const itemExistente = carrito.find(item => item.sku === variante.sku);
+            if (itemExistente) {
+                itemExistente.cantidad += 1;
+            } else {
+                carrito.push({
+                    nombre: productoSeleccionado.nombre,
+                    sku: variante.sku,
+                    talla: tallaSeleccionada,
+                    color: colorSeleccionado,
+                    precio: variante.precio,
+                    imagen_url: productoSeleccionado.imagen_url,
+                    cantidad: 1
+                });
+            }
+
+            cerrarModal();
+            actualizarCarritoUI();
+
+            if (abrirCarritoDrawer) {
+                toggleCarrito();
+            }
+        }
+
+        function actualizarCarritoUI() {
+            const count = carrito.reduce((acc, item) => acc + item.cantidad, 0);
+            const total = carrito.reduce((acc, item) => acc + (item.precio * item.cantidad), 0);
+
+            document.getElementById("cart-count").innerText = count;
+            document.getElementById("carrito-total").innerText = `$${total.toFixed(2)}`;
+
+            const container = document.getElementById("carrito-items");
+            if (carrito.length === 0) {
+                container.innerHTML = `<div class="text-center py-12 text-slate-400 text-xs">Tu carrito está vacío por el momento.</div>`;
+                return;
+            }
+
+            container.innerHTML = carrito.map((item, index) => `
+                <div class="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                    <div class="flex items-center gap-3">
+                        <img src="${item.imagen_url}" class="w-12 h-12 object-contain rounded-lg bg-white p-1 border">
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-800 line-clamp-1">${item.nombre}</h4>
+                            <p class="text-[10px] text-slate-500">Talla: <b>${item.talla}</b> | Color: <b>${item.color}</b></p>
+                            <span class="text-xs font-black text-rose-600">$${item.precio.toFixed(2)} x ${item.cantidad}</span>
+                        </div>
+                    </div>
+                    <button onclick="eliminarDelCarrito(${index})" class="text-slate-400 hover:text-rose-600 text-xs p-1">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function eliminarDelCarrito(index) {
+            carrito.splice(index, 1);
+            actualizarCarritoUI();
+        }
+
+        function toggleCarrito() {
+            const drawer = document.getElementById("drawer-carrito");
+            drawer.classList.toggle("hidden");
+        }
+
+        function enviarPedidoFinalWhatsApp() {
+            if (carrito.length === 0) {
+                alert("Tu carrito está vacío. Agrega una prenda antes de enviar tu pedido.");
+                return;
+            }
+
+            let detalleText = "";
+            let total = 0;
+
+            carrito.forEach((item, idx) => {
+                const subtotal = item.precio * item.cantidad;
+                total += subtotal;
+                detalleText += `${idx + 1}. *${item.nombre}*\n   - Talla: ${item.talla} | Color: ${item.color}\n   - SKU: \`${item.sku}\`\n   - Cantidad: ${item.cantidad} x $${item.precio.toFixed(2)} = $${subtotal.toFixed(2)}\n\n`;
+            });
+
+            const mensaje = encodeURIComponent(`¡Hola Fajas Isabella! 👋 Deseo realizar la compra de las siguientes prendas de mi carrito:\n\n${detalleText}💰 *Total a Pagar:* $${total.toFixed(2)}\n\n¿Me ayudan a confirmar el pedido y coordinar el envío?`);
+            window.open(`https://wa.me/593983870398?text=${mensaje}`, '_blank');
+        }
+
+        // Inicializar tienda al cargar la página
+        inicializarTienda();
+    </script>
+</body>
+</html>
