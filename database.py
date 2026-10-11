@@ -3,12 +3,15 @@ from datetime import datetime, date
 from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, DateTime, Date, Boolean
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+psycopg2://postgres:Litos0707@localhost:5432/fajas_isabella_db"
-)
+# Obtener y validar la URL de la base de datos
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+if not DATABASE_URL:
+    # Fallback para desarrollo local si no está presente en el entorno
+    DATABASE_URL = "postgresql+psycopg2://postgres:Litos0707@localhost:5432/fajas_isabella_db"
+
+# Corrección para compatibilidad con SQLAlchemy en la nube
+if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 engine = create_engine(DATABASE_URL)
@@ -61,7 +64,7 @@ class VarianteProducto(Base):
 class Factura(Base):
     __tablename__ = "facturas"
     id = Column(Integer, primary_key=True, index=True)
-    tipo_factura = Column(String, nullable=False)  # 'VENTA' o 'COMPRA'
+    tipo_factura = Column(String, nullable=False)
     numero_factura = Column(String, unique=True, index=True, nullable=False)
     numero_autorizacion = Column(String, nullable=True)
     fecha_factura = Column(Date, default=date.today)
