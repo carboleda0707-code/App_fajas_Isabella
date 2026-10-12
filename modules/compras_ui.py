@@ -1,8 +1,9 @@
 import streamlit as st
 import requests
 from datetime import date
+import os
 
-API_URL = "http://127.0.0.1:8000/api"
+API_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
 
 def render_compras():
     st.markdown("### 📥 Compras a Proveedores")

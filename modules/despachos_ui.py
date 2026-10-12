@@ -5,7 +5,7 @@ import pandas as pd
 import io
 
 # Lectura dinámica de la API: usa la variable de entorno en Railway o localhost en desarrollo
-API_URL = os.getenv("API_URL", "http://127.0.0.1:8000")
+API_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
 
 def render_despachos():
     st.subheader("📦 Control de Despachos y Envíos por Courier")

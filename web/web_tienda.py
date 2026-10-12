@@ -9,7 +9,7 @@ st.set_page_config(
 )
 
 # Detectar URL de la API dinámicamente para entornos Local y Nube (Railway)
-API_URL = os.getenv("API_URL", "http://127.0.0.1:8000")
+API_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
 
 st.markdown("""
     <div style="text-align: center; padding: 20px; background-color: #f8fafc; border-bottom: 2px solid #e2e8f0; margin-bottom: 25px;">
