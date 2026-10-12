@@ -1,16 +1,16 @@
 import os
 from datetime import datetime, date
-from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, DateTime, Date, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, DateTime, Date, Boolean, text
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
-# Obtener y validar la URL de la base de datos
+# 1. Obtener la URL de la base de datos desde las variables de entorno (Railway / Producción)
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not DATABASE_URL:
-    # Fallback para desarrollo local si no está presente en el entorno
+    # Fallback para entorno de desarrollo local
     DATABASE_URL = "postgresql+psycopg2://postgres:Litos0707@localhost:5432/fajas_isabella_db"
 
-# Corrección para compatibilidad con SQLAlchemy en la nube usando psycopg2
+# 2. Corrección automática de prefijos para compatibilidad con SQLAlchemy en la nube
 if DATABASE_URL:
     if DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
@@ -29,7 +29,11 @@ class Cliente(Base):
     ruc_cedula = Column(String, unique=True, index=True, nullable=False)
     nombre = Column(String, nullable=False)
     direccion = Column(String)
+    ciudad = Column(String(100), nullable=True)
     telefono = Column(String)
+    correo = Column(String, nullable=True)
+    tipo_precio = Column(String(50), default='REGULAR')          # <-- NUEVO: REGULAR, MAYORISTA, VIP
+    descuento_porcentaje = Column(Float, default=0.0)             # <-- NUEVO: % Descuento Fijo
 
 class Proveedor(Base):
     __tablename__ = "proveedores"
@@ -75,6 +79,14 @@ class Factura(Base):
     entidad_nombre = Column(String, nullable=False)
     total_factura = Column(Float, nullable=False, default=0.0)
     
+    provincia = Column(String(100), nullable=True)
+    ciudad = Column(String(100), nullable=True)
+    direccion_entrega = Column(String, nullable=True)
+    referencia_direccion = Column(String, nullable=True)
+    courier_nombre = Column(String(50), nullable=True)
+    numero_guia = Column(String(100), nullable=True)
+    estado_despacho = Column(String(30), default='PENDIENTE')
+
     pagos = relationship("Pago", back_populates="factura", cascade="all, delete-orphan")
 
 class Pago(Base):
@@ -112,5 +124,25 @@ def get_db():
     finally:
         db.close()
 
-# --- CREACIÓN AUTOMÁTICA DE TABLAS AL INICIAR ---
+# --- CREACIÓN Y AUTO-MIGRACIÓN EN CALIENTE AL INICIAR ---
 Base.metadata.create_all(bind=engine)
+
+def asegurar_columnas_logistica():
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS provincia VARCHAR(100);"))
+        conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS ciudad VARCHAR(100);"))
+        conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS direccion_entrega TEXT;"))
+        conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS referencia_direccion TEXT;"))
+        conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS courier_nombre VARCHAR(50);"))
+        conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS numero_guia VARCHAR(100);"))
+        conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS estado_despacho VARCHAR(30) DEFAULT 'PENDIENTE';"))
+        conn.execute(text("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ciudad VARCHAR(100);"))
+        conn.execute(text("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS correo VARCHAR;"))
+        conn.execute(text("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS tipo_precio VARCHAR(50) DEFAULT 'REGULAR';"))
+        conn.execute(text("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS descuento_porcentaje FLOAT DEFAULT 0.0;"))
+        conn.execute(text("ALTER TABLE movimientos_inventario ADD COLUMN IF NOT EXISTS valor_neto FLOAT;"))
+
+try:
+    asegurar_columnas_logistica()
+except Exception as e:
+    print(f"Nota sobre migración automática en caliente: {e}")

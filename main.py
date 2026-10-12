@@ -19,15 +19,17 @@ app.add_middleware(
 def home():
     return RedirectResponse(url="/web/index.html")
 
-# Montar los archivos estáticos de la tienda y la carpeta de imágenes
+# Router de la Web Pública con el prefijo /api
+app.include_router(web_publica.router, prefix="/api", tags=["Web Pública"])
+
+# Routers del sistema (Ventas mapeado bajo /api para sincronía con el frontend)
+app.include_router(ventas.router, prefix="/api", tags=["Ventas"])
+app.include_router(clientes.router, tags=["Clientes"])
+app.include_router(proveedores.router, tags=["Proveedores"])
+app.include_router(productos.router, tags=["Productos & Inventario"])
+app.include_router(compras.router, tags=["Compras"])
+app.include_router(reportes.router, tags=["Reportes"])
+
+# Archivos estáticos
 app.mount("/web", StaticFiles(directory="web", html=True), name="web")
 app.mount("/img", StaticFiles(directory="web/img"), name="img")
-
-# Routers de la API
-app.include_router(clientes.router, prefix="/api", tags=["Clientes"])
-app.include_router(proveedores.router, prefix="/api", tags=["Proveedores"])
-app.include_router(productos.router, prefix="/api", tags=["Productos & Inventario"])
-app.include_router(compras.router, prefix="/api", tags=["Compras"])
-app.include_router(ventas.router, prefix="/api", tags=["Ventas"])
-app.include_router(reportes.router, prefix="/api", tags=["Reportes"])
-app.include_router(web_publica.router, prefix="/api", tags=["Web Pública"])

@@ -4,12 +4,28 @@ from pydantic import BaseModel
 from typing import Optional, List
 import os
 import shutil
+import re
+import unicodedata
 from database import get_db, Producto, VarianteProducto, Categoria
 
 router = APIRouter()
 
+def generar_sku_compacto(producto_id: int, talla: str, color: str) -> str:
+    """
+    Genera un SKU compacto tipo: {id}-{talla}-{color_2_letras}
+    Ejemplo: (12, 'XS', 'Negro') -> '12-xs-ne'
+    """
+    talla_clean = re.sub(r'[^a-zA-Z0-9]', '', talla).lower()
+    
+    color_norm = unicodedata.normalize('NFD', color)
+    color_norm = "".join([c for c in color_norm if unicodedata.category(c) != 'Mn']).lower()
+    color_clean = re.sub(r'[^a-z]', '', color_norm)
+    color_code = color_clean[:2] if len(color_clean) >= 2 else color_clean.ljust(2, 'x')
+    
+    return f"{producto_id}-{talla_clean}-{color_code}"
+
 class VarianteSchema(BaseModel):
-    sku: str
+    sku: Optional[str] = None
     talla: str
     color: str
     stock_actual: int
@@ -63,23 +79,26 @@ def actualizar_variante(
     variante.talla = talla.strip()
     variante.color = color.strip()
     variante.precio = float(precio)
+    
+    # Regenerar SKU automáticamente basado en el id del producto, talla y color
+    if variante.producto_id:
+        variante.sku = generar_sku_compacto(variante.producto_id, variante.talla, variante.color)
         
     if variante.producto:
         variante.producto.categoria = categoria.strip()
         
         if imagen and imagen.filename:
-            cat_folder_name = categoria.lower().replace(" ", "_")
-            dir_destino = os.path.join("web", "img", "productos", cat_folder_name)
+            dir_destino = os.path.join("web", "img")
             os.makedirs(dir_destino, exist_ok=True)
             
             ruta_fisica = os.path.join(dir_destino, imagen.filename)
             with open(ruta_fisica, "wb") as buffer:
                 shutil.copyfileobj(imagen.file, buffer)
             
-            variante.producto.imagen_url = f"img/productos/{cat_folder_name}/{imagen.filename}"
+            variante.producto.imagen_url = f"img/{imagen.filename}"
         
     db.commit()
-    return {"status": "success", "message": f"Variante ID {var_id} actualizada correctamente."}
+    return {"status": "success", "message": f"Variante ID {var_id} actualizada correctamente con SKU {variante.sku}."}
 
 @router.post("/productos")
 def crear_o_actualizar_producto(data: ProductoNuevoSchema, db: Session = Depends(get_db)):
@@ -93,6 +112,8 @@ def crear_o_actualizar_producto(data: ProductoNuevoSchema, db: Session = Depends
             prod.imagen_url = data.imagen_url or prod.imagen_url
             if data.en_liquidacion is not None:
                 prod.en_liquidacion = data.en_liquidacion
+            db.commit()
+            db.refresh(prod)
         else:
             prod = Producto(
                 nombre=data.nombre, 
@@ -105,17 +126,14 @@ def crear_o_actualizar_producto(data: ProductoNuevoSchema, db: Session = Depends
             db.commit()
             db.refresh(prod)
 
-        cat_prefix = (data.categoria or "GEN")[:3].upper()
         skus_procesados_lote = set()
 
-        for idx, v in enumerate(data.variantes):
-            sku_limpio = str(v.sku).strip() if v.sku else ""
+        for v in data.variantes:
+            talla_val = str(v.talla).strip()
+            color_val = str(v.color).strip()
             
-            if not sku_limpio or sku_limpio.lower() in ["none", "nan", ""]:
-                talla_code = str(v.talla).upper().strip()
-                color_code = str(v.color).upper().strip()[:3]
-                prod_clean = data.nombre.upper().replace(' ', '-')
-                sku_limpio = f"{cat_prefix}-{prod_clean}-{talla_code}-{color_code}"
+            # Generar SKU automático y compacto usando el ID real del producto registrado
+            sku_limpio = generar_sku_compacto(prod.id, talla_val, color_val)
 
             sku_candidate = sku_limpio
             contador = 1
@@ -130,21 +148,21 @@ def crear_o_actualizar_producto(data: ProductoNuevoSchema, db: Session = Depends
             if existe_sku:
                 existe_sku.stock_actual = v.stock_actual
                 existe_sku.precio = v.precio
-                existe_sku.talla = v.talla
-                existe_sku.color = v.color
+                existe_sku.talla = talla_val
+                existe_sku.color = color_val
             else:
                 variante = VarianteProducto(
                     sku=sku_limpio, 
                     producto_id=prod.id, 
-                    talla=v.talla,
-                    color=v.color, 
+                    talla=talla_val,
+                    color=color_val, 
                     stock_actual=v.stock_actual, 
                     precio=v.precio
                 )
                 db.add(variante)
                 
         db.commit()
-        return {"status": "success", "message": f"Producto '{data.nombre}' y sus variantes guardados exitosamente."}
+        return {"status": "success", "message": f"Producto '{data.nombre}' y sus variantes guardados exitosamente con SKU compacto."}
 
     except Exception as e:
         db.rollback()
@@ -159,7 +177,7 @@ def eliminar_variante(variante_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"status": "success", "message": "Variante eliminada."}
 
-# --- ENDPOINTS DE CATEGORÍAS ---
+# --- ENDPOINTS DE CATEGORÍAS (SIN PREFIJOS NI SUBCARPETAS) ---
 @router.get("/categorias")
 def listar_categorias(db: Session = Depends(get_db)):
     categorias = db.query(Categoria).all()
@@ -173,22 +191,19 @@ def crear_o_actualizar_categoria(
 ):
     try:
         cat_nombre = nombre.strip().upper()
-        cat_slug = cat_nombre.lower().replace(" ", "_")
         
-        _, ext = os.path.splitext(imagen.filename)
-        if not ext:
-            ext = ".jpg"
-            
-        nombre_archivo_web = f"cat-{cat_slug}{ext}"
+        # Usar estrictamente el nombre original del archivo subido
+        nombre_archivo = imagen.filename
         
-        dir_destino = os.path.join("web", "img", "categorias")
+        dir_destino = os.path.join("web", "img")
         os.makedirs(dir_destino, exist_ok=True)
         
-        ruta_fisica = os.path.join(dir_destino, nombre_archivo_web)
+        ruta_fisica = os.path.join(dir_destino, nombre_archivo)
         with open(ruta_fisica, "wb") as buffer:
             shutil.copyfileobj(imagen.file, buffer)
             
-        imagen_relativa = f"img/categorias/{nombre_archivo_web}"
+        # Guardar la ruta limpia directa: "img/nombre_original.jpg"
+        imagen_relativa = f"img/{nombre_archivo}"
         
         cat_db = db.query(Categoria).filter(Categoria.nombre == cat_nombre).first()
         if cat_db:
@@ -198,7 +213,7 @@ def crear_o_actualizar_categoria(
             db.add(cat_db)
             
         db.commit()
-        return {"status": "success", "message": f"Categoría '{cat_nombre}' guardada exitosamente."}
+        return {"status": "success", "message": f"Categoría '{cat_nombre}' guardada exitosamente con su nombre original."}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -209,10 +224,11 @@ def eliminar_categoria(categoria_id: int, db: Session = Depends(get_db)):
     if not cat_db:
         raise HTTPException(status_code=404, detail="Categoría no encontrada.")
     
-    cat_folder_name = cat_db.nombre.lower().replace(" ", "_")
-    ruta_fisica = os.path.join("web", "img", "categorias", f"cat-{cat_folder_name}.jpg")
-    if os.path.exists(ruta_fisica):
-        os.remove(ruta_fisica)
+    # Intentar eliminar el archivo físico usando su ruta registrada
+    if cat_db.imagen_url:
+        ruta_fisica = os.path.join("web", cat_db.imagen_url)
+        if os.path.exists(ruta_fisica):
+            os.remove(ruta_fisica)
         
     db.delete(cat_db)
     db.commit()

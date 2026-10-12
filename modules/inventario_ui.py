@@ -3,7 +3,8 @@ import requests
 import os
 import pandas as pd
 
-API_URL = "http://127.0.0.1:8000/api"
+# Lectura dinámica de la API: usa la variable de entorno en Railway o localhost en desarrollo
+API_URL = os.getenv("API_URL", "http://127.0.0.1:8000")
 
 def render_inventario():
     accion = st.radio(
@@ -31,19 +32,17 @@ def render_inventario():
             
             nombre_producto = st.text_input("Nombre del Modelo / Producto", placeholder="Ej: Panty Alto Diva")
             
-            # Selector dinámico de categorías corregido (options)
+            # Selector dinámico de categorías
             categoria = st.selectbox("Categoría del Producto", options=categorias_disponibles)
 
-            prefijo = (categoria or "GEN")[:3].upper()
-            prod_clean = nombre_producto.upper().replace(' ', '-') if nombre_producto else "MODELO"
-
             st.markdown("#### 🏷️ Tabla de Variantes (Tallas, Colores, Precios y Stock)")
-            st.caption("Puedes editar libremente el SKU o dejarlo vacío para autogenerarlo.")
+            st.caption("Puedes dejar el SKU vacío para que el sistema lo genere automáticamente de forma compacta (ej: id-talla-color), o escribir uno personalizado.")
 
+            # Tabla inicial limpia sin SKUs quemados estáticos (SKU en blanco para autogeneración)
             df_inicial = pd.DataFrame([
-                {"sku": f"{prefijo}-{prod_clean}-S-NEG", "talla": "S", "color": "Negro", "precio": 45.0, "stock_actual": 10},
-                {"sku": f"{prefijo}-{prod_clean}-M-NEG", "talla": "M", "color": "Negro", "precio": 45.0, "stock_actual": 10},
-                {"sku": f"{prefijo}-{prod_clean}-L-NEG", "talla": "L", "color": "Negro", "precio": 45.0, "stock_actual": 8}
+                {"sku": "", "talla": "S", "color": "Negro", "precio": 45.0, "stock_actual": 10},
+                {"sku": "", "talla": "M", "color": "Negro", "precio": 45.0, "stock_actual": 10},
+                {"sku": "", "talla": "L", "color": "Negro", "precio": 45.0, "stock_actual": 8}
             ])
 
             df_variantes_editado = st.data_editor(
@@ -51,7 +50,7 @@ def render_inventario():
                 num_rows="dynamic",
                 use_container_width=True,
                 column_config={
-                    "sku": st.column_config.TextColumn("SKU (Sobreescribible)", width="medium"),
+                    "sku": st.column_config.TextColumn("SKU (Opcional / Autogenerado)", width="medium"),
                     "talla": st.column_config.TextColumn("Talla", width="small"),
                     "color": st.column_config.TextColumn("Color", width="small"),
                     "precio": st.column_config.NumberColumn("Precio ($)", format="$ %.2f", min_value=0.0, width="small"),
@@ -65,15 +64,14 @@ def render_inventario():
             
             imagen_url_relativa = ""
             if archivo_imagen is not None:
-                cat_folder_name = categoria.lower().replace(" ", "_")
-                dir_destino = os.path.join("web", "img", "productos", cat_folder_name)
+                dir_destino = os.path.join("web", "img")
                 os.makedirs(dir_destino, exist_ok=True)
                 
                 ruta_fisica = os.path.join(dir_destino, archivo_imagen.name)
                 with open(ruta_fisica, "wb") as f:
                     f.write(archivo_imagen.getbuffer())
                 
-                imagen_url_relativa = f"img/productos/{cat_folder_name}/{archivo_imagen.name}"
+                imagen_url_relativa = f"img/{archivo_imagen.name}"
                 st.image(archivo_imagen, use_container_width=True)
             else:
                 st.info("Sin imagen seleccionada")
@@ -129,7 +127,7 @@ def render_inventario():
 
                     if res.status_code == 200:
                         with col_msg:
-                            st.success("✅ Actualizado en la Web satisfactoriamente")
+                            st.success("✅ Producto y variantes guardados satisfactoriamente")
                     else:
                         with col_msg:
                             st.error(f"Error al guardar: {res.text}")

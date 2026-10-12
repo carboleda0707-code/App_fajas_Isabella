@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from database import get_db, Producto, Categoria  # Asegúrate de importar 'Categoria' desde database.py o models
+from database import get_db, Producto, Categoria
 from typing import Optional
 
 router = APIRouter()
@@ -29,12 +29,17 @@ def listar_inventario_publico(categoria: Optional[str] = Query(None), db: Sessio
                     "stock": v.stock_actual
                 })
             
+            # Formatear la URL de la imagen limpia preservando el nombre original del archivo
+            img_clean = getattr(prod, 'imagen_url', '') or ''
+            if img_clean:
+                img_clean = img_clean.split('/')[-1]
+
             resultado.append({
                 "id": prod.id,
                 "nombre": prod.nombre,
                 "categoria": prod.categoria,
-                "descripcion": getattr(prod, 'descripcion', ''),
-                "imagen_url": getattr(prod, 'imagen_url', ''),
+                "imagen_url": img_clean,
+                "en_liquidacion": getattr(prod, 'en_liquidacion', False),
                 "variantes": variantes_data
             })
             
@@ -50,10 +55,14 @@ def listar_categorias_publicas(db: Session = Depends(get_db)):
         
         resultado = []
         for cat in categorias_db:
+            img_clean = getattr(cat, 'imagen_url', '') or ''
+            if img_clean:
+                img_clean = img_clean.split('/')[-1]
+
             resultado.append({
                 "nombre": getattr(cat, 'nombre', getattr(cat, 'categoria', '')),
-                "imagen_url": getattr(cat, 'imagen_url', '/img/logo.png')
+                "imagen_url": img_clean
             })
         return resultado
-    except Exception as e:
+    except Exception:
         return []

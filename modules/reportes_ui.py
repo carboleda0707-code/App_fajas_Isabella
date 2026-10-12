@@ -1,44 +1,59 @@
 import streamlit as st
 import requests
+import os
+from datetime import date
 
-API_URL = "http://127.0.0.1:8000/api"
+API_URL = os.getenv("API_URL", "http://127.0.0.1:8000")
+
+# Importar los submódulos de reportes que creamos
+from modules.report_ventas import render_reporte_ventas
+from modules.report_compras import render_reporte_compras
+from modules.report_inventario import render_reporte_inventario
 
 def render_reportes():
-    st.header("📊 Reportes y Auditoría del Sistema")
-    tab1, tab2, tab3 = st.tabs(["📋 Movimientos de Inventario", "💰 Reporte de Pagos", "📑 Facturas Emitidas"])
+    st.markdown("### 📊 Reportes y Auditoría del Sistema")
+    st.markdown("---")
+    
+    # Pestañas principales organizadas para auditoría y reportes gerenciales
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "📈 Reporte de Ventas", 
+        "🛒 Reporte de Compras", 
+        "📦 Reporte de Inventario", 
+        "📋 Auditoría de Movimientos", 
+        "💰 Reporte de Pagos / Facturas"
+    ])
     
     with tab1:
-        if st.button("🔄 Actualizar Movimientos"):
+        render_reporte_ventas()
+        
+    with tab2:
+        render_reporte_compras()
+        
+    with tab3:
+        render_reporte_inventario()
+        
+    with tab4:
+        st.markdown("#### 📋 Auditoría de Movimientos de Inventario")
+        if st.button("🔄 Actualizar Movimientos", key="btn_act_mov"):
             st.rerun()
         try:
-            res = requests.get(f"{API_URL}/movimientos")
+            res = requests.get(f"{API_URL}/movimientos", timeout=3)
             if res.status_code == 200 and res.json():
                 st.dataframe(res.json(), use_container_width=True)
             else:
                 st.info("No hay movimientos registrados.")
         except:
-            pass
-
-    with tab2:
-        if st.button("🔄 Actualizar Pagos"):
+            st.error("Error al conectar con el servidor.")
+            
+    with tab5:
+        st.markdown("#### 💰 Reporte Financiero de Facturas y Pagos")
+        if st.button("🔄 Actualizar Facturas", key="btn_act_fact"):
             st.rerun()
         try:
-            res = requests.get(f"{API_URL}/pagos")
+            res = requests.get(f"{API_URL}/facturas", timeout=3)
             if res.status_code == 200 and res.json():
                 st.dataframe(res.json(), use_container_width=True)
             else:
-                st.info("No hay pagos registrados.")
+                st.info("No hay facturas registradas en el sistema.")
         except:
-            pass
-
-    with tab3:
-        if st.button("🔄 Actualizar Facturas"):
-            st.rerun()
-        try:
-            res = requests.get(f"{API_URL}/facturas")
-            if res.status_code == 200 and res.json():
-                st.dataframe(res.json(), use_container_width=True)
-            else:
-                st.info("No hay facturas registradas.")
-        except:
-            pass
+            st.error("Error al conectar con el servidor.")

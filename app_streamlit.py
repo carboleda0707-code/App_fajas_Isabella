@@ -1,6 +1,15 @@
+import sys
+import os
+
+# Asegurar que la raíz del proyecto esté en el PYTHONPATH de forma dinámica (Compatible con la nube)
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.append(current_dir)
+
 import streamlit as st
 from modules.inventario_ui import render_inventario
 from modules.ventas_ui import render_ventas
+from modules.despachos_ui import render_despachos
 from modules.compras_ui import render_compras
 from modules.proveedores_ui import render_proveedores
 from modules.clientes_ui import render_clientes
@@ -50,6 +59,7 @@ seccion = st.sidebar.radio(
     [
         "📦 Módulo de Inventario", 
         "💳 Módulo de Ventas", 
+        "🚚 Logística y Despachos",
         "📥 Módulo de Compras", 
         "🏭 Mantenimiento de Proveedores",
         "👥 Mantenimiento de Clientes",
@@ -74,6 +84,8 @@ if seccion == "📦 Módulo de Inventario":
     render_inventario()
 elif seccion == "💳 Módulo de Ventas":
     render_ventas()
+elif seccion == "🚚 Logística y Despachos":
+    render_despachos()
 elif seccion == "📥 Módulo de Compras":
     render_compras()
 elif seccion == "🏭 Mantenimiento de Proveedores":

@@ -4,14 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fajas Isabella | Tienda Online</title>
+
+    <!-- FAVICON OFICIAL EN LA PESTAÑA DEL NAVEGADOR -->
+    <link rel="icon" type="image/png" href="/img/logo.png">
+
     <!-- Tailwind CSS & FontAwesome -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
     <style>
         .dropdown:hover .dropdown-menu { display: block; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
+
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased min-h-screen font-sans">
 
@@ -20,15 +26,18 @@
         <span>✨ PAGOS 100% SEGUROS Y ENVÍOS A TODO EL ECUADOR</span>
     </div>
 
-    <!-- 2. ENCABEZADO PRINCIPAL FIJO -->
+    <!-- 2. ENCABEZADO PRINCIPAL FIJO CON LOGO OFICIAL EN LA IZQUIERDA -->
     <header class="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-xs">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-16">
+            <div class="flex items-center justify-between h-20">
                 
-                <!-- Logo Oficial (Reemplaza el texto cortado) -->
+                <!-- Logo Oficial en Encabezado Izquierdo -->
                 <div class="flex items-center">
-                    <a href="#" onclick="filtrarCategoria('TODAS')" class="flex items-center">
-                        <img src="/img/logo.png" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'160\' height=\'40\'><text x=\'0\' y=\'25\' fill=\'%23e11d48\' font-size=\'16\' font-weight=\'bold\'>FAJAS ISABELLA</text></svg>'" alt="Fajas Isabella Logo" class="h-10 sm:h-12 w-auto object-contain transition-transform hover:scale-105">
+                    <a href="#" onclick="filtrarCategoria('TODAS')" class="flex items-center py-2">
+                        <img src="/img/logo.png" 
+                             onerror="this.onerror=null; this.src='../img/logo.png';" 
+                             alt="Fajas Isabella Logo" 
+                             class="h-12 sm:h-16 w-auto object-contain transition-transform hover:scale-105">
                     </a>
                 </div>
 
@@ -41,11 +50,8 @@
                             <span>TIENDA / CATEGORÍAS</span>
                             <i class="fa-solid fa-chevron-down text-[10px]"></i>
                         </div>
-                        <!-- Contenedor único para evitar duplicados -->
                         <div class="dropdown-menu hidden absolute top-14 left-0 w-64 bg-white border border-slate-200 rounded-xl shadow-xl py-2 z-50">
-                            <div id="dropdown-categorias-dinamico">
-                                <!-- Se llena dinámicamente desde JS -->
-                            </div>
+                            <div id="dropdown-categorias-dinamico"></div>
                         </div>
                     </div>
 
@@ -72,7 +78,7 @@
         </div>
     </header>
 
-    <!-- 3. BARRA SECUNDARIA DE CATEGORÍAS (DESDE LA TABLA OFICIAL) -->
+    <!-- 3. BARRA SECUNDARIA DE CATEGORÍAS -->
     <div class="bg-white border-b border-slate-200 py-3 shadow-2xs relative">
         <div class="max-w-7xl mx-auto px-2 relative flex items-center">
             
@@ -116,16 +122,13 @@
                 <i class="fa-solid fa-xmark"></i>
             </button>
 
-            <div id="modal-contenido">
-                <!-- Se llena dinámicamente -->
-            </div>
+            <div id="modal-contenido"></div>
         </div>
     </div>
 
-    <!-- 6. DRAWER LATERAL: CARRITO DE COMPRAS -->
+    <!-- 6. DRAWER LATERAL: CARRITO DE COMPRAS CON DOBLE OPCIÓN DE PAGO -->
     <div id="drawer-carrito" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs hidden transition-opacity">
         <div class="fixed top-0 right-0 h-full max-w-md w-full bg-white shadow-2xl flex flex-col justify-between p-5 transform transition-transform">
-            
             <div>
                 <div class="flex items-center justify-between pb-4 border-b border-slate-200">
                     <div class="flex items-center gap-2">
@@ -137,12 +140,10 @@
                     </button>
                 </div>
 
-                <div id="carrito-items" class="py-4 space-y-3 max-h-[55vh] overflow-y-auto no-scrollbar">
-                    <!-- Productos del Carrito -->
-                </div>
+                <div id="carrito-items" class="py-4 space-y-3 max-h-[50vh] overflow-y-auto no-scrollbar"></div>
             </div>
 
-            <!-- BOTONES DE ACCIÓN EN EL CARRITO -->
+            <!-- BOTONES DE ACCIÓN (DOBLE OPCIÓN DE PAGO) -->
             <div class="border-t border-slate-200 pt-4 space-y-3">
                 <div class="flex justify-between items-center text-base font-black text-slate-900">
                     <span>Total Estimado:</span>
@@ -150,12 +151,19 @@
                 </div>
 
                 <div class="grid grid-cols-1 gap-2">
-                    <button onclick="enviarPedidoFinalWhatsApp()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition">
+                    <!-- Opción 1: WhatsApp -->
+                    <button onclick="enviarPedidoFinalWhatsApp()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition">
                         <i class="fa-brands fa-whatsapp text-xl"></i>
-                        <span>Finalizar Pedido por WhatsApp</span>
+                        <span>Pedido y Pago por WhatsApp</span>
                     </button>
 
-                    <button onclick="toggleCarrito()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs py-3 rounded-xl flex items-center justify-center gap-2 transition">
+                    <!-- Opción 2: Pasarela Paymentez / Tarjeta -->
+                    <button onclick="iniciarPagoPaymentez()" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-rose-600/20 transition">
+                        <i class="fa-solid fa-credit-card text-xl"></i>
+                        <span>Pagar con Tarjeta (Paymentez)</span>
+                    </button>
+
+                    <button onclick="toggleCarrito()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2.5 rounded-xl flex items-center justify-center gap-2 transition">
                         <i class="fa-solid fa-arrow-left"></i>
                         <span>Seguir Comprando</span>
                     </button>
@@ -183,15 +191,6 @@
         }
 
         async function cargarInventario() {
-            if (window.location.protocol === "file:") {
-                productos = obtenerDemoEstructurado();
-                productosFiltrados = [...productos];
-                categoriasOficiales = [];
-                cargarCategoriasWeb();
-                renderizarCatalogo();
-                return;
-            }
-
             try {
                 const [resProductos, resCategorias] = await Promise.all([
                     fetch(API_URL),
@@ -199,10 +198,9 @@
                 ]);
 
                 if (resProductos.ok) {
-                    const dataP = await resProductos.json();
-                    productos = formatearRespuestaAPI(dataP);
+                    productos = await resProductos.json();
                 } else {
-                    productos = obtenerDemoEstructurado();
+                    productos = [];
                 }
 
                 if (resCategorias.ok) {
@@ -211,13 +209,24 @@
                     categoriasOficiales = [];
                 }
             } catch (e) {
-                productos = obtenerDemoEstructurado();
+                productos = [];
                 categoriasOficiales = [];
             }
 
             productosFiltrados = [...productos];
             cargarCategoriasWeb();
             renderizarCatalogo();
+        }
+
+        function obtenerRutaImagenProducto(imagenUrl) {
+            if (!imagenUrl || imagenUrl.trim() === "" || imagenUrl === "/logo.png" || imagenUrl === "logo.png") {
+                return SVG_FALLBACK;
+            }
+            if (imagenUrl.startsWith("http://") || imagenUrl.startsWith("https://")) {
+                return imagenUrl;
+            }
+            let nombreArchivo = imagenUrl.split('/').pop().trim();
+            return `/img/${nombreArchivo}`;
         }
 
         function cargarCategoriasWeb() {
@@ -227,13 +236,12 @@
             let htmlScroll = `
                 <button onclick="filtrarCategoria('TODAS')" id="btn-cat-TODAS" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none">
                     <div class="circle-cat w-14 h-14 rounded-full overflow-hidden border-2 border-rose-500 p-0.5 transition-all shadow-xs bg-rose-50 flex items-center justify-center">
-                        <img src="/img/categorias/cat-todas.jpg" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-cover rounded-full" alt="Todas">
+                        <img src="/img/cat-todas.jpg" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-cover rounded-full" alt="Todas">
                     </div>
                     <span class="text-[10px] font-bold text-rose-600 mt-1 uppercase tracking-tight label-cat">Todas</span>
                 </button>
             `;
 
-            // Se genera una sola vez el "Ver Todo" en el desplegable
             let htmlDropdown = `
                 <a href="#" onclick="filtrarCategoria('TODAS')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">✨ Ver Todo el Catálogo</a>
                 <div class="border-t border-slate-100 my-1"></div>
@@ -241,14 +249,7 @@
 
             categoriasOficiales.forEach(catObj => {
                 const nombreCat = catObj.nombre || catObj.categoria;
-                
-                let imgCat = catObj.imagen_url;
-                if (imgCat && imgCat.startsWith("img/")) {
-                    imgCat = "/" + imgCat;
-                }
-                if (!imgCat || imgCat.trim() === "") {
-                    imgCat = SVG_FALLBACK;
-                }
+                let imgCat = obtenerRutaImagenProducto(catObj.imagen_url);
 
                 htmlScroll += `
                     <button onclick="filtrarCategoria('${nombreCat}')" id="btn-cat-${nombreCat}" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none">
@@ -268,76 +269,6 @@
             if (dropdownContainer) {
                 dropdownContainer.innerHTML = htmlDropdown;
             }
-        }
-
-        function obtenerRutaImagenProducto(imagenUrl, categoria) {
-            if (!imagenUrl || imagenUrl.trim() === "" || imagenUrl === "/logo.png" || imagenUrl === "logo.png") {
-                return SVG_FALLBACK;
-            }
-            if (imagenUrl.startsWith("http://") || imagenUrl.startsWith("https://")) {
-                return imagenUrl;
-            }
-            if (imagenUrl.startsWith("/img/")) {
-                return imagenUrl;
-            }
-            if (imagenUrl.startsWith("img/")) {
-                return "/" + imagenUrl;
-            }
-            
-            let nombreArchivo = imagenUrl.split('/').pop().trim();
-            if (!nombreArchivo.endsWith('.jpg') && !nombreArchivo.endsWith('.png') && !nombreArchivo.endsWith('.jpeg')) {
-                nombreArchivo += '.jpg';
-            }
-            
-            let catFolder = (categoria || 'general').toLowerCase().trim();
-            return `/img/productos/${catFolder}/${nombreArchivo}`;
-        }
-
-        function formatearRespuestaAPI(data) {
-            if (!Array.isArray(data) || data.length === 0) return [];
-            if (data[0].variantes) return data;
-
-            const agrupados = {};
-            data.forEach(item => {
-                const nombreBase = item.producto_nombre || "Faja Isabella";
-                const cat = item.categoria || "GENERAL";
-                const esLiquidacion = (item.en_liquidacion === true || item.en_liquidacion === 1 || item.en_liquidacion === "true");
-                
-                if (!agrupados[nombreBase]) {
-                    agrupados[nombreBase] = {
-                        id: item.producto_id || Object.keys(agrupados).length + 1,
-                        nombre: nombreBase,
-                        categoria: cat,
-                        imagen_url: item.imagen_url || SVG_FALLBACK,
-                        en_liquidacion: esLiquidacion,
-                        variantes: []
-                    };
-                }
-                agrupados[nombreBase].variantes.push({
-                    sku: item.sku,
-                    talla: item.talla,
-                    color: item.color,
-                    precio: item.precio,
-                    stock: item.stock_disponible || item.stock
-                });
-            });
-
-            return Object.values(agrupados);
-        }
-
-        function obtenerDemoEstructurado() {
-            return [
-                {
-                    id: 1,
-                    nombre: "Faja Chaleco Modeladora",
-                    categoria: "CINTURILLAS",
-                    imagen_url: "cinturilla-extrema.jpg",
-                    en_liquidacion: false,
-                    variantes: [
-                        { sku: "FAJA-CHALECO-XS-NEGRO", talla: "XS", color: "Negro", precio: 45.0, stock: 4 }
-                    ]
-                }
-            ];
         }
 
         function renderizarCatalogo() {
@@ -360,7 +291,7 @@
                     ? `<span class="absolute top-2 left-2 bg-rose-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md animate-pulse">🔥 LIQUIDACIÓN</span>` 
                     : '';
 
-                const imgSrc = obtenerRutaImagenProducto(p.imagen_url, p.categoria);
+                const imgSrc = obtenerRutaImagenProducto(p.imagen_url);
 
                 return `
                     <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:shadow-lg transition flex flex-col justify-between group">
@@ -406,7 +337,7 @@
             tallaSeleccionada = tallas[0];
             colorSeleccionado = colores[0];
 
-            const imgSrcModal = obtenerRutaImagenProducto(productoSeleccionado.imagen_url, productoSeleccionado.categoria);
+            const imgSrcModal = obtenerRutaImagenProducto(productoSeleccionado.imagen_url);
 
             const contenido = `
                 <div class="flex gap-4 items-start mb-4">
@@ -535,52 +466,14 @@
             if (cat === 'LIQUIDACION') {
                 document.getElementById("titulo-categoria").innerText = "🔥 Productos en Liquidación / Oferta Especial";
                 productosFiltrados = productos.filter(p => p.en_liquidacion === true);
-                
-                document.querySelectorAll(".circle-cat").forEach(c => {
-                    c.classList.remove("border-rose-500");
-                    c.classList.add("border-slate-200");
-                });
-                document.querySelectorAll(".label-cat").forEach(l => {
-                    l.classList.remove("text-rose-600");
-                    l.classList.add("text-slate-700");
-                });
             } else {
                 document.getElementById("titulo-categoria").innerText = cat === 'TODAS' ? 'Todas las Prendas Disponibles' : `Categoría: ${cat}`;
-                
-                document.querySelectorAll(".btn-categoria").forEach(btn => {
-                    const circle = btn.querySelector(".circle-cat");
-                    const label = btn.querySelector(".label-cat");
-                    if (circle) {
-                        circle.classList.remove("border-rose-500");
-                        circle.classList.add("border-slate-200");
-                    }
-                    if (label) {
-                        label.classList.remove("text-rose-600");
-                        label.classList.add("text-slate-700");
-                    }
-                });
-
-                const btnActivo = document.getElementById(`btn-cat-${cat}`);
-                if (btnActivo) {
-                    const circle = btnActivo.querySelector(".circle-cat");
-                    const label = btnActivo.querySelector(".label-cat");
-                    if (circle) {
-                        circle.classList.remove("border-slate-200");
-                        circle.classList.add("border-rose-500");
-                    }
-                    if (label) {
-                        label.classList.remove("text-slate-700");
-                        label.classList.add("text-rose-600");
-                    }
-                }
-
                 if (cat === 'TODAS') {
                     productosFiltrados = [...productos];
                 } else {
                     productosFiltrados = productos.filter(p => (p.categoria || '').toUpperCase() === cat.toUpperCase());
                 }
             }
-
             renderizarCatalogo();
         }
 
@@ -635,7 +528,7 @@
             }
 
             container.innerHTML = carrito.map((item, index) => {
-                const imgItem = obtenerRutaImagenProducto(item.imagen_url, item.categoria);
+                const imgItem = obtenerRutaImagenProducto(item.imagen_url);
                 return `
                     <div class="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
                         <div class="flex items-center gap-3">
@@ -684,7 +577,43 @@
             window.open(`https://wa.me/593983870398?text=${mensaje}`, '_blank');
         }
 
-        // Inicializar tienda al cargar la página
+        function iniciarPagoPaymentez() {
+            if (carrito.length === 0) {
+                alert("Tu carrito está vacío.");
+                return;
+            }
+
+            const payloadCompra = {
+                items: carrito.map(item => ({
+                    sku: item.sku,
+                    cantidad: item.cantidad,
+                    precio_unitario: item.precio
+                }))
+            };
+
+            fetch('/api/pagos/iniciar-paymentez', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payloadCompra)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === "success") {
+                    if (data.checkout_url && data.checkout_url !== "#") {
+                        window.location.href = data.checkout_url;
+                    } else {
+                        alert(data.mensaje || "Pasarela configurada en modo simulación de pruebas exitosamente.");
+                    }
+                } else {
+                    alert("Error al iniciar el pago: " + (data.detail || "Intente nuevamente."));
+                }
+            })
+            .catch(err => {
+                console.error("Error de red:", err);
+                alert("No se pudo conectar con el servidor de pagos.");
+            });
+        }
+
         inicializarTienda();
     </script>
 </body>
