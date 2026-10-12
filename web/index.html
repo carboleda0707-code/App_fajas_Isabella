@@ -45,7 +45,7 @@
                             <a href="#" onclick="filtrarCategoria('TODAS')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">✨ Ver Todo el Catálogo</a>
                             <div class="border-t border-slate-100 my-1"></div>
                             <div id="dropdown-categorias-dinamico">
-                                <!-- Se llena dinámicamente desde la tabla de categorías -->
+                                <!-- Se llena dinámicamente desde la BD -->
                             </div>
                         </div>
                     </div>
@@ -187,7 +187,7 @@
             if (window.location.protocol === "file:") {
                 productos = obtenerDemoEstructurado();
                 productosFiltrados = [...productos];
-                categoriasOficiales = [{ nombre: 'CINTURILLAS', imagen_url: '' }];
+                categoriasOficiales = [];
                 cargarCategoriasWeb();
                 renderizarCatalogo();
                 return;
@@ -207,8 +207,7 @@
                 }
 
                 if (resCategorias.ok) {
-                    const dataC = await resCategorias.json();
-                    categoriasOficiales = dataC; // Recibe array de objetos con nombre e imagen_url
+                    categoriasOficiales = await resCategorias.json();
                 } else {
                     categoriasOficiales = [];
                 }
@@ -242,9 +241,15 @@
 
             categoriasOficiales.forEach(catObj => {
                 const nombreCat = catObj.nombre || catObj.categoria;
-                const imgCat = catObj.imagen_url && catObj.imagen_url.trim() !== "" ? catObj.imagen_url : SVG_FALLBACK;
+                
+                let imgCat = catObj.imagen_url;
+                if (imgCat && imgCat.startsWith("img/")) {
+                    imgCat = "/" + imgCat;
+                }
+                if (!imgCat || imgCat.trim() === "") {
+                    imgCat = SVG_FALLBACK;
+                }
 
-                // Scroll horizontal superior
                 htmlScroll += `
                     <button onclick="filtrarCategoria('${nombreCat}')" id="btn-cat-${nombreCat}" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none">
                         <div class="circle-cat w-14 h-14 rounded-full overflow-hidden border-2 border-slate-200 p-0.5 transition-all shadow-xs bg-rose-50 flex items-center justify-center">
@@ -254,7 +259,6 @@
                     </button>
                 `;
 
-                // Menú desplegable desktop
                 htmlDropdown += `
                     <a href="#" onclick="filtrarCategoria('${nombreCat}')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">${nombreCat}</a>
                 `;
