@@ -41,5 +41,22 @@ def listar_inventario_publico(categoria: Optional[str] = Query(None), db: Sessio
                 "imagen_url": getattr(prod, 'imagen_url', ''),
                 "variantes": variantes_data
             })
-            
+         
+@router.get("/categorias")
+def listar_categorias_publicas(db: Session = Depends(get_db)):
+    """
+    Retorna la lista de categorías únicas disponibles en el inventario para la tienda web.
+    """
+    productos = db.query(Producto).all()
+    # Extraer categorías únicas que no estén vacías
+    categorias_unicas = sorted(list(set(p.categoria for p in productos if p.categoria)))
+    
+    resultado = []
+    for cat in categorias_unicas:
+        resultado.append({
+            "nombre": cat,
+            "imagen_url": "https://fajasisabellaec.com/wp-content/uploads/2023/11/IMG_8305-150x150.jpg"
+        })
+    
     return resultado
+       
