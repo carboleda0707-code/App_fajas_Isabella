@@ -23,19 +23,16 @@ def home():
 @app.get("/admin")
 @app.get("/panel")
 def redirigir_admin():
-    # Redirecciona internamente al puerto de Streamlit o al puerto activo
     return RedirectResponse(url="http://localhost:8501")
 
-# Router de la Web Pública con el prefijo /api
+# Todos los routers del negocio estandarizados bajo el prefijo /api
 app.include_router(web_publica.router, prefix="/api", tags=["Web Pública"])
-
-# Routers del sistema
 app.include_router(ventas.router, prefix="/api", tags=["Ventas"])
-app.include_router(clientes.router, tags=["Clientes"])
-app.include_router(proveedores.router, tags=["Proveedores"])
-app.include_router(productos.router, tags=["Productos & Inventario"])
-app.include_router(compras.router, tags=["Compras"])
-app.include_router(reportes.router, tags=["Reportes"])
+app.include_router(clientes.router, prefix="/api", tags=["Clientes"])
+app.include_router(proveedores.router, prefix="/api", tags=["Proveedores"])
+app.include_router(productos.router, prefix="/api", tags=["Productos & Inventario"])
+app.include_router(compras.router, prefix="/api", tags=["Compras"])
+app.include_router(reportes.router, prefix="/api", tags=["Reportes"])
 
 # Archivos estáticos
 app.mount("/web", StaticFiles(directory="web", html=True), name="web")
