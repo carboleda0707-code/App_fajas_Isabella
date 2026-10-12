@@ -195,7 +195,6 @@
             }
             productosFiltrados = [...productos];
             
-            // Generar categorías y catálogo con los datos reales
             cargarCategoriasWeb();
             renderizarCatalogo();
         }
@@ -206,8 +205,8 @@
             
             let html = `
                 <button onclick="filtrarCategoria('TODAS')" id="btn-cat-TODAS" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none">
-                    <div class="circle-cat w-14 h-14 rounded-full overflow-hidden border-2 border-rose-500 p-0.5 transition-all shadow-xs">
-                        <img src="https://fajasisabellaec.com/wp-content/uploads/2023/11/IMG_8347-150x150.jpg" class="w-full h-full object-cover rounded-full" alt="Todas">
+                    <div class="circle-cat w-14 h-14 rounded-full overflow-hidden border-2 border-rose-500 p-0.5 transition-all shadow-xs bg-rose-50 flex items-center justify-center">
+                        <img src="logo.png" onerror="this.src='https://fajasisabellaec.com/wp-content/uploads/2023/11/IMG_8347-150x150.jpg'" class="w-full h-full object-cover rounded-full" alt="Todas">
                     </div>
                     <span class="text-[10px] font-bold text-rose-600 mt-1 uppercase tracking-tight label-cat">Todas</span>
                 </button>
@@ -216,8 +215,8 @@
             categoriasUnicas.forEach(cat => {
                 html += `
                     <button onclick="filtrarCategoria('${cat}')" id="btn-cat-${cat}" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none">
-                        <div class="circle-cat w-14 h-14 rounded-full overflow-hidden border-2 border-slate-200 p-0.5 transition-all shadow-xs">
-                            <img src="https://fajasisabellaec.com/wp-content/uploads/2023/11/IMG_8305-150x150.jpg" class="w-full h-full object-cover rounded-full" alt="${cat}">
+                        <div class="circle-cat w-14 h-14 rounded-full overflow-hidden border-2 border-slate-200 p-0.5 transition-all shadow-xs bg-rose-50 flex items-center justify-center">
+                            <img src="logo.png" onerror="this.src='https://fajasisabellaec.com/wp-content/uploads/2023/11/IMG_8305-150x150.jpg'" class="w-full h-full object-cover rounded-full" alt="${cat}">
                         </div>
                         <span class="text-[10px] font-bold text-slate-700 mt-1 uppercase tracking-tight label-cat">${cat}</span>
                     </button>
@@ -241,7 +240,7 @@
                         id: Object.keys(agrupados).length + 1,
                         nombre: nombreBase,
                         categoria: cat,
-                        imagen_url: item.imagen_url || "https://fajasisabellaec.com/wp-content/uploads/2023/11/IMG_8305-150x150.jpg",
+                        imagen_url: item.imagen_url || "logo.png",
                         en_liquidacion: item.en_liquidacion || false,
                         variantes: []
                     };
@@ -264,7 +263,7 @@
                     id: 1,
                     nombre: "Faja Chaleco Modeladora",
                     categoria: "CINTURILLAS",
-                    imagen_url: "https://fajasisabellaec.com/wp-content/uploads/2023/11/IMG_8305-150x150.jpg",
+                    imagen_url: "logo.png",
                     en_liquidacion: true,
                     variantes: [
                         { sku: "FAJA-CHALECO-XS-NEGRO", talla: "XS", color: "Negro", precio: 45.0, stock: 4 },
@@ -294,11 +293,13 @@
                     ? `<span class="absolute top-2 left-2 bg-rose-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md animate-pulse">🔥 LIQUIDACIÓN</span>` 
                     : '';
 
+                const imgSrc = p.imagen_url && p.imagen_url.trim() !== "" ? p.imagen_url : "logo.png";
+
                 return `
                     <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:shadow-lg transition flex flex-col justify-between group">
                         <div class="relative bg-slate-50 h-48 flex items-center justify-center p-3 overflow-hidden">
                             ${badgeLiquidacion}
-                            <img src="${p.imagen_url}" class="h-full object-contain group-hover:scale-105 transition-all duration-300" alt="${p.nombre}">
+                            <img src="${imgSrc}" onerror="this.src='logo.png'" class="h-full object-contain group-hover:scale-105 transition-all duration-300" alt="${p.nombre}">
                             <span class="absolute top-2 right-2 bg-slate-900/80 text-white text-[9px] font-bold px-2 py-0.5 rounded-full backdrop-blur-xs">
                                 ${p.variantes.length} Opciones
                             </span>
@@ -338,9 +339,11 @@
             tallaSeleccionada = tallas[0];
             colorSeleccionado = colores[0];
 
+            const imgSrcModal = productoSeleccionado.imagen_url && productoSeleccionado.imagen_url.trim() !== "" ? productoSeleccionado.imagen_url : "logo.png";
+
             const contenido = `
                 <div class="flex gap-4 items-start mb-4">
-                    <img src="${productoSeleccionado.imagen_url}" class="w-20 h-20 object-contain rounded-2xl bg-slate-50 p-2 border border-slate-100 shrink-0">
+                    <img src="${imgSrcModal}" onerror="this.src='logo.png'" class="w-20 h-20 object-contain rounded-2xl bg-slate-50 p-2 border border-slate-100 shrink-0">
                     <div>
                         <span class="text-[10px] font-bold text-rose-600 tracking-wider uppercase">${productoSeleccionado.categoria}</span>
                         <h3 class="text-base font-extrabold text-slate-900 leading-snug">${productoSeleccionado.nombre}</h3>
@@ -537,7 +540,7 @@
                     talla: tallaSeleccionada,
                     color: colorSeleccionado,
                     precio: variante.precio,
-                    imagen_url: productoSeleccionado.imagen_url,
+                    imagen_url: productoSeleccionado.imagen_url || "logo.png",
                     cantidad: 1
                 });
             }
@@ -566,7 +569,7 @@
             container.innerHTML = carrito.map((item, index) => `
                 <div class="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
                     <div class="flex items-center gap-3">
-                        <img src="${item.imagen_url}" class="w-12 h-12 object-contain rounded-lg bg-white p-1 border">
+                        <img src="${item.imagen_url}" onerror="this.src='logo.png'" class="w-12 h-12 object-contain rounded-lg bg-white p-1 border">
                         <div>
                             <h4 class="text-xs font-bold text-slate-800 line-clamp-1">${item.nombre}</h4>
                             <p class="text-[10px] text-slate-500">Talla: <b>${item.talla}</b> | Color: <b>${item.color}</b></p>
