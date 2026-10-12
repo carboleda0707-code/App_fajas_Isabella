@@ -8,7 +8,7 @@ st.set_page_config(
     layout="wide"
 )
 
-API_URL = "http://127.0.0.1:8000/api"
+API_URL = "https://appfajasisabella-production.up.railway.app/api"
 
 # --- CABECERA DE LA TIENDA ---
 st.markdown("""
