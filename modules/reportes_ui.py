@@ -3,7 +3,7 @@ import requests
 import os
 from datetime import date
 
-API_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
+API_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000") + "/api"
 
 # Importar los submódulos de reportes que creamos
 from modules.report_ventas import render_reporte_ventas
