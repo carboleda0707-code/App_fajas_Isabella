@@ -238,16 +238,15 @@
             contenedor.innerHTML = html;
         }
 
-        function obtenerRutaImagenProducto(imagenUrl) {
-            if (!imagenUrl || imagenUrl.trim() === "") return "/logo.png";
+        function obtenerRutaImagenProducto(imagenUrl, categoria) {
+            if (!imagenUrl || imagenUrl.trim() === "" || imagenUrl === "/logo.png" || imagenUrl === "logo.png") return "/logo.png";
             if (imagenUrl.startsWith("http://") || imagenUrl.startsWith("https://")) return imagenUrl;
-            if (imagenUrl.startsWith("/img/productos/")) return imagenUrl;
-            if (imagenUrl.startsWith("img/productos/")) return "/" + imagenUrl;
             if (imagenUrl.startsWith("/img/")) return imagenUrl;
             if (imagenUrl.startsWith("img/")) return "/" + imagenUrl;
             
-            const nombreArchivo = imagenUrl.startsWith("/") ? imagenUrl.substring(1) : imagenUrl;
-            return "/img/productos/" + nombreArchivo;
+            const nombreArchivo = imagenUrl.split('/').pop();
+            const carpetaCategoria = (categoria || 'general').toLowerCase().trim();
+            return `/img/productos/${carpetaCategoria}/${nombreArchivo}`;
         }
 
         function formatearRespuestaAPI(data) {
@@ -317,7 +316,7 @@
                     ? `<span class="absolute top-2 left-2 bg-rose-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md animate-pulse">🔥 LIQUIDACIÓN</span>` 
                     : '';
 
-                const imgSrc = obtenerRutaImagenProducto(p.imagen_url);
+                const imgSrc = obtenerRutaImagenProducto(p.imagen_url, p.categoria);
 
                 return `
                     <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:shadow-lg transition flex flex-col justify-between group">
@@ -363,7 +362,7 @@
             tallaSeleccionada = tallas[0];
             colorSeleccionado = colores[0];
 
-            const imgSrcModal = obtenerRutaImagenProducto(productoSeleccionado.imagen_url);
+            const imgSrcModal = obtenerRutaImagenProducto(productoSeleccionado.imagen_url, productoSeleccionado.categoria);
 
             const contenido = `
                 <div class="flex gap-4 items-start mb-4">
@@ -565,6 +564,7 @@
                     color: colorSeleccionado,
                     precio: variante.precio,
                     imagen_url: productoSeleccionado.imagen_url || "/logo.png",
+                    categoria: productoSeleccionado.categoria,
                     cantidad: 1
                 });
             }
@@ -591,7 +591,7 @@
             }
 
             container.innerHTML = carrito.map((item, index) => {
-                const imgItem = obtenerRutaImagenProducto(item.imagen_url);
+                const imgItem = obtenerRutaImagenProducto(item.imagen_url, item.categoria);
                 return `
                     <div class="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
                         <div class="flex items-center gap-3">
