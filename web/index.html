@@ -75,7 +75,7 @@
         </div>
     </header>
 
-    <!-- 3. BARRA SECUNDARIA DE CATEGORÍAS (DINÁMICA DESDE BASE DE DATOS) -->
+    <!-- 3. BARRA SECUNDARIA DE CATEGORÍAS (DINÁMICA DESDE EL INVENTARIO) -->
     <div class="bg-white border-b border-slate-200 py-3 shadow-2xs relative">
         <div class="max-w-7xl mx-auto px-2 relative flex items-center">
             
@@ -170,7 +170,6 @@
     <!-- JAVASCRIPT LOGIC -->
     <script>
         const API_URL = "/api/web/inventario";
-        const API_CATEGORIAS = "/api/categorias";
         let productos = [];
         let productosFiltrados = [];
         let productoSeleccionado = null;
@@ -179,46 +178,7 @@
         let carrito = [];
 
         async function inicializarTienda() {
-            await cargarCategoriasWeb();
             await cargarInventario();
-        }
-
-        async function cargarCategoriasWeb() {
-            try {
-                const res = await fetch(API_CATEGORIAS);
-                if (res.ok) {
-                    const categorias = await res.json();
-                    renderizarCategoriasWeb(categorias);
-                }
-            } catch (e) {
-                console.error("Error al cargar categorías dinámicas:", e);
-            }
-        }
-
-        function renderizarCategoriasWeb(categorias) {
-            const contenedor = document.getElementById("categorias-scroll");
-            
-            let html = `
-                <button onclick="filtrarCategoria('TODAS')" id="btn-cat-TODAS" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none">
-                    <div class="circle-cat w-14 h-14 rounded-full overflow-hidden border-2 border-rose-500 p-0.5 transition-all shadow-xs">
-                        <img src="https://fajasisabellaec.com/wp-content/uploads/2023/11/IMG_8347-150x150.jpg" class="w-full h-full object-cover rounded-full" alt="Todas">
-                    </div>
-                    <span class="text-[10px] font-bold text-rose-600 mt-1 uppercase tracking-tight label-cat">Todas</span>
-                </button>
-            `;
-
-            categorias.forEach(cat => {
-                html += `
-                    <button onclick="filtrarCategoria('${cat.nombre}')" id="btn-cat-${cat.nombre}" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none">
-                        <div class="circle-cat w-14 h-14 rounded-full overflow-hidden border-2 border-slate-200 p-0.5 transition-all shadow-xs">
-                            <img src="${cat.imagen_url}" class="w-full h-full object-cover rounded-full" alt="${cat.nombre}">
-                        </div>
-                        <span class="text-[10px] font-bold text-slate-700 mt-1 uppercase tracking-tight label-cat">${cat.nombre}</span>
-                    </button>
-                `;
-            });
-
-            contenedor.innerHTML = html;
         }
 
         async function cargarInventario() {
@@ -234,7 +194,37 @@
                 productos = obtenerDemoEstructurado();
             }
             productosFiltrados = [...productos];
+            
+            // Generar categorías y catálogo con los datos reales
+            cargarCategoriasWeb();
             renderizarCatalogo();
+        }
+
+        function cargarCategoriasWeb() {
+            const categoriasUnicas = [...new Set(productos.map(p => p.categoria))].filter(Boolean);
+            const contenedor = document.getElementById("categorias-scroll");
+            
+            let html = `
+                <button onclick="filtrarCategoria('TODAS')" id="btn-cat-TODAS" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none">
+                    <div class="circle-cat w-14 h-14 rounded-full overflow-hidden border-2 border-rose-500 p-0.5 transition-all shadow-xs">
+                        <img src="https://fajasisabellaec.com/wp-content/uploads/2023/11/IMG_8347-150x150.jpg" class="w-full h-full object-cover rounded-full" alt="Todas">
+                    </div>
+                    <span class="text-[10px] font-bold text-rose-600 mt-1 uppercase tracking-tight label-cat">Todas</span>
+                </button>
+            `;
+
+            categoriasUnicas.forEach(cat => {
+                html += `
+                    <button onclick="filtrarCategoria('${cat}')" id="btn-cat-${cat}" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none">
+                        <div class="circle-cat w-14 h-14 rounded-full overflow-hidden border-2 border-slate-200 p-0.5 transition-all shadow-xs">
+                            <img src="https://fajasisabellaec.com/wp-content/uploads/2023/11/IMG_8305-150x150.jpg" class="w-full h-full object-cover rounded-full" alt="${cat}">
+                        </div>
+                        <span class="text-[10px] font-bold text-slate-700 mt-1 uppercase tracking-tight label-cat">${cat}</span>
+                    </button>
+                `;
+            });
+
+            contenedor.innerHTML = html;
         }
 
         function formatearRespuestaAPI(data) {
