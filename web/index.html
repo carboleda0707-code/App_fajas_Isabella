@@ -44,11 +44,9 @@
                         <div class="dropdown-menu hidden absolute top-14 left-0 w-64 bg-white border border-slate-200 rounded-xl shadow-xl py-2 z-50">
                             <a href="#" onclick="filtrarCategoria('TODAS')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">✨ Ver Todo el Catálogo</a>
                             <div class="border-t border-slate-100 my-1"></div>
-                            <a href="#" onclick="filtrarCategoria('PANTYS')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">🩲 Pantys & Realce</a>
-                            <a href="#" onclick="filtrarCategoria('CINTURILLAS')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">⏳ Cinturillas & Chalecos</a>
-                            <a href="#" onclick="filtrarCategoria('USO DIARIO')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">👗 Uso Diario</a>
-                            <a href="#" onclick="filtrarCategoria('POST OPERATORIO')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">🩺 Post Operatorio / Postparto</a>
-                            <a href="#" onclick="filtrarCategoria('LINEA VIRAL')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">🔥 Línea Viral Moldeadora</a>
+                            <div id="dropdown-categorias-dinamico">
+                                <!-- Se llena dinámicamente desde la tabla de categorías -->
+                            </div>
                         </div>
                     </div>
 
@@ -75,7 +73,7 @@
         </div>
     </header>
 
-    <!-- 3. BARRA SECUNDARIA DE CATEGORÍAS (DINÁMICA DESDE EL INVENTARIO) -->
+    <!-- 3. BARRA SECUNDARIA DE CATEGORÍAS (DESDE LA TABLA OFICIAL) -->
     <div class="bg-white border-b border-slate-200 py-3 shadow-2xs relative">
         <div class="max-w-7xl mx-auto px-2 relative flex items-center">
             
@@ -86,7 +84,7 @@
 
             <div id="categorias-scroll" 
                 class="overflow-x-auto no-scrollbar scroll-smooth flex items-center space-x-4 py-1 px-8 w-full select-none">
-                <div class="text-xs text-slate-400 py-2">Cargando categorías...</div>
+                <div class="text-xs text-slate-400 py-2">Cargando categorías oficiales...</div>
             </div>
 
             <button onclick="scrollCategorias(180)" 
@@ -170,10 +168,12 @@
     <!-- JAVASCRIPT LOGIC -->
     <script>
         const API_URL = "/api/web/inventario";
+        const API_CATEGORIAS = "/api/web/categorias";
         const SVG_FALLBACK = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100%' height='100%' fill='%23f1f5f9'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-size='10'>Fajas Isabella</text></svg>";
 
         let productos = [];
         let productosFiltrados = [];
+        let categoriasOficiales = [];
         let productoSeleccionado = null;
         let tallaSeleccionada = "";
         let colorSeleccionado = "";
@@ -187,42 +187,46 @@
             if (window.location.protocol === "file:") {
                 productos = obtenerDemoEstructurado();
                 productosFiltrados = [...productos];
+                categoriasOficiales = [{ nombre: 'CINTURILLAS', imagen_url: '' }];
                 cargarCategoriasWeb();
                 renderizarCatalogo();
                 return;
             }
 
             try {
-                const res = await fetch(API_URL);
-                if (res.ok) {
-                    const data = await res.json();
-                    productos = formatearRespuestaAPI(data);
+                const [resProductos, resCategorias] = await Promise.all([
+                    fetch(API_URL),
+                    fetch(API_CATEGORIAS)
+                ]);
+
+                if (resProductos.ok) {
+                    const dataP = await resProductos.json();
+                    productos = formatearRespuestaAPI(dataP);
                 } else {
                     productos = obtenerDemoEstructurado();
                 }
+
+                if (resCategorias.ok) {
+                    const dataC = await resCategorias.json();
+                    categoriasOficiales = dataC; // Recibe array de objetos con nombre e imagen_url
+                } else {
+                    categoriasOficiales = [];
+                }
             } catch (e) {
                 productos = obtenerDemoEstructurado();
+                categoriasOficiales = [];
             }
+
             productosFiltrados = [...productos];
-            
             cargarCategoriasWeb();
             renderizarCatalogo();
         }
 
         function cargarCategoriasWeb() {
-            const categoriasUnicas = [...new Set(productos.map(p => p.categoria))].filter(Boolean);
             const contenedor = document.getElementById("categorias-scroll");
+            const dropdownContainer = document.getElementById("dropdown-categorias-dinamico");
             
-            const mapaImagenesCategorias = {
-                'CINTURILLAS': '/img/categorias/cat-cinturillas.jpg',
-                'PANTYS': '/img/categorias/cat-pantys.jpg',
-                'USO DIARIO': '/img/categorias/cat-uso_diario.jpg',
-                'POST OPERATORIO': '/img/categorias/cat-post_operatorio.jpg',
-                'ACCESORIOS': '/img/categorias/cat-accesorios.jpg',
-                'STRAPLESS': '/img/categorias/cat-strapless.jpg'
-            };
-            
-            let html = `
+            let htmlScroll = `
                 <button onclick="filtrarCategoria('TODAS')" id="btn-cat-TODAS" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none">
                     <div class="circle-cat w-14 h-14 rounded-full overflow-hidden border-2 border-rose-500 p-0.5 transition-all shadow-xs bg-rose-50 flex items-center justify-center">
                         <img src="/img/categorias/cat-todas.jpg" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-cover rounded-full" alt="Todas">
@@ -231,21 +235,35 @@
                 </button>
             `;
 
-            categoriasUnicas.forEach(cat => {
-                const catUpper = cat.toUpperCase();
-                const imgCat = mapaImagenesCategorias[catUpper] || '/img/categorias/cat-todas.jpg';
+            let htmlDropdown = `
+                <a href="#" onclick="filtrarCategoria('TODAS')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">✨ Ver Todo el Catálogo</a>
+                <div class="border-t border-slate-100 my-1"></div>
+            `;
 
-                html += `
-                    <button onclick="filtrarCategoria('${cat}')" id="btn-cat-${cat}" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none">
+            categoriasOficiales.forEach(catObj => {
+                const nombreCat = catObj.nombre || catObj.categoria;
+                const imgCat = catObj.imagen_url && catObj.imagen_url.trim() !== "" ? catObj.imagen_url : SVG_FALLBACK;
+
+                // Scroll horizontal superior
+                htmlScroll += `
+                    <button onclick="filtrarCategoria('${nombreCat}')" id="btn-cat-${nombreCat}" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none">
                         <div class="circle-cat w-14 h-14 rounded-full overflow-hidden border-2 border-slate-200 p-0.5 transition-all shadow-xs bg-rose-50 flex items-center justify-center">
-                            <img src="${imgCat}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-cover rounded-full" alt="${cat}">
+                            <img src="${imgCat}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-cover rounded-full" alt="${nombreCat}">
                         </div>
-                        <span class="text-[10px] font-bold text-slate-700 mt-1 uppercase tracking-tight label-cat">${cat}</span>
+                        <span class="text-[10px] font-bold text-slate-700 mt-1 uppercase tracking-tight label-cat">${nombreCat}</span>
                     </button>
+                `;
+
+                // Menú desplegable desktop
+                htmlDropdown += `
+                    <a href="#" onclick="filtrarCategoria('${nombreCat}')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">${nombreCat}</a>
                 `;
             });
 
-            contenedor.innerHTML = html;
+            contenedor.innerHTML = htmlScroll;
+            if (dropdownContainer) {
+                dropdownContainer.innerHTML = htmlDropdown;
+            }
         }
 
         function obtenerRutaImagenProducto(imagenUrl, categoria) {
@@ -268,33 +286,26 @@
             }
             
             let catFolder = (categoria || 'general').toLowerCase().trim();
-            if (catFolder.includes('cinturilla')) catFolder = 'cinturillas';
-            else if (catFolder.includes('panty') || catFolder.includes('panties')) catFolder = 'pantys';
-            else if (catFolder.includes('diario')) catFolder = 'diario';
-            else if (catFolder.includes('post') || catFolder.includes('parto')) catFolder = 'postoperatorio';
-            else if (catFolder.includes('strapless')) catFolder = 'Strapless';
-            else if (catFolder.includes('costillero')) catFolder = 'costilleros';
-            else if (catFolder.includes('cachetero')) catFolder = 'cacheteros';
-
             return `/img/productos/${catFolder}/${nombreArchivo}`;
         }
 
         function formatearRespuestaAPI(data) {
-            if (!Array.isArray(data) || data.length === 0) return obtenerDemoEstructurado();
+            if (!Array.isArray(data) || data.length === 0) return [];
             if (data[0].variantes) return data;
 
             const agrupados = {};
             data.forEach(item => {
                 const nombreBase = item.producto_nombre || "Faja Isabella";
                 const cat = item.categoria || "GENERAL";
+                const esLiquidacion = (item.en_liquidacion === true || item.en_liquidacion === 1 || item.en_liquidacion === "true");
                 
                 if (!agrupados[nombreBase]) {
                     agrupados[nombreBase] = {
-                        id: Object.keys(agrupados).length + 1,
+                        id: item.producto_id || Object.keys(agrupados).length + 1,
                         nombre: nombreBase,
                         categoria: cat,
                         imagen_url: item.imagen_url || SVG_FALLBACK,
-                        en_liquidacion: item.en_liquidacion || false,
+                        en_liquidacion: esLiquidacion,
                         variantes: []
                     };
                 }
@@ -317,10 +328,9 @@
                     nombre: "Faja Chaleco Modeladora",
                     categoria: "CINTURILLAS",
                     imagen_url: "cinturilla-extrema.jpg",
-                    en_liquidacion: true,
+                    en_liquidacion: false,
                     variantes: [
-                        { sku: "FAJA-CHALECO-XS-NEGRO", talla: "XS", color: "Negro", precio: 45.0, stock: 4 },
-                        { sku: "FAJA-CHALECO-S-NEGRO", talla: "S", color: "Negro", precio: 45.0, stock: 10 }
+                        { sku: "FAJA-CHALECO-XS-NEGRO", talla: "XS", color: "Negro", precio: 45.0, stock: 4 }
                     ]
                 }
             ];
@@ -563,7 +573,7 @@
                 if (cat === 'TODAS') {
                     productosFiltrados = [...productos];
                 } else {
-                    productosFiltrados = productos.filter(p => (p.categoria || '').toUpperCase().includes(cat));
+                    productosFiltrados = productos.filter(p => (p.categoria || '').toUpperCase() === cat.toUpperCase());
                 }
             }
 
