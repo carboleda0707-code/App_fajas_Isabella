@@ -19,8 +19,9 @@ app.add_middleware(
 def home():
     return RedirectResponse(url="/web/index.html")
 
-# Montar los archivos estáticos de la tienda (carpeta web/)
+# Montar los archivos estáticos de la tienda y la carpeta de imágenes
 app.mount("/web", StaticFiles(directory="web", html=True), name="web")
+app.mount("/img", StaticFiles(directory="web/img"), name="img")
 
 # Routers de la API
 app.include_router(clientes.router, prefix="/api", tags=["Clientes"])
