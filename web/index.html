@@ -203,20 +203,32 @@
             const categoriasUnicas = [...new Set(productos.map(p => p.categoria))].filter(Boolean);
             const contenedor = document.getElementById("categorias-scroll");
             
+            const mapaImagenesCategorias = {
+                'CINTURILLAS': '/img/categorias/cat-cinturillas.jpg',
+                'PANTYS': '/img/categorias/cat-panty_costillero.jpg',
+                'USO DIARIO': '/img/categorias/cat-uso_diario.jpg',
+                'POST OPERATORIO': '/img/categorias/cat-post_operatorio.jpg',
+                'ACCESORIOS': '/img/categorias/cat-accesorios.jpg',
+                'STRAPLESS': '/img/categorias/cat-strapless.jpg'
+            };
+            
             let html = `
                 <button onclick="filtrarCategoria('TODAS')" id="btn-cat-TODAS" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none">
                     <div class="circle-cat w-14 h-14 rounded-full overflow-hidden border-2 border-rose-500 p-0.5 transition-all shadow-xs bg-rose-50 flex items-center justify-center">
-                        <img src="logo.png" onerror="this.src='https://fajasisabellaec.com/wp-content/uploads/2023/11/IMG_8347-150x150.jpg'" class="w-full h-full object-cover rounded-full" alt="Todas">
+                        <img src="/img/categorias/cat-todas.jpg" onerror="this.src='/logo.png'" class="w-full h-full object-cover rounded-full" alt="Todas">
                     </div>
                     <span class="text-[10px] font-bold text-rose-600 mt-1 uppercase tracking-tight label-cat">Todas</span>
                 </button>
             `;
 
             categoriasUnicas.forEach(cat => {
+                const catUpper = cat.toUpperCase();
+                const imgCat = mapaImagenesCategorias[catUpper] || '/img/categorias/cat-todas.jpg';
+
                 html += `
                     <button onclick="filtrarCategoria('${cat}')" id="btn-cat-${cat}" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none">
                         <div class="circle-cat w-14 h-14 rounded-full overflow-hidden border-2 border-slate-200 p-0.5 transition-all shadow-xs bg-rose-50 flex items-center justify-center">
-                            <img src="logo.png" onerror="this.src='https://fajasisabellaec.com/wp-content/uploads/2023/11/IMG_8305-150x150.jpg'" class="w-full h-full object-cover rounded-full" alt="${cat}">
+                            <img src="${imgCat}" onerror="this.src='/logo.png'" class="w-full h-full object-cover rounded-full" alt="${cat}">
                         </div>
                         <span class="text-[10px] font-bold text-slate-700 mt-1 uppercase tracking-tight label-cat">${cat}</span>
                     </button>
@@ -224,6 +236,18 @@
             });
 
             contenedor.innerHTML = html;
+        }
+
+        function obtenerRutaImagenProducto(imagenUrl) {
+            if (!imagenUrl || imagenUrl.trim() === "") return "/logo.png";
+            if (imagenUrl.startsWith("http://") || imagenUrl.startsWith("https://")) return imagenUrl;
+            if (imagenUrl.startsWith("/img/productos/")) return imagenUrl;
+            if (imagenUrl.startsWith("img/productos/")) return "/" + imagenUrl;
+            if (imagenUrl.startsWith("/img/")) return imagenUrl;
+            if (imagenUrl.startsWith("img/")) return "/" + imagenUrl;
+            
+            const nombreArchivo = imagenUrl.startsWith("/") ? imagenUrl.substring(1) : imagenUrl;
+            return "/img/productos/" + nombreArchivo;
         }
 
         function formatearRespuestaAPI(data) {
@@ -240,7 +264,7 @@
                         id: Object.keys(agrupados).length + 1,
                         nombre: nombreBase,
                         categoria: cat,
-                        imagen_url: item.imagen_url || "logo.png",
+                        imagen_url: item.imagen_url || "/logo.png",
                         en_liquidacion: item.en_liquidacion || false,
                         variantes: []
                     };
@@ -263,7 +287,7 @@
                     id: 1,
                     nombre: "Faja Chaleco Modeladora",
                     categoria: "CINTURILLAS",
-                    imagen_url: "logo.png",
+                    imagen_url: "/logo.png",
                     en_liquidacion: true,
                     variantes: [
                         { sku: "FAJA-CHALECO-XS-NEGRO", talla: "XS", color: "Negro", precio: 45.0, stock: 4 },
@@ -293,13 +317,13 @@
                     ? `<span class="absolute top-2 left-2 bg-rose-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md animate-pulse">🔥 LIQUIDACIÓN</span>` 
                     : '';
 
-                const imgSrc = p.imagen_url && p.imagen_url.trim() !== "" ? p.imagen_url : "logo.png";
+                const imgSrc = obtenerRutaImagenProducto(p.imagen_url);
 
                 return `
                     <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:shadow-lg transition flex flex-col justify-between group">
                         <div class="relative bg-slate-50 h-48 flex items-center justify-center p-3 overflow-hidden">
                             ${badgeLiquidacion}
-                            <img src="${imgSrc}" onerror="this.src='logo.png'" class="h-full object-contain group-hover:scale-105 transition-all duration-300" alt="${p.nombre}">
+                            <img src="${imgSrc}" onerror="this.src='/logo.png'" class="h-full object-contain group-hover:scale-105 transition-all duration-300" alt="${p.nombre}">
                             <span class="absolute top-2 right-2 bg-slate-900/80 text-white text-[9px] font-bold px-2 py-0.5 rounded-full backdrop-blur-xs">
                                 ${p.variantes.length} Opciones
                             </span>
@@ -339,11 +363,11 @@
             tallaSeleccionada = tallas[0];
             colorSeleccionado = colores[0];
 
-            const imgSrcModal = productoSeleccionado.imagen_url && productoSeleccionado.imagen_url.trim() !== "" ? productoSeleccionado.imagen_url : "logo.png";
+            const imgSrcModal = obtenerRutaImagenProducto(productoSeleccionado.imagen_url);
 
             const contenido = `
                 <div class="flex gap-4 items-start mb-4">
-                    <img src="${imgSrcModal}" onerror="this.src='logo.png'" class="w-20 h-20 object-contain rounded-2xl bg-slate-50 p-2 border border-slate-100 shrink-0">
+                    <img src="${imgSrcModal}" onerror="this.src='/logo.png'" class="w-20 h-20 object-contain rounded-2xl bg-slate-50 p-2 border border-slate-100 shrink-0">
                     <div>
                         <span class="text-[10px] font-bold text-rose-600 tracking-wider uppercase">${productoSeleccionado.categoria}</span>
                         <h3 class="text-base font-extrabold text-slate-900 leading-snug">${productoSeleccionado.nombre}</h3>
@@ -540,7 +564,7 @@
                     talla: tallaSeleccionada,
                     color: colorSeleccionado,
                     precio: variante.precio,
-                    imagen_url: productoSeleccionado.imagen_url || "logo.png",
+                    imagen_url: productoSeleccionado.imagen_url || "/logo.png",
                     cantidad: 1
                 });
             }
@@ -566,21 +590,24 @@
                 return;
             }
 
-            container.innerHTML = carrito.map((item, index) => `
-                <div class="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
-                    <div class="flex items-center gap-3">
-                        <img src="${item.imagen_url}" onerror="this.src='logo.png'" class="w-12 h-12 object-contain rounded-lg bg-white p-1 border">
-                        <div>
-                            <h4 class="text-xs font-bold text-slate-800 line-clamp-1">${item.nombre}</h4>
-                            <p class="text-[10px] text-slate-500">Talla: <b>${item.talla}</b> | Color: <b>${item.color}</b></p>
-                            <span class="text-xs font-black text-rose-600">$${item.precio.toFixed(2)} x ${item.cantidad}</span>
+            container.innerHTML = carrito.map((item, index) => {
+                const imgItem = obtenerRutaImagenProducto(item.imagen_url);
+                return `
+                    <div class="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                        <div class="flex items-center gap-3">
+                            <img src="${imgItem}" onerror="this.src='/logo.png'" class="w-12 h-12 object-contain rounded-lg bg-white p-1 border">
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-800 line-clamp-1">${item.nombre}</h4>
+                                <p class="text-[10px] text-slate-500">Talla: <b>${item.talla}</b> | Color: <b>${item.color}</b></p>
+                                <span class="text-xs font-black text-rose-600">$${item.precio.toFixed(2)} x ${item.cantidad}</span>
+                            </div>
                         </div>
+                        <button onclick="eliminarDelCarrito(${index})" class="text-slate-400 hover:text-rose-600 text-xs p-1">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
                     </div>
-                    <button onclick="eliminarDelCarrito(${index})" class="text-slate-400 hover:text-rose-600 text-xs p-1">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         function eliminarDelCarrito(index) {
