@@ -239,14 +239,34 @@
         }
 
         function obtenerRutaImagenProducto(imagenUrl, categoria) {
-            if (!imagenUrl || imagenUrl.trim() === "" || imagenUrl === "/logo.png" || imagenUrl === "logo.png") return "/logo.png";
-            if (imagenUrl.startsWith("http://") || imagenUrl.startsWith("https://")) return imagenUrl;
-            if (imagenUrl.startsWith("/img/")) return imagenUrl;
-            if (imagenUrl.startsWith("img/")) return "/" + imagenUrl;
+            if (!imagenUrl || imagenUrl.trim() === "" || imagenUrl === "/logo.png" || imagenUrl === "logo.png") {
+                return "/logo.png";
+            }
+            if (imagenUrl.startsWith("http://") || imagenUrl.startsWith("https://")) {
+                return imagenUrl;
+            }
+            if (imagenUrl.startsWith("/img/")) {
+                return imagenUrl;
+            }
+            if (imagenUrl.startsWith("img/")) {
+                return "/" + imagenUrl;
+            }
             
-            const nombreArchivo = imagenUrl.split('/').pop();
-            const carpetaCategoria = (categoria || 'general').toLowerCase().trim();
-            return `/img/productos/${carpetaCategoria}/${nombreArchivo}`;
+            let nombreArchivo = imagenUrl.split('/').pop().trim();
+            if (!nombreArchivo.endsWith('.jpg') && !nombreArchivo.endsWith('.png') && !nombreArchivo.endsWith('.jpeg')) {
+                nombreArchivo += '.jpg';
+            }
+            
+            let catFolder = (categoria || 'general').toLowerCase().trim();
+            if (catFolder.includes('cinturilla')) catFolder = 'cinturillas';
+            else if (catFolder.includes('panty') || catFolder.includes('panties')) catFolder = 'pantys';
+            else if (catFolder.includes('diario')) catFolder = 'diario';
+            else if (catFolder.includes('post') || catFolder.includes('parto')) catFolder = 'postoperatorio';
+            else if (catFolder.includes('strapless')) catFolder = 'Strapless';
+            else if (catFolder.includes('costillero')) catFolder = 'costilleros';
+            else if (catFolder.includes('cachetero')) catFolder = 'cacheteros';
+
+            return `/img/productos/${catFolder}/${nombreArchivo}`;
         }
 
         function formatearRespuestaAPI(data) {
