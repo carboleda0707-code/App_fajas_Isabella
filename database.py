@@ -111,3 +111,6 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# --- CREACIÓN AUTOMÁTICA DE TABLAS AL INICIAR ---
+Base.metadata.create_all(bind=engine)
