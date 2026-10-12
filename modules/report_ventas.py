@@ -3,7 +3,7 @@ import requests
 import os
 from datetime import date, datetime
 
-API_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000") + "/api"
+API_URL = st.session_state.get("API_URL", "http://127.0.0.1:8000/api")
 
 def render_reporte_ventas():
     st.markdown("### 📊 Reportes de Ventas y Facturación")
