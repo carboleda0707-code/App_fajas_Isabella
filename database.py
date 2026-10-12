@@ -32,8 +32,8 @@ class Cliente(Base):
     ciudad = Column(String(100), nullable=True)
     telefono = Column(String)
     correo = Column(String, nullable=True)
-    tipo_precio = Column(String(50), default='REGULAR')          # <-- NUEVO: REGULAR, MAYORISTA, VIP
-    descuento_porcentaje = Column(Float, default=0.0)             # <-- NUEVO: % Descuento Fijo
+    tipo_precio = Column(String(50), default='REGULAR')
+    descuento_porcentaje = Column(Float, default=0.0)
 
 class Proveedor(Base):
     __tablename__ = "proveedores"
@@ -117,6 +117,17 @@ class MovimientoInventario(Base):
     entidad_asociada = Column(String) 
     fecha_hora = Column(DateTime, default=datetime.now)
 
+# --- NUEVO: MODELO DE USUARIOS PARA EL PANEL ADMINISTRATIVO ---
+class Usuario(Base):
+    __tablename__ = "usuarios"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, index=True, nullable=False)
+    email = Column(String(100), unique=True, index=True, nullable=False)
+    password = Column(String(255), nullable=False)
+    rol = Column(String(20), nullable=False, default="Ventas")  # Administrador, Ventas, Despacho
+    activo = Column(Boolean, default=True)
+    fecha_creacion = Column(DateTime, default=datetime.now)
+
 def get_db():
     db = SessionLocal()
     try:
@@ -146,3 +157,30 @@ try:
     asegurar_columnas_logistica()
 except Exception as e:
     print(f"Nota sobre migración automática en caliente: {e}")
+
+# --- CREAR USUARIO ADMINISTRADOR MASTER INICIAL SI NO EXISTE ---
+def crear_usuario_inicial():
+    db = SessionLocal()
+    try:
+        admin_existente = db.query(Usuario).filter(Usuario.username == "admin").first()
+        if not admin_existente:
+            admin_default = Usuario(
+                username="admin",
+                email="admin@fajasisabella.com",
+                password="FajasIsabella2026*",
+                rol="Administrador",
+                activo=True
+            )
+            db.add(admin_default)
+            db.commit()
+            print("🟢 Usuario Administrador inicial creado correctamente.")
+    except Exception as e:
+        print(f"⚠️ Error al crear usuario inicial: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+try:
+    crear_usuario_inicial()
+except Exception as e:
+    print(f"Nota sobre usuario inicial: {e}")

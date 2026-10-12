@@ -1,12 +1,13 @@
 import sys
 import os
 
-# Asegurar que la raíz del proyecto esté en el PYTHONPATH de forma dinámica (Compatible con la nube)
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.append(current_dir)
 
 import streamlit as st
+from modules.login_admin import render_login_admin
+
 from modules.inventario_ui import render_inventario
 from modules.ventas_ui import render_ventas
 from modules.despachos_ui import render_despachos
@@ -23,40 +24,35 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CSS PARA HACER EL ENCABEZADO PEGAJOSO (STICKY) Y VISIBLE ---
-st.markdown("""
-    <style>
-        /* Ajuste de margen superior de Streamlit */
-        .block-container {
-            padding-top: 1.5rem !important;
-            padding-bottom: 2rem !important;
-        }
-        [data-testid="stSidebar"] > div:first-child {
-            padding-top: 1.5rem !important;
-        }
-        
-        /* Caja del encabezado sticky */
-        .sticky-header {
-            position: -webkit-sticky;
-            position: sticky;
-            top: 0px;
-            background-color: #ffffff;
-            z-index: 999;
-            padding-top: 5px;
-            padding-bottom: 12px;
-            border-bottom: 2px solid #eaeaea;
-            margin-bottom: 20px;
-        }
-    </style>
-""", unsafe_allow_html=True)
+# --- ESTADOS DE SESIÓN ---
+if "autenticado" not in st.session_state:
+    st.session_state["autenticado"] = False
+if "usuario_actual" not in st.session_state:
+    st.session_state["usuario_actual"] = None
+if "rol_actual" not in st.session_state:
+    st.session_state["rol_actual"] = None
 
-# 1. Menú Lateral (Sidebar)
-st.sidebar.markdown("### 🎛️ Panel de Control")
+# --- EVALUACIÓN DE LOGIN DEL PANEL ---
+if not st.session_state["autenticado"]:
+    render_login_admin()
+    st.stop()  # Bloquea el panel administrativo si no se autentica
+
+# --- INFORMACIÓN Y CERRAR SESIÓN EN SIDEBAR ---
+st.sidebar.markdown(f"👤 **Usuario:** {st.session_state['usuario_actual']}")
+st.sidebar.markdown(f"🛡️ **Rol:** `{st.session_state['rol_actual']}`")
+if st.sidebar.button("🔒 Cerrar Sesión", use_container_width=True):
+    st.session_state["autenticado"] = False
+    st.session_state["usuario_actual"] = None
+    st.session_state["rol_actual"] = None
+    st.rerun()
+
 st.sidebar.markdown("---")
 
-seccion = st.sidebar.radio(
-    "Seleccione el Módulo de Trabajo:",
-    [
+# --- MENÚ LATERAL SEGÚN EL ROL ---
+rol = st.session_state["rol_actual"]
+
+if rol == "Administrador":
+    modulos_disponibles = [
         "📦 Módulo de Inventario", 
         "💳 Módulo de Ventas", 
         "🚚 Logística y Despachos",
@@ -65,21 +61,23 @@ seccion = st.sidebar.radio(
         "👥 Mantenimiento de Clientes",
         "📊 Reportes y Auditoría"
     ]
-)
+elif rol == "Ventas":
+    modulos_disponibles = [
+        "💳 Módulo de Ventas",
+        "📦 Módulo de Inventario",
+        "👥 Mantenimiento de Clientes"
+    ]
+elif rol == "Despacho":
+    modulos_disponibles = [
+        "🚚 Logística y Despachos",
+        "📦 Módulo de Inventario"
+    ]
+else:
+    modulos_disponibles = ["📦 Módulo de Inventario"]
 
-st.sidebar.markdown("---")
-st.sidebar.info("💡 **Versión:** 5.0 Modular\n\nBase de Datos: **Conectada** 🟢")
+seccion = st.sidebar.radio("Seleccione el Módulo de Trabajo:", modulos_disponibles)
 
-# 2. Encabezado Fijo Visible
-st.markdown(f"""
-    <div class="sticky-header">
-        <span style="font-size: 1.8rem; font-weight: 800; color: #1e293b;">🛍️ Fajas Isabella</span>
-        <span style="font-size: 1.1rem; color: #2563eb; font-weight: 600; margin-left: 15px;">| &nbsp; {seccion}</span>
-        <p style="font-size: 0.88rem; color: #64748b; margin: 2px 0 0 0;">Sistema Profesional de Gestión, Inventario y Auditoría Financiera</p>
-    </div>
-""", unsafe_allow_html=True)
-
-# 3. Renderizado del Módulo Activo
+# --- RENDERIZADO DE MÓDULOS ---
 if seccion == "📦 Módulo de Inventario":
     render_inventario()
 elif seccion == "💳 Módulo de Ventas":
