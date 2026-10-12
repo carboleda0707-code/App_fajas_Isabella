@@ -25,10 +25,10 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
                 
-                <!-- Logo Oficial -->
+                <!-- Logo Oficial (Reemplaza el texto cortado) -->
                 <div class="flex items-center">
                     <a href="#" onclick="filtrarCategoria('TODAS')" class="flex items-center">
-                        <img src="/img/logo.png" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'40\'><text x=\'0\' y=\'25\' fill=\'%23e11d48\' font-size=\'16\' font-weight=\'bold\'>FAJAS ISABELLA</text></svg>'" alt="Fajas Isabella Logo" class="h-12 sm:h-14 w-auto object-contain transition-transform hover:scale-105">
+                        <img src="/img/logo.png" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'160\' height=\'40\'><text x=\'0\' y=\'25\' fill=\'%23e11d48\' font-size=\'16\' font-weight=\'bold\'>FAJAS ISABELLA</text></svg>'" alt="Fajas Isabella Logo" class="h-10 sm:h-12 w-auto object-contain transition-transform hover:scale-105">
                     </a>
                 </div>
 
@@ -41,11 +41,10 @@
                             <span>TIENDA / CATEGORÍAS</span>
                             <i class="fa-solid fa-chevron-down text-[10px]"></i>
                         </div>
+                        <!-- Contenedor único para evitar duplicados -->
                         <div class="dropdown-menu hidden absolute top-14 left-0 w-64 bg-white border border-slate-200 rounded-xl shadow-xl py-2 z-50">
-                            <a href="#" onclick="filtrarCategoria('TODAS')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">✨ Ver Todo el Catálogo</a>
-                            <div class="border-t border-slate-100 my-1"></div>
                             <div id="dropdown-categorias-dinamico">
-                                <!-- Se llena dinámicamente desde la BD -->
+                                <!-- Se llena dinámicamente desde JS -->
                             </div>
                         </div>
                     </div>
@@ -234,6 +233,7 @@
                 </button>
             `;
 
+            // Se genera una sola vez el "Ver Todo" en el desplegable
             let htmlDropdown = `
                 <a href="#" onclick="filtrarCategoria('TODAS')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">✨ Ver Todo el Catálogo</a>
                 <div class="border-t border-slate-100 my-1"></div>
