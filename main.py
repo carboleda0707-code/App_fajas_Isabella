@@ -19,10 +19,17 @@ app.add_middleware(
 def home():
     return RedirectResponse(url="/web/index.html")
 
+# --- RUTA INTERNA PARA ACCEDER AL PANEL ADMINISTRATIVO STREAMLIT ---
+@app.get("/admin")
+@app.get("/panel")
+def redirigir_admin():
+    # Redirecciona internamente al puerto de Streamlit o al puerto activo
+    return RedirectResponse(url="http://localhost:8501")
+
 # Router de la Web Pública con el prefijo /api
 app.include_router(web_publica.router, prefix="/api", tags=["Web Pública"])
 
-# Routers del sistema (Ventas mapeado bajo /api para sincronía con el frontend)
+# Routers del sistema
 app.include_router(ventas.router, prefix="/api", tags=["Ventas"])
 app.include_router(clientes.router, tags=["Clientes"])
 app.include_router(proveedores.router, tags=["Proveedores"])
