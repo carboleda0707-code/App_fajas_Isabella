@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db, Producto, Categoria
 from typing import Optional
@@ -44,6 +44,42 @@ def listar_inventario_publico(categoria: Optional[str] = Query(None), db: Sessio
             })
             
     return resultado
+
+@router.get("/web/producto/{producto_id}")
+def obtener_producto_dinamico(producto_id: int, db: Session = Depends(get_db)):
+    """
+    Retorna el producto con sus variantes, precio y stock actualizado al milisegundo para el modal.
+    """
+    prod = db.query(Producto).filter(Producto.id == producto_id).first()
+    if not prod:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    # Filtrar únicamente variantes activas con stock > 0
+    variantes_activas = [v for v in prod.variantes if v.stock_actual > 0]
+    
+    variantes_data = []
+    for v in variantes_activas:
+        variantes_data.append({
+            "id": v.id,
+            "sku": v.sku,
+            "talla": v.talla,
+            "color": v.color,
+            "precio": float(v.precio),
+            "stock": v.stock_actual
+        })
+
+    img_clean = getattr(prod, 'imagen_url', '') or ''
+    if img_clean:
+        img_clean = img_clean.split('/')[-1]
+
+    return {
+        "status": "success",
+        "id": prod.id,
+        "nombre": prod.nombre,
+        "categoria": prod.categoria,
+        "imagen_url": img_clean,
+        "variantes": variantes_data
+    }
 
 @router.get("/web/categorias")
 def listar_categorias_publicas(db: Session = Depends(get_db)):
