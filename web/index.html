@@ -115,7 +115,7 @@
         </div>
     </main>
 
-    <!-- 5. MODAL DE SELECCIÓN DE VARIANTE -->
+    <!-- 5. MODAL DE SELECCIÓN DE VARIANTE Y CANTIDAD -->
     <div id="modal-producto" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl p-5 relative">
             <button onclick="cerrarModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg">
@@ -184,6 +184,7 @@
         let productoSeleccionado = null;
         let tallaSeleccionada = "";
         let colorSeleccionado = "";
+        let cantidadSeleccionada = 1;
         let carrito = [];
 
         async function inicializarTienda() {
@@ -335,6 +336,7 @@
 
             tallaSeleccionada = tallas[0];
             colorSeleccionado = colores[0];
+            cantidadSeleccionada = 1;
 
             const imgSrcModal = obtenerRutaImagenProducto(productoSeleccionado.imagen_url);
 
@@ -375,7 +377,7 @@
 
                     <div class="bg-rose-50/60 border border-rose-100 p-3 rounded-2xl mt-3">
                         <span class="text-[10px] font-bold text-rose-600 uppercase tracking-wider block mb-1">📋 Resumen de Selección:</span>
-                        <div class="text-xs text-slate-800 space-y-1">
+                        <div class="text-xs text-slate-800 space-y-1.5">
                             <div class="flex justify-between">
                                 <span class="text-slate-500">Variante:</span>
                                 <span class="font-bold text-slate-900"><span id="resumen-talla">${tallaSeleccionada}</span> / <span id="resumen-color">${colorSeleccionado}</span></span>
@@ -383,6 +385,23 @@
                             <div class="flex justify-between">
                                 <span class="text-slate-500">Disponibilidad:</span>
                                 <span class="font-mono text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded" id="modal-stock">Consultando...</span>
+                            </div>
+
+                            <hr class="border-rose-200 my-2">
+
+                            <!-- SELECTOR DE CANTIDAD Y SUBTOTAL DINÁMICO -->
+                            <div class="flex justify-between items-center pt-1">
+                                <span class="text-slate-700 font-bold">Cantidad:</span>
+                                <div class="flex items-center border border-slate-300 rounded-lg bg-white overflow-hidden shadow-2xs">
+                                    <button onclick="cambiarCantidadModal(-1)" type="button" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold transition">-</button>
+                                    <input id="modal-cantidad-input" type="number" value="1" min="1" class="w-10 text-center text-xs font-black border-none outline-none bg-transparent" readonly>
+                                    <button onclick="cambiarCantidadModal(1)" type="button" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold transition">+</button>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-between items-center pt-1 text-sm font-black text-slate-900">
+                                <span>Total Selección:</span>
+                                <span id="modal-total-seleccion" class="text-rose-600 text-base">$0.00</span>
                             </div>
                         </div>
                     </div>
@@ -406,6 +425,28 @@
             document.getElementById("modal-contenido").innerHTML = contenido;
             document.getElementById("modal-producto").classList.remove("hidden");
             actualizarDetalleVariante();
+        }
+
+        function cambiarCantidadModal(delta) {
+            const variante = obtenerVarianteActual();
+            const stockMax = variante ? variante.stock : 99;
+
+            cantidadSeleccionada += delta;
+            if (cantidadSeleccionada < 1) cantidadSeleccionada = 1;
+            if (cantidadSeleccionada > stockMax && stockMax > 0) cantidadSeleccionada = stockMax;
+
+            const inputElem = document.getElementById("modal-cantidad-input");
+            if (inputElem) {
+                inputElem.value = cantidadSeleccionada;
+            }
+            actualizarDetalleVariante();
+        }
+
+        function obtenerVarianteActual() {
+            if (!productoSeleccionado) return null;
+            return productoSeleccionado.variantes.find(v => v.talla === tallaSeleccionada && v.color === colorSeleccionado) 
+                || productoSeleccionado.variantes.find(v => v.talla === tallaSeleccionada) 
+                || productoSeleccionado.variantes[0];
         }
 
         function seleccionarTalla(talla) {
@@ -437,16 +478,19 @@
         }
 
         function actualizarDetalleVariante() {
-            if (!productoSeleccionado) return;
-            const variante = productoSeleccionado.variantes.find(v => v.talla === tallaSeleccionada && v.color === colorSeleccionado) 
-                          || productoSeleccionado.variantes.find(v => v.talla === tallaSeleccionada) 
-                          || productoSeleccionado.variantes[0];
+            const variante = obtenerVarianteActual();
 
             if (variante) {
+                const totalLinea = variante.precio * cantidadSeleccionada;
                 document.getElementById("modal-precio").innerText = `$${variante.precio.toFixed(2)}`;
                 document.getElementById("resumen-talla").innerText = tallaSeleccionada;
                 document.getElementById("resumen-color").innerText = colorSeleccionado;
                 document.getElementById("modal-stock").innerText = `Stock: ${variante.stock} disp. (${variante.sku})`;
+                
+                const elemTotal = document.getElementById("modal-total-seleccion");
+                if (elemTotal) {
+                    elemTotal.innerText = `$${totalLinea.toFixed(2)}`;
+                }
             }
         }
 
@@ -487,11 +531,12 @@
         }
 
         function agregarAlCarrito(abrirCarritoDrawer = false) {
-            const variante = productoSeleccionado.variantes.find(v => v.talla === tallaSeleccionada && v.color === colorSeleccionado) || productoSeleccionado.variantes[0];
+            const variante = obtenerVarianteActual();
+            const cantAgregar = cantidadSeleccionada > 0 ? cantidadSeleccionada : 1;
 
             const itemExistente = carrito.find(item => item.sku === variante.sku);
             if (itemExistente) {
-                itemExistente.cantidad += 1;
+                itemExistente.cantidad += cantAgregar;
             } else {
                 carrito.push({
                     nombre: productoSeleccionado.nombre,
@@ -501,7 +546,7 @@
                     precio: variante.precio,
                     imagen_url: productoSeleccionado.imagen_url || SVG_FALLBACK,
                     categoria: productoSeleccionado.categoria,
-                    cantidad: 1
+                    cantidad: cantAgregar
                 });
             }
 
@@ -615,8 +660,5 @@
 
         inicializarTienda();
     </script>
-    <!-- Tu archivo JavaScript externo -->
-    
-    <script src="/tienda.js"></script>
 </body>
 </html>
