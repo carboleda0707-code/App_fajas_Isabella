@@ -3,7 +3,9 @@ import requests
 import os
 from datetime import date, datetime
 
-API_URL = st.session_state.get("API_URL", "http://127.0.0.1:8000/api")
+# Conexión estricta de Producción en Nube
+API_BASE = os.getenv("API_BASE_URL", "https://fajasisabella-production.up.railway.app").rstrip("/")
+API_URL = f"{API_BASE}/api" if not API_BASE.endswith("/api") else API_BASE
 
 def render_reporte_compras():
     st.markdown("### 🛒 Reportes de Compras y Proveedores")

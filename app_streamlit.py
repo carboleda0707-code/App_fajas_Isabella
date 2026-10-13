@@ -24,8 +24,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CONFIGURACIÓN GLOBAL Y CENTRALIZADA DE LA API ---
-base_url = os.getenv("API_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
+# --- CONFIGURACIÓN GLOBAL Y CENTRALIZADA DE LA API (NUBE) ---
+default_cloud_url = "https://fajasisabella-production.up.railway.app"
+base_url = os.getenv("API_BASE_URL", default_cloud_url).rstrip("/")
 st.session_state["API_URL"] = f"{base_url}/api" if not base_url.endswith("/api") else base_url
 
 # --- ESTADOS DE SESIÓN ---
