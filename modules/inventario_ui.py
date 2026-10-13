@@ -30,14 +30,14 @@ def render_inventario():
         col_izq, col_der = st.columns([3, 1.2])
 
         with col_izq:
-            st.markdown("##### 🖼️ Registro de Producto Base, Variantes e Imagen")
+            st.markdown("##### 🖼️ Registra Productos, Variantes, Imagen")
             
             nombre_producto = st.text_input("Nombre del Modelo / Producto", placeholder="Ej: Panty Alto Diva")
             
             # Selector dinámico de categorías
             categoria = st.selectbox("Categoría del Producto", options=categorias_disponibles)
 
-            st.markdown("##### 🏷️ Tabla de Variantes (Tallas, Colores, Precios y Stock)")
+            st.markdown("###### 🏷️ Tabla de Variantes (Tallas, Colores, Precios y Stock)")
             st.caption("Puedes dejar el SKU vacío para que el sistema lo genere automáticamente de forma compacta (ej: id-talla-color), o escribir uno personalizado.")
 
             # Tabla inicial limpia sin SKUs quemados estáticos (SKU en blanco para autogeneración)
@@ -133,7 +133,7 @@ def render_inventario():
                         st.error(f"Error de conexión con la API: {e}")
 
     elif accion == "Consultar y Modificar Inventario":
-        st.markdown("##### 📋 Consulta y Modificación de Inventario Actual")
+        st.markdown("##### 📋 Mantenimiento de Inventario")
         try:
             res = requests.get(f"{API_URL}/inventario")
             if res.status_code == 200:
@@ -175,12 +175,12 @@ def render_inventario():
                                df_filtrado["SKU"].str.contains(filtro_texto, case=False, na=False)
                         df_filtrado = df_filtrado[mask]
 
-                    st.markdown("##### 📊 Listado General de Variantes Registradas")
+                    st.markdown("##### 📊 Listado de Variantes")
                     st.dataframe(df_filtrado, use_container_width=True)
 
                     st.divider()
-                    st.markdown("#### 🛠️ Corrección de Variante e Imagen por ID")
-                    st.caption("Introduce el ID de la variante para ver su estado actual, modificar atributos o reemplazar su imagen.")
+                    st.markdown("##### 🛠️ Corrección de Variante")
+                    st.caption("Filtra el ID de la Variante -Visualiza - Modifica Atributos o Reemplaza su imagen.")
 
                     with st.form("form_modificar_variante"):
                         col_form_izq, col_form_der = st.columns([2.2, 1.2])
@@ -257,8 +257,8 @@ def render_inventario():
 
     else:
         # --- PESTAÑA: MANTENIMIENTO DE CATEGORÍAS ---
-        st.markdown("#### 🏷️ Mantenimiento y Tabla de Categorías Web")
-        st.caption("Añade nuevas categorías con su gráfico (Presentacion circular es automatico.")
+        st.markdown("#### 🏷️ Mantenimiento de Categorías")
+        st.caption("Actualiza categorías con su gráfico (Presentacion Web circular es automatico.")
 
         col_c_izq, col_c_der = st.columns([1.2, 1.8])
 
