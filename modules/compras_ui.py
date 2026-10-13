@@ -13,10 +13,16 @@ SVG_FALLBACK = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' 
 def obtener_url_imagen(img_path):
     if not img_path or str(img_path).strip() in ["", "None", "null", "/logo.png", "logo.png"]:
         return SVG_FALLBACK
-    if str(img_path).startswith("http://") or str(img_path).startswith("https://"):
-        return img_path
-    nombre_archivo = str(img_path).split('/')[-1].strip()
-    return f"{API_BASE}/web/img/{nombre_archivo}"
+    
+    img_str = str(img_path).strip()
+    if img_str.startswith("http://") or img_str.startswith("https://"):
+        return img_str
+    
+    # Limpiar cualquier prefijo para obtener solo el nombre del archivo
+    nombre_archivo = img_str.split('/')[-1].strip()
+    
+    # Ruta oficial donde FastAPI sirve la carpeta estática web/img
+    return f"{API_BASE}/img/{nombre_archivo}"
 
 def render_compras():
     st.markdown("### 📥 Módulo de Compras a Proveedores")
@@ -45,7 +51,6 @@ def render_compras():
             st.error(f"Error al conectar con el servidor: {e}")
             
     elif accion == "📥 Registrar Nueva Compra":
-        # 1. Consultar Inventario para mapear Nombre Real del Producto, Imagen y SKU
         try:
             res_inv = requests.get(f"{API_URL}/inventario", timeout=5)
             inventario = res_inv.json() if res_inv.status_code == 200 else []
@@ -62,21 +67,21 @@ def render_compras():
         for item in inventario:
             sku_val = item.get('sku') or item.get('SKU') or 'N/D'
             
-            # Extracción del Nombre Real del Producto
             nombre_prod = "Faja"
             imagen_url = ""
+            
+            # Extracción flexible de producto e imagen según el tipo de objeto retornado
             if isinstance(item.get('producto'), dict):
                 nombre_prod = item.get('producto', {}).get('nombre') or item.get('producto', {}).get('modelo') or "Faja"
                 imagen_url = item.get('producto', {}).get('imagen_url') or ""
             else:
-                nombre_prod = item.get('producto') or item.get('nombre') or item.get('modelo') or item.get('Modelo') or "Faja"
-                imagen_url = item.get('imagen_url') or item.get('imagen') or ""
+                nombre_prod = item.get('Producto') or item.get('producto') or item.get('nombre') or item.get('modelo') or item.get('Modelo') or "Faja"
+                imagen_url = item.get('imagen_url') or item.get('imagen') or item.get('Imagen') or ""
 
             talla_val = item.get('talla') or item.get('Talla') or 'Única'
             color_val = item.get('color') or item.get('Color') or 'Único'
             
-            # Etiqueta descriptiva clara con NOMBRE DE PRODUCTO + Talla + Color + SKU
-            label_desc = f"🛍️ {nombre_prod.upper()} — [Talla: {talla_val} | Color: {color_val}] (SKU: {sku_val})"
+            label_desc = f"🛍️ {str(nombre_prod).upper()} — [Talla: {talla_val} | Color: {color_val}] (SKU: {sku_val})"
             
             dict_skus[label_desc] = sku_val
             info_variantes[sku_val] = {
@@ -88,7 +93,7 @@ def render_compras():
 
         lista_desc_skus = list(dict_skus.keys())
 
-        # 2. Consultar Proveedores para Autocompletar
+        # Consultar Proveedores para Autocompletar
         try:
             res_prov = requests.get(f"{API_URL}/proveedores", timeout=5)
             proveedores = res_prov.json() if res_prov.status_code == 200 else []
@@ -137,7 +142,6 @@ def render_compras():
             for i in range(int(num_lineas)):
                 st.markdown(f"**Línea #{i+1}**")
                 
-                # Layout en columnas con espacio para la previsualización de la foto
                 col_img, col_sel, col_cant, col_costo = st.columns([1, 3.5, 1.2, 1.3])
                 
                 with col_sel:
@@ -150,9 +154,11 @@ def render_compras():
                     info_var = info_variantes.get(sku_elegido, {})
 
                 with col_img:
-                    # Mostrar la foto del producto seleccionado
                     img_path_var = info_var.get("imagen_url", SVG_FALLBACK)
-                    st.image(img_path_var, width=75)
+                    try:
+                        st.image(img_path_var, width=80)
+                    except:
+                        st.image(SVG_FALLBACK, width=80)
 
                 with col_cant:
                     cant_ing = st.number_input(f"Cantidad Recibida #{i+1}", min_value=1, value=1, key=f"comp_cant_{i}")
