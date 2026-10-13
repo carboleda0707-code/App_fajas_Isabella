@@ -35,7 +35,7 @@ def render_compras():
             st.error(f"Error al conectar con el servidor: {e}")
             
     elif accion == "📥 Registrar Nueva Compra":
-        # 1. Consultar Inventario para mapear variantes
+        # 1. Consultar Inventario para mapear variantes de forma segura (soporta minúsculas y mayúsculas)
         try:
             res_inv = requests.get(f"{API_URL}/inventario", timeout=5)
             inventario = res_inv.json() if res_inv.status_code == 200 else []
@@ -46,7 +46,16 @@ def render_compras():
             st.warning("⚠️ No hay productos o variantes registradas en el inventario. Debe crearlos primero en el Módulo de Inventario.")
             return
 
-        dict_skus = {f"{item['sku']} — [{item.get('modelo', 'Faja')} | Talla: {item['talla']} | Color: {item['color']}]": item['sku'] for item in inventario}
+        dict_skus = {}
+        for item in inventario:
+            sku_val = item.get('sku') or item.get('SKU') or 'N/D'
+            modelo_val = item.get('modelo') or item.get('Modelo') or 'Faja'
+            talla_val = item.get('talla') or item.get('Talla') or 'Única'
+            color_val = item.get('color') or item.get('Color') or 'Único'
+            
+            label_desc = f"{sku_val} — [{modelo_val} | Talla: {talla_val} | Color: {color_val}]"
+            dict_skus[label_desc] = sku_val
+
         lista_desc_skus = list(dict_skus.keys())
 
         # 2. Consultar Proveedores para Autocompletar
@@ -56,7 +65,7 @@ def render_compras():
         except:
             proveedores = []
         
-        dict_provs = {p['nombre_empresa']: p for p in proveedores} if proveedores else {}
+        dict_provs = {p.get('nombre_empresa') or p.get('nombre', ''): p for p in proveedores} if proveedores else {}
 
         st.subheader("📄 Membrete y Cabecera de la Factura")
         
@@ -77,7 +86,7 @@ def render_compras():
                 pass
 
             if sel_prov != "-- Ingresar Nuevo Proveedor --":
-                ruc_sugerido = dict_provs[sel_prov].get("ruc_cedula", "")
+                ruc_sugerido = dict_provs[sel_prov].get("ruc_cedula") or dict_provs[sel_prov].get("ruc") or ""
                 nombre_sugerido = sel_prov
             else:
                 ruc_sugerido = ""
