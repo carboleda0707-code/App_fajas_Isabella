@@ -8,14 +8,27 @@ import pandas as pd
 API_BASE = os.getenv("API_BASE_URL", "https://fajasisabella-production.up.railway.app").rstrip("/")
 API_URL = f"{API_BASE}/api" if not API_BASE.endswith("/api") else API_BASE
 
+SVG_FALLBACK = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100%' height='100%' fill='%23f1f5f9'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-size='10'>Fajas Isabella</text></svg>"
+
+def obtener_url_imagen(img_path):
+    if not img_path or str(img_path).strip() in ["", "None", "null", "/logo.png", "logo.png"]:
+        return SVG_FALLBACK
+    if str(img_path).startswith("http://") or str(img_path).startswith("https://"):
+        return img_path
+    nombre_archivo = str(img_path).split('/')[-1].strip()
+    return f"{API_BASE}/web/img/{nombre_archivo}"
+
 def render_compras():
+    st.markdown("### 📥 Módulo de Compras a Proveedores")
+    st.markdown("---")
     
     accion = st.radio(
-        "Acción a realizar en : 📥 Módulo de Compras a Proveedores", 
+        "Acción a realizar:", 
         ["📥 Registrar Nueva Compra", "📋 Consultar Facturas de Compra Ingresadas"], 
         horizontal=True
     )
-       
+    st.markdown("---")
+    
     if accion == "📋 Consultar Facturas de Compra Ingresadas":
         col_btn, _ = st.columns([1, 4])
         with col_btn:
@@ -32,7 +45,7 @@ def render_compras():
             st.error(f"Error al conectar con el servidor: {e}")
             
     elif accion == "📥 Registrar Nueva Compra":
-        # 1. Consultar Inventario para mapear variantes de forma segura (soporta minúsculas y mayúsculas)
+        # 1. Consultar Inventario para mapear Nombre Real del Producto, Imagen y SKU
         try:
             res_inv = requests.get(f"{API_URL}/inventario", timeout=5)
             inventario = res_inv.json() if res_inv.status_code == 200 else []
@@ -44,14 +57,34 @@ def render_compras():
             return
 
         dict_skus = {}
+        info_variantes = {}
+
         for item in inventario:
             sku_val = item.get('sku') or item.get('SKU') or 'N/D'
-            modelo_val = item.get('modelo') or item.get('Modelo') or 'Faja'
+            
+            # Extracción del Nombre Real del Producto
+            nombre_prod = "Faja"
+            imagen_url = ""
+            if isinstance(item.get('producto'), dict):
+                nombre_prod = item.get('producto', {}).get('nombre') or item.get('producto', {}).get('modelo') or "Faja"
+                imagen_url = item.get('producto', {}).get('imagen_url') or ""
+            else:
+                nombre_prod = item.get('producto') or item.get('nombre') or item.get('modelo') or item.get('Modelo') or "Faja"
+                imagen_url = item.get('imagen_url') or item.get('imagen') or ""
+
             talla_val = item.get('talla') or item.get('Talla') or 'Única'
             color_val = item.get('color') or item.get('Color') or 'Único'
             
-            label_desc = f"{sku_val} — [{modelo_val} | Talla: {talla_val} | Color: {color_val}]"
+            # Etiqueta descriptiva clara con NOMBRE DE PRODUCTO + Talla + Color + SKU
+            label_desc = f"🛍️ {nombre_prod.upper()} — [Talla: {talla_val} | Color: {color_val}] (SKU: {sku_val})"
+            
             dict_skus[label_desc] = sku_val
+            info_variantes[sku_val] = {
+                "nombre": nombre_prod,
+                "talla": talla_val,
+                "color": color_val,
+                "imagen_url": obtener_url_imagen(imagen_url)
+            }
 
         lista_desc_skus = list(dict_skus.keys())
 
@@ -103,14 +136,28 @@ def render_compras():
             items_compra = []
             for i in range(int(num_lineas)):
                 st.markdown(f"**Línea #{i+1}**")
-                ic1, ic2, ic3 = st.columns([2.5, 1, 1])
-                with ic1:
-                    sel_sku_desc = st.selectbox(f"Seleccionar Producto/Variante #{i+1}", lista_desc_skus, key=f"comp_sku_{i}")
+                
+                # Layout en columnas con espacio para la previsualización de la foto
+                col_img, col_sel, col_cant, col_costo = st.columns([1, 3.5, 1.2, 1.3])
+                
+                with col_sel:
+                    sel_sku_desc = st.selectbox(
+                        f"Seleccionar Producto / Variante #{i+1}", 
+                        lista_desc_skus, 
+                        key=f"comp_sku_{i}"
+                    )
                     sku_elegido = dict_skus[sel_sku_desc]
-                with ic2:
+                    info_var = info_variantes.get(sku_elegido, {})
+
+                with col_img:
+                    # Mostrar la foto del producto seleccionado
+                    img_path_var = info_var.get("imagen_url", SVG_FALLBACK)
+                    st.image(img_path_var, width=75)
+
+                with col_cant:
                     cant_ing = st.number_input(f"Cantidad Recibida #{i+1}", min_value=1, value=1, key=f"comp_cant_{i}")
-                with ic3:
-                    val_neto = st.number_input(f"Costo Unitario ($) #{i+1}", min_value=0.0, value=0.0, step=0.5, key=f"comp_val_{i}")
+                with col_costo:
+                    val_neto = st.number_input(f"Costo Unit. ($) #{i+1}", min_value=0.0, value=0.0, step=0.5, key=f"comp_val_{i}")
                 
                 items_compra.append({
                     "sku": sku_elegido,
