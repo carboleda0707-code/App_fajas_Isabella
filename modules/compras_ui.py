@@ -15,8 +15,7 @@ def render_compras():
         ["📥 Registrar Nueva Compra", "📋 Consultar Facturas de Compra Ingresadas"], 
         horizontal=True
     )
-    st.markdown("---")
-    
+       
     if accion == "📋 Consultar Facturas de Compra Ingresadas":
         col_btn, _ = st.columns([1, 4])
         with col_btn:
