@@ -315,7 +315,7 @@
                                     <span class="text-[9px] text-slate-400 block">${p.en_liquidacion ? 'Oferta' : 'Desde'}</span>
                                     <span class="text-sm font-black ${p.en_liquidacion ? 'text-rose-600' : 'text-slate-900'}">${precioTexto}</span>
                                 </div>
-                                <button onclick="abrirModal(${p.id})" 
+                                <button onclick="abrirModalDinamico(${p.id})" ...>Ver Tallas</button>
                                     class="bg-slate-900 hover:bg-rose-600 text-white font-bold text-[11px] px-3 py-1.5 rounded-xl transition shadow-xs">
                                     Ver Tallas
                                 </button>
@@ -617,6 +617,7 @@
         inicializarTienda();
     </script>
     <!-- Tu archivo JavaScript externo -->
-    <script src="tienda.js"></script>
+    
+    <script src="/tienda.js"></script>
 </body>
 </html>
