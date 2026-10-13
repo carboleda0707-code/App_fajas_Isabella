@@ -61,13 +61,19 @@
                     <a href="#" class="hover:text-rose-600 transition">NOSOTROS</a>
                 </nav>
 
-                <!-- Buscador + Carrito Flotante -->
+                <!-- Buscador, Botón de Cuenta + Carrito Flotante -->
                 <div class="flex items-center gap-3">
                     <div class="relative hidden sm:block">
                         <input type="text" id="input-busqueda" onkeyup="buscarProducto()" placeholder="Buscar faja, SKU..." 
                             class="bg-slate-100 text-xs text-slate-800 rounded-full pl-8 pr-4 py-2 w-44 focus:w-60 focus:bg-white focus:ring-2 focus:ring-rose-500 border border-transparent focus:border-rose-500 transition-all outline-none">
                         <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-400"></i>
                     </div>
+
+                    <!-- Botón de Mi Cuenta / Login -->
+                    <button onclick="gestionarClicCuenta()" id="btn-cuenta-nav" class="relative p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full transition flex items-center justify-center gap-1.5 px-3">
+                        <i class="fa-solid fa-user text-sm"></i>
+                        <span id="nombre-usuario-nav" class="text-xs font-bold hidden sm:inline">Mi Cuenta</span>
+                    </button>
 
                     <button onclick="toggleCarrito()" class="relative p-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-full transition flex items-center justify-center">
                         <i class="fa-solid fa-bag-shopping text-xl"></i>
@@ -172,6 +178,92 @@
         </div>
     </div>
 
+    <!-- 7. MODAL DE AUTENTICACIÓN (LOGIN / REGISTRO) -->
+    <div id="modal-auth" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl p-6 relative">
+            <button onclick="cerrarModalAuth()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            
+            <div class="flex border-b border-slate-200 mb-4">
+                <button onclick="cambiarTabAuth('login')" id="tab-login-btn" class="flex-1 pb-2 font-bold text-sm text-rose-600 border-b-2 border-rose-600">Iniciar Sesión</button>
+                <button onclick="cambiarTabAuth('registro')" id="tab-registro-btn" class="flex-1 pb-2 font-bold text-sm text-slate-400">Registrarse</button>
+            </div>
+
+            <!-- Formulario Login -->
+            <div id="form-login-container">
+                <form onsubmit="ejecutarLogin(event)" class="space-y-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-700 block mb-1">Correo Electrónico</label>
+                        <input type="email" id="login-correo" required class="w-full bg-slate-100 text-xs rounded-xl p-3 border border-slate-200 outline-none focus:border-rose-500">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-700 block mb-1">Contraseña</label>
+                        <input type="password" id="login-password" required class="w-full bg-slate-100 text-xs rounded-xl p-3 border border-slate-200 outline-none focus:border-rose-500">
+                    </div>
+                    <button type="submit" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-3 rounded-xl shadow-md transition">Entrar a mi Cuenta</button>
+                </form>
+            </div>
+
+            <!-- Formulario Registro -->
+            <div id="form-registro-container" class="hidden">
+                <form onsubmit="ejecutarRegistro(event)" class="space-y-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-700 block mb-1">Nombre Completo</label>
+                        <input type="text" id="reg-nombre" required class="w-full bg-slate-100 text-xs rounded-xl p-2.5 border border-slate-200 outline-none focus:border-rose-500">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-700 block mb-1">Correo Electrónico</label>
+                        <input type="email" id="reg-correo" required class="w-full bg-slate-100 text-xs rounded-xl p-2.5 border border-slate-200 outline-none focus:border-rose-500">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-700 block mb-1">Contraseña</label>
+                        <input type="password" id="reg-password" required class="w-full bg-slate-100 text-xs rounded-xl p-2.5 border border-slate-200 outline-none focus:border-rose-500">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-700 block mb-1">Teléfono / WhatsApp</label>
+                        <input type="text" id="reg-telefono" class="w-full bg-slate-100 text-xs rounded-xl p-2.5 border border-slate-200 outline-none focus:border-rose-500">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-700 block mb-1">Dirección de Envío</label>
+                        <input type="text" id="reg-direccion" class="w-full bg-slate-100 text-xs rounded-xl p-2.5 border border-slate-200 outline-none focus:border-rose-500">
+                    </div>
+                    <button type="submit" class="w-full bg-slate-900 hover:bg-rose-600 text-white font-bold text-xs py-3 rounded-xl shadow-md transition">Crear Cuenta</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 8. MODAL DE PERFIL E HISTORIAL DE PEDIDOS -->
+    <div id="modal-perfil" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl p-6 relative max-h-[85vh] flex flex-col">
+            <button onclick="cerrarModalPerfil()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            
+            <div class="flex items-center gap-3 pb-4 border-b border-slate-200 mb-4">
+                <div class="w-12 h-12 bg-rose-100 rounded-full flex items-center justify-center text-rose-600 font-extrabold text-lg" id="perfil-inicial">U</div>
+                <div>
+                    <h3 class="text-base font-extrabold text-slate-900" id="perfil-nombre">Nombre de Usuario</h3>
+                    <p class="text-xs text-slate-500" id="perfil-correo">correo@ejemplo.com</p>
+                </div>
+            </div>
+
+            <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">📦 Mis Pedidos y Compras Anteriores</h4>
+            
+            <div id="historial-pedidos-container" class="space-y-3 overflow-y-auto no-scrollbar flex-1 pr-1">
+                <div class="text-center py-8 text-slate-400 text-xs">Cargando tus pedidos...</div>
+            </div>
+
+            <div class="pt-4 border-t border-slate-200 mt-4">
+                <button onclick="cerrarSesion()" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs py-2.5 rounded-xl transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span>Cerrar Sesión</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- JAVASCRIPT LOGIC -->
     <script>
         const API_URL = "/api/web/inventario";
@@ -189,6 +281,7 @@
 
         async function inicializarTienda() {
             await cargarInventario();
+            actualizarBotonCuentaNav();
         }
 
         async function cargarInventario() {
@@ -656,6 +749,165 @@
                 console.error("Error de red:", err);
                 alert("No se pudo conectar con el servidor de pagos.");
             });
+        }
+
+        // --- GESTIÓN DE SESIÓN Y CLIENTES WEB ---
+        function obtenerUsuarioLogueado() {
+            const userStr = localStorage.getItem('usuario_fajas');
+            return userStr ? JSON.parse(userStr) : null;
+        }
+
+        function actualizarBotonCuentaNav() {
+            const usuario = obtenerUsuarioLogueado();
+            const nombreNav = document.getElementById('nombre-usuario-nav');
+            if (usuario) {
+                const primerNombre = usuario.nombre.split(' ')[0];
+                nombreNav.innerText = primerNombre;
+            } else {
+                nombreNav.innerText = "Mi Cuenta";
+            }
+        }
+
+        function gestionarClicCuenta() {
+            const usuario = obtenerUsuarioLogueado();
+            if (usuario) {
+                abrirModalPerfil();
+            } else {
+                abrirModalAuth();
+            }
+        }
+
+        function abrirModalAuth() {
+            document.getElementById('modal-auth').classList.remove('hidden');
+        }
+
+        function cerrarModalAuth() {
+            document.getElementById('modal-auth').classList.add('hidden');
+        }
+
+        function cambiarTabAuth(tipo) {
+            const btnLogin = document.getElementById('tab-login-btn');
+            const btnReg = document.getElementById('tab-registro-btn');
+            const boxLogin = document.getElementById('form-login-container');
+            const boxReg = document.getElementById('form-registro-container');
+
+            if (tipo === 'login') {
+                btnLogin.className = "flex-1 pb-2 font-bold text-sm text-rose-600 border-b-2 border-rose-600";
+                btnReg.className = "flex-1 pb-2 font-bold text-sm text-slate-400";
+                boxLogin.classList.remove('hidden');
+                boxReg.classList.add('hidden');
+            } else {
+                btnReg.className = "flex-1 pb-2 font-bold text-sm text-rose-600 border-b-2 border-rose-600";
+                btnLogin.className = "flex-1 pb-2 font-bold text-sm text-slate-400";
+                boxReg.classList.remove('hidden');
+                boxLogin.classList.add('hidden');
+            }
+        }
+
+        async function ejecutarLogin(event) {
+            event.preventDefault();
+            const correo = document.getElementById('login-correo').value;
+            const password = document.getElementById('login-password').value;
+
+            try {
+                const res = await fetch('/api/web/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ correo, password })
+                });
+                const data = await res.json();
+                if (res.ok && data.status === 'success') {
+                    localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
+                    cerrarModalAuth();
+                    actualizarBotonCuentaNav();
+                    alert(data.mensaje);
+                } else {
+                    alert(data.detail || "Error al iniciar sesión.");
+                }
+            } catch (e) {
+                alert("Error de conexión con el servidor.");
+            }
+        }
+
+        async function ejecutarRegistro(event) {
+            event.preventDefault();
+            const nombre = document.getElementById('reg-nombre').value;
+            const correo = document.getElementById('reg-correo').value;
+            const password = document.getElementById('reg-password').value;
+            const telefono = document.getElementById('reg-telefono').value;
+            const direccion = document.getElementById('reg-direccion').value;
+
+            try {
+                const res = await fetch('/api/web/auth/registro', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nombre, correo, password, telefono, direccion })
+                });
+                const data = await res.json();
+                if (res.ok && data.status === 'success') {
+                    localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
+                    cerrarModalAuth();
+                    actualizarBotonCuentaNav();
+                    alert(data.mensaje);
+                } else {
+                    alert(data.detail || "Error al registrarse.");
+                }
+            } catch (e) {
+                alert("Error de conexión con el servidor.");
+            }
+        }
+
+        async function abrirModalPerfil() {
+            const usuario = obtenerUsuarioLogueado();
+            if (!usuario) return;
+
+            document.getElementById('perfil-nombre').innerText = usuario.nombre;
+            document.getElementById('perfil-correo').innerText = usuario.correo;
+            document.getElementById('perfil-inicial').innerText = usuario.nombre.charAt(0).toUpperCase();
+            document.getElementById('modal-perfil').classList.remove('hidden');
+
+            const container = document.getElementById('historial-pedidos-container');
+            container.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">Cargando tus pedidos...</div>`;
+
+            try {
+                const res = await fetch(`/api/web/auth/pedidos/${usuario.id}`);
+                const pedidos = await res.json();
+
+                if (pedidos.length === 0) {
+                    container.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">Aún no tienes compras registradas. ¡Anímate a estrenar!</div>`;
+                    return;
+                }
+
+                container.innerHTML = pedidos.map(p => `
+                    <div class="bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs space-y-1">
+                        <div class="flex justify-between font-bold text-slate-900">
+                            <span>Factura #${p.numero_factura}</span>
+                            <span class="text-rose-600">$${p.total.toFixed(2)}</span>
+                        </div>
+                        <div class="flex justify-between text-slate-500 text-[11px]">
+                            <span>Fecha: ${p.fecha}</span>
+                            <span class="font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">${p.estado_despacho}</span>
+                        </div>
+                        <div class="pt-1 border-t border-slate-200 text-[11px] flex justify-between">
+                            <span>Courier: <b>${p.courier}</b></span>
+                            <span>Guía: <b>${p.numero_guia}</b></span>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                container.innerHTML = `<div class="text-center py-8 text-rose-500 text-xs">Error al cargar el historial.</div>`;
+            }
+        }
+
+        function cerrarModalPerfil() {
+            document.getElementById('modal-perfil').classList.add('hidden');
+        }
+
+        function cerrarSesion() {
+            localStorage.removeItem('usuario_fajas');
+            cerrarModalPerfil();
+            actualizarBotonCuentaNav();
+            alert("Has cerrado sesión correctamente.");
         }
 
         inicializarTienda();

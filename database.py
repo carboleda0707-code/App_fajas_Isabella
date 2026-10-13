@@ -35,6 +35,19 @@ class Cliente(Base):
     tipo_precio = Column(String(50), default='REGULAR')
     descuento_porcentaje = Column(Float, default=0.0)
 
+# --- NUEVO: CLIENTES WEB (TIENDA ONLINE) ---
+class ClienteWeb(Base):
+    __tablename__ = "clientes_web"
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(150), nullable=False)
+    correo = Column(String(150), unique=True, index=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    telefono = Column(String(50), nullable=True)
+    direccion = Column(String(255), nullable=True)
+    fecha_registro = Column(DateTime, default=datetime.now)
+
+    facturas = relationship("Factura", back_populates="cliente_web")
+
 class Proveedor(Base):
     __tablename__ = "proveedores"
     id = Column(Integer, primary_key=True, index=True)
@@ -79,6 +92,9 @@ class Factura(Base):
     entidad_nombre = Column(String, nullable=False)
     total_factura = Column(Float, nullable=False, default=0.0)
     
+    # Enlace opcional con cliente web logueado
+    cliente_web_id = Column(Integer, ForeignKey("clientes_web.id"), nullable=True)
+
     provincia = Column(String(100), nullable=True)
     ciudad = Column(String(100), nullable=True)
     direccion_entrega = Column(String, nullable=True)
@@ -87,6 +103,7 @@ class Factura(Base):
     numero_guia = Column(String(100), nullable=True)
     estado_despacho = Column(String(30), default='PENDIENTE')
 
+    cliente_web = relationship("ClienteWeb", back_populates="facturas")
     pagos = relationship("Pago", back_populates="factura", cascade="all, delete-orphan")
 
 class Pago(Base):
@@ -117,14 +134,14 @@ class MovimientoInventario(Base):
     entidad_asociada = Column(String) 
     fecha_hora = Column(DateTime, default=datetime.now)
 
-# --- NUEVO: MODELO DE USUARIOS PARA EL PANEL ADMINISTRATIVO ---
+# MODELO DE USUARIOS PARA EL PANEL ADMINISTRATIVO
 class Usuario(Base):
     __tablename__ = "usuarios"
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, index=True, nullable=False)
     email = Column(String(100), unique=True, index=True, nullable=False)
     password = Column(String(255), nullable=False)
-    rol = Column(String(20), nullable=False, default="Ventas")  # Administrador, Ventas, Despacho
+    rol = Column(String(20), nullable=False, default="Ventas")
     activo = Column(Boolean, default=True)
     fecha_creacion = Column(DateTime, default=datetime.now)
 
@@ -147,6 +164,7 @@ def asegurar_columnas_logistica():
         conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS courier_nombre VARCHAR(50);"))
         conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS numero_guia VARCHAR(100);"))
         conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS estado_despacho VARCHAR(30) DEFAULT 'PENDIENTE';"))
+        conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS cliente_web_id INTEGER;"))
         conn.execute(text("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ciudad VARCHAR(100);"))
         conn.execute(text("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS correo VARCHAR;"))
         conn.execute(text("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS tipo_precio VARCHAR(50) DEFAULT 'REGULAR';"))
@@ -158,7 +176,6 @@ try:
 except Exception as e:
     print(f"Nota sobre migración automática en caliente: {e}")
 
-# --- CREAR USUARIO ADMINISTRADOR MASTER INICIAL SI NO EXISTE ---
 def crear_usuario_inicial():
     db = SessionLocal()
     try:
