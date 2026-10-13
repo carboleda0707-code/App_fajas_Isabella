@@ -850,20 +850,70 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ correo, password })
                 });
+                
                 const data = await res.json();
+                console.log("Respuesta login:", res.status, data); // 🕵️‍♂️ Chivato en consola
+
                 if (res.ok && data.status === 'success') {
                     localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
                     cerrarModalAuth();
                     actualizarBotonCuentaNav();
                     alert(data.mensaje);
                 } else {
-                    alert(data.detail || "Error al iniciar sesión.");
+                    alert("Error [Server]: " + (data.detail || JSON.stringify(data)));
                 }
             } catch (e) {
-                alert("Error de conexión con el servidor.");
+                console.error("Error de red login:", e); // 🕵️‍♂️ Chivato de red
+                alert("Error de conexión con el servidor (Catch): " + e.message);
             }
         }
 
+        async function ejecutarRegistro(event) {
+            event.preventDefault();
+            const nombre = document.getElementById('reg-nombre').value;
+            const correo = document.getElementById('reg-correo').value;
+            const password = document.getElementById('reg-password').value;
+            const passwordConfirm = document.getElementById('reg-password-confirm').value;
+            const telefono = document.getElementById('reg-telefono').value;
+            const direccion = document.getElementById('reg-direccion').value;
+
+            // Validar que las dos contraseñas coincidan antes de enviar al servidor
+            if (password !== passwordConfirm) {
+                alert("⚠️ Las contraseñas no coinciden. Por favor verifíquelas e intente nuevamente.");
+                return;
+            }
+
+            try {
+                const payload = { nombre, correo, password, telefono, direccion };
+                console.log("Enviando registro:", payload); // 🕵️‍♂️ Chivato de datos enviados
+
+                const res = await fetch('/api/web/auth/registro', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                console.log("Respuesta registro:", res.status, data); // 🕵️‍♂️ Chivato de respuesta
+
+                if (res.ok && data.status === 'success') {
+                    localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
+                    cerrarModalAuth();
+                    actualizarBotonCuentaNav();
+                    alert(data.mensaje);
+                } else {
+                    // Muestra el detalle exacto que devuelve FastAPI (ej. validación de Pydantic o correo duplicado)
+                    let errorMsg = data.detail;
+                    if (Array.isArray(errorMsg)) {
+                        errorMsg = errorMsg.map(err => `${err.loc.join('.')}: ${err.msg}`).join(', ');
+                    }
+                    alert("Error [Server]: " + (errorMsg || JSON.stringify(data)));
+                }
+            } catch (e) {
+                console.error("Error de red registro:", e); // 🕵️‍♂️ Chivato de error de red
+                alert("Error de conexión con el servidor (Catch): " + e.message);
+            }
+        }
         async function ejecutarRegistro(event) {
             event.preventDefault();
             const nombre = document.getElementById('reg-nombre').value;
