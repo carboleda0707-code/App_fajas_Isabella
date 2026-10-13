@@ -9,10 +9,9 @@ API_BASE = os.getenv("API_BASE_URL", "https://fajasisabella-production.up.railwa
 API_URL = f"{API_BASE}/api" if not API_BASE.endswith("/api") else API_BASE
 
 def render_compras():
-    st.markdown("### 📥 Módulo de Compras a Proveedores")
-        
+    
     accion = st.radio(
-        "Acción a realizar:", 
+        "Acción a realizar en : 📥 Módulo de Compras a Proveedores", 
         ["📥 Registrar Nueva Compra", "📋 Consultar Facturas de Compra Ingresadas"], 
         horizontal=True
     )

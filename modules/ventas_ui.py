@@ -8,9 +8,8 @@ API_BASE = os.getenv("API_BASE_URL", "https://fajasisabella-production.up.railwa
 API_URL = f"{API_BASE}/api" if not API_BASE.endswith("/api") else API_BASE
 
 def render_ventas():
-    #st.markdown("### 💳 Ventas y Facturación")
-        
-    accion = st.radio("Acción: 💳 Ventas y Facturación", ["Registrar Nueva Venta", "Consultar Facturas Emitidas"], horizontal=True)
+            
+    accion = st.radio("Acción a realizar en : 💳 Ventas y Facturación", ["Registrar Nueva Venta", "Consultar Facturas Emitidas"], horizontal=True)
     #st.markdown("---")
     
     if accion == "Consultar Facturas Emitidas":
