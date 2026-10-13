@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import os
 import pandas as pd
+import json
 
 # Conexión estricta de Producción en Nube
 API_BASE = os.getenv("API_BASE_URL", "https://fajasisabella-production.up.railway.app").rstrip("/")
@@ -42,8 +43,8 @@ def render_inventario():
             # Tabla inicial limpia sin SKUs quemados estáticos (SKU en blanco para autogeneración)
             df_inicial = pd.DataFrame([
                 {"sku": "", "talla": "S", "color": "Negro", "precio": 45.0, "stock_actual": 10},
-                {"sku": "", "talla": "M", "color": "Negro", "precio": 45.0, "stock_actual": 10},
-                {"sku": "", "talla": "L", "color": "Negro", "precio": 45.0, "stock_actual": 8}
+                {"sku": "", "talla": "M", "color": "Negro", "precio": 45.0, "stock_actual": 15},
+                {"sku": "", "talla": "L", "color": "Negro", "precio": 55.0, "stock_actual": 8}
             ])
 
             df_variantes_editado = st.data_editor(
@@ -63,16 +64,7 @@ def render_inventario():
             st.markdown("#### Imagen del Producto")
             archivo_imagen = st.file_uploader("Subir imagen:", type=["jpg", "jpeg", "png", "webp"], label_visibility="collapsed")
             
-            imagen_url_relativa = ""
             if archivo_imagen is not None:
-                dir_destino = os.path.join("web", "img")
-                os.makedirs(dir_destino, exist_ok=True)
-                
-                ruta_fisica = os.path.join(dir_destino, archivo_imagen.name)
-                with open(ruta_fisica, "wb") as f:
-                    f.write(archivo_imagen.getbuffer())
-                
-                imagen_url_relativa = f"img/{archivo_imagen.name}"
                 st.image(archivo_imagen, use_container_width=True)
             else:
                 st.info("Sin imagen seleccionada")
@@ -90,7 +82,7 @@ def render_inventario():
             if not nombre_producto:
                 with col_msg:
                     st.error("Debes ingresar el nombre del modelo.")
-            elif not imagen_url_relativa:
+            elif archivo_imagen is None:
                 with col_msg:
                     st.error("Debes subir una imagen.")
             elif df_variantes_editado.empty:
@@ -115,16 +107,20 @@ def render_inventario():
                             "precio": float(row.get("precio", 0.0))
                         })
 
-                    payload = {
+                    # Preparamos los datos en FormData para enviarlos mediante multipart/form-data
+                    data_form = {
                         "nombre": nombre_producto,
                         "modelo": nombre_producto,
                         "categoria": categoria,
-                        "imagen_url": imagen_url_relativa,
-                        "en_liquidacion": en_liquidacion,
-                        "variantes": lista_variantes
+                        "en_liquidacion": str(en_liquidacion).lower(),
+                        "variantes": json.dumps(lista_variantes)
                     }
 
-                    res = requests.post(f"{API_URL}/productos", json=payload)
+                    files_form = {
+                        "imagen": (archivo_imagen.name, archivo_imagen.getvalue(), archivo_imagen.type)
+                    }
+
+                    res = requests.post(f"{API_URL}/productos", data=data_form, files=files_form)
 
                     if res.status_code == 200:
                         with col_msg:
@@ -217,8 +213,10 @@ def render_inventario():
                                 img_url = p_info.get("imagen_url") or variante_encontrada.get("imagen_url")
                                 
                                 st.caption(f"**Mod.:** {p_info.get('nombre', 'N/D')}")
-                                if img_url and os.path.exists(os.path.join("web", img_url)):
-                                    st.image(os.path.join("web", img_url), width=110)
+                                if img_url:
+                                    # Carga remota directa desde la API para evitar problemas de contenedores locales
+                                    url_imagen_completa = f"{API_BASE}/{img_url}"
+                                    st.image(url_imagen_completa, width=110)
                                 else:
                                     st.info("Sin imagen registrada")
                             else:

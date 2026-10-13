@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
 from typing import Optional, List
 import os
 import shutil
 import re
 import unicodedata
+import json
 from database import get_db, Producto, VarianteProducto, Categoria
 
 router = APIRouter()
@@ -23,21 +23,6 @@ def generar_sku_compacto(producto_id: int, talla: str, color: str) -> str:
     color_code = color_clean[:2] if len(color_clean) >= 2 else color_clean.ljust(2, 'x')
     
     return f"{producto_id}-{talla_clean}-{color_code}"
-
-class VarianteSchema(BaseModel):
-    sku: Optional[str] = None
-    talla: str
-    color: str
-    stock_actual: int
-    precio: float
-
-class ProductoNuevoSchema(BaseModel):
-    nombre: str
-    modelo: Optional[str] = None
-    categoria: Optional[str] = "GENERAL"
-    imagen_url: Optional[str] = ""
-    en_liquidacion: Optional[bool] = False
-    variantes: List[VarianteSchema]
 
 @router.get("/inventario")
 def listar_inventario(db: Session = Depends(get_db)):
@@ -101,26 +86,48 @@ def actualizar_variante(
     return {"status": "success", "message": f"Variante ID {var_id} actualizada correctamente con SKU {variante.sku}."}
 
 @router.post("/productos")
-def crear_o_actualizar_producto(data: ProductoNuevoSchema, db: Session = Depends(get_db)):
+def crear_o_actualizar_producto(
+    nombre: str = Form(...),
+    modelo: Optional[str] = Form(None),
+    categoria: str = Form("GENERAL"),
+    en_liquidacion: bool = Form(False),
+    variantes: str = Form(...),  # Recibe el JSON de variantes enviado por multipart desde Streamlit
+    imagen: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
     try:
-        modelo_nombre = data.modelo or data.nombre
-        prod = db.query(Producto).filter(Producto.nombre == data.nombre).first()
+        modelo_nombre = modelo or nombre
+        
+        # 1. Guardar la imagen físicamente en el servidor de forma persistente
+        dir_destino = os.path.join("web", "img")
+        os.makedirs(dir_destino, exist_ok=True)
+        
+        ruta_fisica = os.path.join(dir_destino, imagen.filename)
+        with open(ruta_fisica, "wb") as buffer:
+            shutil.copyfileobj(imagen.file, buffer)
+            
+        imagen_url_relativa = f"img/{imagen.filename}"
+
+        # 2. Parsear el string JSON con las variantes del producto
+        lista_variantes = json.loads(variantes)
+
+        prod = db.query(Producto).filter(Producto.nombre == nombre).first()
         
         if prod:
             prod.modelo = modelo_nombre
-            prod.categoria = data.categoria or prod.categoria
-            prod.imagen_url = data.imagen_url or prod.imagen_url
-            if data.en_liquidacion is not None:
-                prod.en_liquidacion = data.en_liquidacion
+            prod.categoria = categoria or prod.categoria
+            prod.imagen_url = imagen_url_relativa
+            if en_liquidacion is not None:
+                prod.en_liquidacion = en_liquidacion
             db.commit()
             db.refresh(prod)
         else:
             prod = Producto(
-                nombre=data.nombre, 
+                nombre=nombre, 
                 modelo=modelo_nombre, 
-                categoria=data.categoria or "GENERAL",
-                imagen_url=data.imagen_url or "",
-                en_liquidacion=data.en_liquidacion if data.en_liquidacion is not None else False
+                categoria=categoria or "GENERAL",
+                imagen_url=imagen_url_relativa,
+                en_liquidacion=en_liquidacion if en_liquidacion is not None else False
             )
             db.add(prod)
             db.commit()
@@ -128,9 +135,11 @@ def crear_o_actualizar_producto(data: ProductoNuevoSchema, db: Session = Depends
 
         skus_procesados_lote = set()
 
-        for v in data.variantes:
-            talla_val = str(v.talla).strip()
-            color_val = str(v.color).strip()
+        for v in lista_variantes:
+            talla_val = str(v.get("talla", "")).strip()
+            color_val = str(v.get("color", "")).strip()
+            stock_val = int(v.get("stock_actual", 0))
+            precio_val = float(v.get("precio", 0.0))
             
             # Generar SKU automático y compacto usando el ID real del producto registrado
             sku_limpio = generar_sku_compacto(prod.id, talla_val, color_val)
@@ -146,8 +155,8 @@ def crear_o_actualizar_producto(data: ProductoNuevoSchema, db: Session = Depends
 
             existe_sku = db.query(VarianteProducto).filter(VarianteProducto.sku == sku_limpio).first()
             if existe_sku:
-                existe_sku.stock_actual = v.stock_actual
-                existe_sku.precio = v.precio
+                existe_sku.stock_actual = stock_val
+                existe_sku.precio = precio_val
                 existe_sku.talla = talla_val
                 existe_sku.color = color_val
             else:
@@ -156,13 +165,13 @@ def crear_o_actualizar_producto(data: ProductoNuevoSchema, db: Session = Depends
                     producto_id=prod.id, 
                     talla=talla_val,
                     color=color_val, 
-                    stock_actual=v.stock_actual, 
-                    precio=v.precio
+                    stock_actual=stock_val, 
+                    precio=precio_val
                 )
                 db.add(variante)
                 
         db.commit()
-        return {"status": "success", "message": f"Producto '{data.nombre}' y sus variantes guardados exitosamente con SKU compacto."}
+        return {"status": "success", "message": f"Producto '{nombre}' y sus variantes guardados exitosamente.", "imagen_url": imagen_url_relativa}
 
     except Exception as e:
         db.rollback()
@@ -177,7 +186,7 @@ def eliminar_variante(variante_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"status": "success", "message": "Variante eliminada."}
 
-# --- ENDPOINTS DE CATEGORÍAS (SIN PREFIJOS NI SUBCARPETAS) ---
+# --- ENDPOINTS DE CATEGORÍAS ---
 @router.get("/categorias")
 def listar_categorias(db: Session = Depends(get_db)):
     categorias = db.query(Categoria).all()
@@ -191,8 +200,6 @@ def crear_o_actualizar_categoria(
 ):
     try:
         cat_nombre = nombre.strip().upper()
-        
-        # Usar estrictamente el nombre original del archivo subido
         nombre_archivo = imagen.filename
         
         dir_destino = os.path.join("web", "img")
@@ -202,7 +209,6 @@ def crear_o_actualizar_categoria(
         with open(ruta_fisica, "wb") as buffer:
             shutil.copyfileobj(imagen.file, buffer)
             
-        # Guardar la ruta limpia directa: "img/nombre_original.jpg"
         imagen_relativa = f"img/{nombre_archivo}"
         
         cat_db = db.query(Categoria).filter(Categoria.nombre == cat_nombre).first()
@@ -213,7 +219,7 @@ def crear_o_actualizar_categoria(
             db.add(cat_db)
             
         db.commit()
-        return {"status": "success", "message": f"Categoría '{cat_nombre}' guardada exitosamente con su nombre original."}
+        return {"status": "success", "message": f"Categoría '{cat_nombre}' guardada exitosamente."}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -224,7 +230,6 @@ def eliminar_categoria(categoria_id: int, db: Session = Depends(get_db)):
     if not cat_db:
         raise HTTPException(status_code=404, detail="Categoría no encontrada.")
     
-    # Intentar eliminar el archivo físico usando su ruta registrada
     if cat_db.imagen_url:
         ruta_fisica = os.path.join("web", cat_db.imagen_url)
         if os.path.exists(ruta_fisica):
