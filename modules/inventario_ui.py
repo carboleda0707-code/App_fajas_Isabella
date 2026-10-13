@@ -290,7 +290,7 @@ def render_inventario():
                             st.error(f"Error de conexión con la API: {e}")
 
         with col_c_der:
-            st.markdown("##### 📊 Listado de Categorías en Base de Datos")
+            st.markdown("##### 📊 Listado de Categorías")
             try:
                 res_get = requests.get(f"{API_URL}/categorias")
                 if res_get.status_code == 200:
