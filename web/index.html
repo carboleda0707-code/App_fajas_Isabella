@@ -852,7 +852,7 @@
                 });
                 
                 const data = await res.json();
-                console.log("Respuesta login:", res.status, data); // 🕵️‍♂️ Chivato en consola
+                console.log("Respuesta login:", res.status, data);
 
                 if (res.ok && data.status === 'success') {
                     localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
@@ -863,13 +863,15 @@
                     alert("Error [Server]: " + (data.detail || JSON.stringify(data)));
                 }
             } catch (e) {
-                console.error("Error de red login:", e); // 🕵️‍♂️ Chivato de red
+                console.error("Error de red login:", e);
                 alert("Error de conexión con el servidor (Catch): " + e.message);
             }
         }
 
         async function ejecutarRegistro(event) {
             event.preventDefault();
+            console.log("🚀 [Chivato]: Se disparó el evento submit en ejecutarRegistro.");
+
             const nombre = document.getElementById('reg-nombre').value;
             const correo = document.getElementById('reg-correo').value;
             const password = document.getElementById('reg-password').value;
@@ -877,7 +879,6 @@
             const telefono = document.getElementById('reg-telefono').value;
             const direccion = document.getElementById('reg-direccion').value;
 
-            // Validar que las dos contraseñas coincidan antes de enviar al servidor
             if (password !== passwordConfirm) {
                 alert("⚠️ Las contraseñas no coinciden. Por favor verifíquelas e intente nuevamente.");
                 return;
@@ -885,7 +886,7 @@
 
             try {
                 const payload = { nombre, correo, password, telefono, direccion };
-                console.log("Enviando registro:", payload); // 🕵️‍♂️ Chivato de datos enviados
+                console.log("📦 [Chivato]: Payload enviado al servidor:", payload);
 
                 const res = await fetch('/api/web/auth/registro', {
                     method: 'POST',
@@ -894,7 +895,7 @@
                 });
 
                 const data = await res.json();
-                console.log("Respuesta registro:", res.status, data); // 🕵️‍♂️ Chivato de respuesta
+                console.log("📥 [Chivato]: Respuesta del servidor:", res.status, data);
 
                 if (res.ok && data.status === 'success') {
                     localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
@@ -902,50 +903,15 @@
                     actualizarBotonCuentaNav();
                     alert(data.mensaje);
                 } else {
-                    // Muestra el detalle exacto que devuelve FastAPI (ej. validación de Pydantic o correo duplicado)
-                    let errorMsg = data.detail;
+                    let errorMsg = data.detail || "Error al registrarse.";
                     if (Array.isArray(errorMsg)) {
                         errorMsg = errorMsg.map(err => `${err.loc.join('.')}: ${err.msg}`).join(', ');
                     }
-                    alert("Error [Server]: " + (errorMsg || JSON.stringify(data)));
+                    alert("Error [Server]: " + errorMsg);
                 }
             } catch (e) {
-                console.error("Error de red registro:", e); // 🕵️‍♂️ Chivato de error de red
+                console.error("❌ [Chivato Error de red]:", e);
                 alert("Error de conexión con el servidor (Catch): " + e.message);
-            }
-        }
-        async function ejecutarRegistro(event) {
-            event.preventDefault();
-            const nombre = document.getElementById('reg-nombre').value;
-            const correo = document.getElementById('reg-correo').value;
-            const password = document.getElementById('reg-password').value;
-            const passwordConfirm = document.getElementById('reg-password-confirm').value;
-            const telefono = document.getElementById('reg-telefono').value;
-            const direccion = document.getElementById('reg-direccion').value;
-
-            // Validar que las dos contraseñas coincidan antes de enviar al servidor
-            if (password !== passwordConfirm) {
-                alert("⚠️ Las contraseñas no coinciden. Por favor verifíquelas e intente nuevamente.");
-                return;
-            }
-
-            try {
-                const res = await fetch('/api/web/auth/registro', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nombre, correo, password, telefono, direccion })
-                });
-                const data = await res.json();
-                if (res.ok && data.status === 'success') {
-                    localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
-                    cerrarModalAuth();
-                    actualizarBotonCuentaNav();
-                    alert(data.mensaje);
-                } else {
-                    alert(data.detail || "Error al registrarse.");
-                }
-            } catch (e) {
-                alert("Error de conexión con el servidor.");
             }
         }
 
