@@ -51,8 +51,6 @@ if st.sidebar.button("🔒 Cerrar Sesión", use_container_width=True):
     st.session_state["rol_actual"] = None
     st.rerun()
 
-#st.sidebar.markdown("---")
-
 # --- MENÚ LATERAL SEGÚN EL ROL ---
 rol = st.session_state["rol_actual"]
 
@@ -82,17 +80,15 @@ else:
 
 seccion = st.sidebar.radio("Seleccione el Módulo de Trabajo:", modulos_disponibles)
 
-# --- ENCABEZADO SUPERIOR REDISEÑADO (Estilo Paint) ---
-col_head1, col_head2 = st.columns([3, 1])
+# --- ENCABEZADO SUPERIOR EN 2 NIVELES ---
+col_head1, col_head2 = st.columns([2.5, 1.5])
 
 with col_head1:
-    # Encabezado principal replicando exactamente la estructura de tu imagen de Paint
     st.markdown(
         """
         <div style="line-height: 1.2;">
-            <span style="font-size: 1.6rem; font-weight: 800; color: #1e293b;">🛍️ Fajas Isabella</span>
-            <span style="font-size: 1.4rem; color: #64748b; font-weight: 400; margin: 0 10px;">—</span>
-            <span style="font-size: 1.1rem; color: #334155; font-weight: 600;">Panel de Gestión Administrativa</span>
+            <div style="font-size: 1.8rem; font-weight: 800; color: #1e293b;">🛍️ Fajas Isabella</div>
+            <div style="font-size: 1.1rem; font-weight: 700; color: #334155; margin-top: 4px;">Panel de Gestión Administrativa</div>
         </div>
         """, 
         unsafe_allow_html=True
@@ -101,7 +97,7 @@ with col_head1:
 with col_head2:
     st.markdown(
         f"""
-        <div style="text-align: right; line-height: 1.3;">
+        <div style="text-align: right; line-height: 1.3; padding-top: 4px;">
             <span style="font-size: 0.85rem; color: #64748b; font-weight: 600;">Módulo Activo:</span><br>
             <span style="font-size: 0.95rem; color: #FF4B4B; font-weight: 700;">{seccion}</span>
         </div>
@@ -109,7 +105,7 @@ with col_head2:
         unsafe_allow_html=True
     )
 
-st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
+st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
 
 # --- RENDERIZADO DE MÓDULOS ---
 if seccion == "📦 Módulo de Inventario":
