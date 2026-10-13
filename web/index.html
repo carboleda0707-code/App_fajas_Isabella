@@ -894,7 +894,17 @@
                     body: JSON.stringify(payload)
                 });
 
-                const data = await res.json();
+                // Leemos como texto primero para evitar el crash de 'Unexpected token I'
+                const rawText = await res.text();
+                let data;
+                try {
+                    data = JSON.parse(rawText);
+                } catch(errJson) {
+                    console.error("❌ El servidor no devolvió JSON:", rawText);
+                    alert("Error 500 Servidor: " + rawText);
+                    return;
+                }
+
                 console.log("📥 [Chivato]: Respuesta del servidor:", res.status, data);
 
                 if (res.ok && data.status === 'success') {
