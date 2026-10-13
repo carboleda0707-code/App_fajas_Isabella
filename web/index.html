@@ -149,7 +149,6 @@
                 <div id="carrito-items" class="py-4 space-y-3 max-h-[50vh] overflow-y-auto no-scrollbar"></div>
             </div>
 
-            <!-- BOTONES DE ACCIÓN (DOBLE OPCIÓN DE PAGO) -->
             <div class="border-t border-slate-200 pt-4 space-y-3">
                 <div class="flex justify-between items-center text-base font-black text-slate-900">
                     <span>Total Estimado:</span>
@@ -157,13 +156,11 @@
                 </div>
 
                 <div class="grid grid-cols-1 gap-2">
-                    <!-- Opción 1: WhatsApp -->
                     <button onclick="enviarPedidoFinalWhatsApp()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition">
                         <i class="fa-brands fa-whatsapp text-xl"></i>
                         <span>Pedido y Pago por WhatsApp</span>
                     </button>
 
-                    <!-- Opción 2: Pasarela Paymentez / Tarjeta -->
                     <button onclick="iniciarPagoPaymentez()" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-rose-600/20 transition">
                         <i class="fa-solid fa-credit-card text-xl"></i>
                         <span>Pagar con Tarjeta (Paymentez)</span>
@@ -178,9 +175,9 @@
         </div>
     </div>
 
-    <!-- 7. MODAL DE AUTENTICACIÓN (LOGIN / REGISTRO) -->
+    <!-- 7. MODAL DE AUTENTICACIÓN (LOGIN / REGISTRO CON VERIFICACIÓN Y OJO 👁️) -->
     <div id="modal-auth" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl p-6 relative">
+        <div class="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto no-scrollbar">
             <button onclick="cerrarModalAuth()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg">
                 <i class="fa-solid fa-xmark"></i>
             </button>
@@ -199,13 +196,18 @@
                     </div>
                     <div>
                         <label class="text-xs font-bold text-slate-700 block mb-1">Contraseña</label>
-                        <input type="password" id="login-password" required class="w-full bg-slate-100 text-xs rounded-xl p-3 border border-slate-200 outline-none focus:border-rose-500">
+                        <div class="relative">
+                            <input type="password" id="login-password" required class="w-full bg-slate-100 text-xs rounded-xl p-3 pr-10 border border-slate-200 outline-none focus:border-rose-500">
+                            <button type="button" onclick="toggleVisibilidadPassword('login-password', 'ico-login-eye')" class="absolute right-3 top-3 text-slate-400 hover:text-slate-600 text-xs">
+                                <i class="fa-solid fa-eye" id="ico-login-eye"></i>
+                            </button>
+                        </div>
                     </div>
                     <button type="submit" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-3 rounded-xl shadow-md transition">Entrar a mi Cuenta</button>
                 </form>
             </div>
 
-            <!-- Formulario Registro -->
+            <!-- Formulario Registro con Confirmación Doble y Ojos 👁️ -->
             <div id="form-registro-container" class="hidden">
                 <form onsubmit="ejecutarRegistro(event)" class="space-y-3">
                     <div>
@@ -216,10 +218,29 @@
                         <label class="text-xs font-bold text-slate-700 block mb-1">Correo Electrónico</label>
                         <input type="email" id="reg-correo" required class="w-full bg-slate-100 text-xs rounded-xl p-2.5 border border-slate-200 outline-none focus:border-rose-500">
                     </div>
+                    
+                    <!-- Campo Contraseña con Ojo -->
                     <div>
                         <label class="text-xs font-bold text-slate-700 block mb-1">Contraseña</label>
-                        <input type="password" id="reg-password" required class="w-full bg-slate-100 text-xs rounded-xl p-2.5 border border-slate-200 outline-none focus:border-rose-500">
+                        <div class="relative">
+                            <input type="password" id="reg-password" required class="w-full bg-slate-100 text-xs rounded-xl p-2.5 pr-10 border border-slate-200 outline-none focus:border-rose-500">
+                            <button type="button" onclick="toggleVisibilidadPassword('reg-password', 'ico-reg-eye')" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 text-xs">
+                                <i class="fa-solid fa-eye" id="ico-reg-eye"></i>
+                            </button>
+                        </div>
                     </div>
+
+                    <!-- Campo Confirmar Contraseña con Ojo -->
+                    <div>
+                        <label class="text-xs font-bold text-slate-700 block mb-1">Confirmar Contraseña</label>
+                        <div class="relative">
+                            <input type="password" id="reg-password-confirm" required class="w-full bg-slate-100 text-xs rounded-xl p-2.5 pr-10 border border-slate-200 outline-none focus:border-rose-500">
+                            <button type="button" onclick="toggleVisibilidadPassword('reg-password-confirm', 'ico-reg-confirm-eye')" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 text-xs">
+                                <i class="fa-solid fa-eye" id="ico-reg-confirm-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
                     <div>
                         <label class="text-xs font-bold text-slate-700 block mb-1">Teléfono / WhatsApp</label>
                         <input type="text" id="reg-telefono" class="w-full bg-slate-100 text-xs rounded-xl p-2.5 border border-slate-200 outline-none focus:border-rose-500">
@@ -804,6 +825,20 @@
             }
         }
 
+        function toggleVisibilidadPassword(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (input.type === "password") {
+                input.type = "text";
+                icon.classList.remove("fa-eye");
+                icon.classList.add("fa-eye-slash");
+            } else {
+                input.type = "password";
+                icon.classList.remove("fa-eye-slash");
+                icon.classList.add("fa-eye");
+            }
+        }
+
         async function ejecutarLogin(event) {
             event.preventDefault();
             const correo = document.getElementById('login-correo').value;
@@ -834,8 +869,15 @@
             const nombre = document.getElementById('reg-nombre').value;
             const correo = document.getElementById('reg-correo').value;
             const password = document.getElementById('reg-password').value;
+            const passwordConfirm = document.getElementById('reg-password-confirm').value;
             const telefono = document.getElementById('reg-telefono').value;
             const direccion = document.getElementById('reg-direccion').value;
+
+            // Validar que las dos contraseñas coincidan antes de enviar al servidor
+            if (password !== passwordConfirm) {
+                alert("⚠️ Las contraseñas no coinciden. Por favor verifíquelas e intente nuevamente.");
+                return;
+            }
 
             try {
                 const res = await fetch('/api/web/auth/registro', {

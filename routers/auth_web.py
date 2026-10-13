@@ -20,7 +20,6 @@ class LoginWebSchema(BaseModel):
 
 @router.post("/registro")
 def registrar_cliente_web(data: RegistroWebSchema, db: Session = Depends(get_db)):
-    # Verificar si el correo ya existe
     existente = db.query(ClienteWeb).filter(ClienteWeb.correo == data.correo).first()
     if existente:
         raise HTTPException(status_code=400, detail="Este correo ya se encuentra registrado.")
