@@ -30,14 +30,14 @@ def render_inventario():
         col_izq, col_der = st.columns([3, 1.2])
 
         with col_izq:
-            st.markdown("#### 🖼️ Registro de Producto Base, Variantes e Imagen")
+            st.markdown("##### 🖼️ Registro de Producto Base, Variantes e Imagen")
             
             nombre_producto = st.text_input("Nombre del Modelo / Producto", placeholder="Ej: Panty Alto Diva")
             
             # Selector dinámico de categorías
             categoria = st.selectbox("Categoría del Producto", options=categorias_disponibles)
 
-            st.markdown("#### 🏷️ Tabla de Variantes (Tallas, Colores, Precios y Stock)")
+            st.markdown("##### 🏷️ Tabla de Variantes (Tallas, Colores, Precios y Stock)")
             st.caption("Puedes dejar el SKU vacío para que el sistema lo genere automáticamente de forma compacta (ej: id-talla-color), o escribir uno personalizado.")
 
             # Tabla inicial limpia sin SKUs quemados estáticos (SKU en blanco para autogeneración)
@@ -61,7 +61,7 @@ def render_inventario():
             )
 
         with col_der:
-            st.markdown("#### Imagen del Producto")
+            st.markdown("##### Imagen del Producto")
             archivo_imagen = st.file_uploader("Subir imagen:", type=["jpg", "jpeg", "png", "webp"], label_visibility="collapsed")
             
             if archivo_imagen is not None:
@@ -133,7 +133,7 @@ def render_inventario():
                         st.error(f"Error de conexión con la API: {e}")
 
     elif accion == "Consultar y Modificar Inventario":
-        st.markdown("### 📋 Consulta y Modificación de Inventario Actual")
+        st.markdown("##### 📋 Consulta y Modificación de Inventario Actual")
         try:
             res = requests.get(f"{API_URL}/inventario")
             if res.status_code == 200:
@@ -160,7 +160,7 @@ def render_inventario():
                     
                     df_inventario = pd.DataFrame(data_tabla)
 
-                    st.markdown("#### 🔍 Filtrar Inventario")
+                    st.markdown("##### 🔍 Filtrar Inventario")
                     col_f1, col_f2 = st.columns(2)
                     
                     opciones_filtro = ["TODAS"] + categorias_disponibles
@@ -175,7 +175,7 @@ def render_inventario():
                                df_filtrado["SKU"].str.contains(filtro_texto, case=False, na=False)
                         df_filtrado = df_filtrado[mask]
 
-                    st.markdown("#### 📊 Listado General de Variantes Registradas")
+                    st.markdown("##### 📊 Listado General de Variantes Registradas")
                     st.dataframe(df_filtrado, use_container_width=True)
 
                     st.divider()
@@ -257,13 +257,13 @@ def render_inventario():
 
     else:
         # --- PESTAÑA: MANTENIMIENTO DE CATEGORÍAS ---
-        st.markdown("### 🏷️ Mantenimiento y Tabla de Categorías Web")
-        st.caption("Añade nuevas categorías con su gráfico circular representativo o gestiónalas desde la base de datos.")
+        st.markdown("#### 🏷️ Mantenimiento y Tabla de Categorías Web")
+        st.caption("Añade nuevas categorías con su gráfico (Presentacion circular es automatico.")
 
         col_c_izq, col_c_der = st.columns([1.2, 1.8])
 
         with col_c_izq:
-            st.markdown("#### ➕ Registrar / Actualizar Categoría")
+            st.markdown("##### ➕ Registrar / Actualizar Categoría")
             
             with st.form("form_crear_categoria", clear_on_submit=True):
                 nueva_cat_nombre = st.text_input("Nombre de la Categoría", placeholder="Ej: LINEA REDUCTORA")
@@ -290,7 +290,7 @@ def render_inventario():
                             st.error(f"Error de conexión con la API: {e}")
 
         with col_c_der:
-            st.markdown("#### 📊 Listado de Categorías en Base de Datos")
+            st.markdown("##### 📊 Listado de Categorías en Base de Datos")
             try:
                 res_get = requests.get(f"{API_URL}/categorias")
                 if res_get.status_code == 200:
@@ -299,7 +299,7 @@ def render_inventario():
                         df_cats = pd.DataFrame(cats_data)
                         st.dataframe(df_cats[["id", "nombre", "imagen_url"]], use_container_width=True)
 
-                        st.markdown("#### 🗑️ Eliminar por ID de Categoría")
+                        st.markdown("##### 🗑️ Eliminar por ID de Categoría")
                         c_del1, c_del2 = st.columns([2, 1])
                         cat_id_a_eliminar = c_del1.number_input("ID Categoría", min_value=1, step=1, label_visibility="collapsed")
                         if c_del2.button("❌ Eliminar", type="secondary", use_container_width=True):
