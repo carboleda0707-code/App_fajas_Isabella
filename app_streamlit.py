@@ -85,11 +85,11 @@ seccion = st.sidebar.radio("Seleccione el Módulo de Trabajo:", modulos_disponib
 # --- ENCABEZADO SUPERIOR PROFESIONAL ---
 col_head1, col_head2 = st.columns([3, 1])
 with col_head1:
-    st.markdown("### 🛍️ **Fajas Isabella** — Panel de Gestión Administrativa")
+    st.markdown("#### 🛍️ **Fajas Isabella** — Panel de Gestión Administrativa")
 with col_head2:
     st.markdown(f"<div style='text-align: right;'><b>Módulo Activo:</b><br><span style='color: #FF4B4B;'>{seccion}</span></div>", unsafe_allow_html=True)
 
-st.markdown("---")
+#st.markdown("---")
 
 # --- RENDERIZADO DE MÓDULOS ---
 if seccion == "📦 Módulo de Inventario":
