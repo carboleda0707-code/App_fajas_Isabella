@@ -9,8 +9,7 @@ API_URL = f"{API_BASE}/api" if not API_BASE.endswith("/api") else API_BASE
 
 def render_ventas():
     st.markdown("### 💳 Ventas y Facturación")
-    st.markdown("---")
-    
+        
     accion = st.radio("Acción:", ["Registrar Nueva Venta", "Consultar Facturas Emitidas"], horizontal=True)
     st.markdown("---")
     
@@ -142,9 +141,7 @@ def render_ventas():
                         st.caption("No se pudo obtener el historial de productos.")
             else:
                 st.warning("⚠️ Ningún cliente seleccionado aún.")
-
-        st.markdown("---")
-        
+       
         # Mostrar alertas o éxitos y ofrecer un botón rápido para descartarlos
         if "mensaje_alerta_venta" in st.session_state:
             st.warning(st.session_state.mensaje_alerta_venta)

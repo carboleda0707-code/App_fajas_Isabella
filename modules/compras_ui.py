@@ -10,8 +10,7 @@ API_URL = f"{API_BASE}/api" if not API_BASE.endswith("/api") else API_BASE
 
 def render_compras():
     st.markdown("### 📥 Módulo de Compras a Proveedores")
-    st.markdown("---")
-    
+        
     accion = st.radio(
         "Acción a realizar:", 
         ["📥 Registrar Nueva Compra", "📋 Consultar Facturas de Compra Ingresadas"], 

@@ -9,7 +9,7 @@ API_URL = f"{API_BASE}/api" if not API_BASE.endswith("/api") else API_BASE
 
 def render_clientes():
     st.header("👥 Mantenimiento de Clientes")
-    st.markdown("Gestión de datos fiscales, comerciales, de ubicación y preferencias de tus clientes.")
+    st.markdown("Datos fiscales, comerciales, ubicación - descuentos.")
     
     accion = st.radio(
         "Acción:",
@@ -65,7 +65,7 @@ def render_clientes():
                     st.warning("Debe completar al menos el RUC/Cédula, el Nombre y la Ciudad.")
 
     elif accion == "Consultar y Modificar Clientes":
-        st.subheader("📋 Consulta, Modificación y Gestión de Clientes")
+        st.subheader("📋 Consulta y Actualización de Clientes")
         
         try:
             res = requests.get(f"{API_URL}/clientes")
