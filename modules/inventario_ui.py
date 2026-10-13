@@ -30,14 +30,14 @@ def render_inventario():
         col_izq, col_der = st.columns([3, 1.2])
 
         with col_izq:
-            st.markdown("##### 🖼️ Registra Productos, Variantes, Imagen")
+            st.markdown("##### 🖼️ Registra Productos - Variantes")
             
             nombre_producto = st.text_input("Nombre del Modelo / Producto", placeholder="Ej: Panty Alto Diva")
             
             # Selector dinámico de categorías
             categoria = st.selectbox("Categoría del Producto", options=categorias_disponibles)
 
-            st.markdown("###### 🏷️ Tabla de Variantes (Tallas, Colores, Precios y Stock)")
+            st.markdown("###### 🏷️ Variantes (Tallas, Colores, Precios y Stock)")
             st.caption("Puedes dejar el SKU vacío para que el sistema lo genere automáticamente de forma compacta (ej: id-talla-color), o escribir uno personalizado.")
 
             # Tabla inicial limpia sin SKUs quemados estáticos (SKU en blanco para autogeneración)
