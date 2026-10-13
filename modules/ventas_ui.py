@@ -11,7 +11,7 @@ def render_ventas():
     st.markdown("### 💳 Ventas y Facturación")
         
     accion = st.radio("Acción:", ["Registrar Nueva Venta", "Consultar Facturas Emitidas"], horizontal=True)
-    st.markdown("---")
+    #st.markdown("---")
     
     if accion == "Consultar Facturas Emitidas":
         if st.button("🔄 Actualizar Facturas"):
@@ -60,7 +60,7 @@ def render_ventas():
             todos_clientes = []
             
         st.markdown('<div id="top-cliente-section"></div>', unsafe_allow_html=True)
-        st.markdown("#### 👤 Búsqueda y Selección de Cliente")
+        st.markdown("##### 👤 Búsqueda y Selección de Cliente")
         col_b_izq, col_b_der = st.columns([1.5, 2.5])
         
         cliente_sel = st.session_state.get("cliente_venta_sel", None)

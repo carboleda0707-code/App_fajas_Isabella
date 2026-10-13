@@ -160,12 +160,12 @@ def render_inventario():
                     
                     df_inventario = pd.DataFrame(data_tabla)
 
-                    st.markdown("##### 🔍 Filtrar Inventario")
+                    #st.markdown("##### 🔍 Filtrar Inventario")
                     col_f1, col_f2 = st.columns(2)
                     
                     opciones_filtro = ["TODAS"] + categorias_disponibles
-                    filtro_cat = col_f1.selectbox("Filtrar por Categoría:", options=opciones_filtro)
-                    filtro_texto = col_f2.text_input("Buscar por Nombre o SKU:", placeholder="Escribe para buscar...")
+                    filtro_cat = col_f1.selectbox("🔍 Filtrar por Categoría:", options=opciones_filtro)
+                    filtro_texto = col_f2.text_input("🔍 Buscar por Nombre o SKU:", placeholder="Escribe para buscar...")
 
                     df_filtrado = df_inventario.copy()
                     if filtro_cat != "TODAS":
