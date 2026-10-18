@@ -8,16 +8,16 @@ API_BASE = os.getenv("API_BASE_URL", "https://fajasisabella-production.up.railwa
 API_URL = f"{API_BASE}/api" if not API_BASE.endswith("/api") else API_BASE
 
 def render_clientes():
-    st.markdown("<p style='color: black; font-weight: bold;'>👥 Mantenimiento de Clientes</p>", unsafe_allow_html=True)
-    st.markdown("Datos fiscales, comerciales, ubicación - descuentos.")
-    
+    st.markdown("<p style='color: black; font-weight: bold;'>👥 Gestión de Datos de Clientes</p>", unsafe_allow_html=True)
+        
     accion = st.radio(
         "Acción:",
         ("Registrar Nuevo Cliente", "Consultar y Modificar Clientes"),
         horizontal=True
     )
     
-    st.divider()
+    st.markdown("")
+    #st.divider()
 
     if accion == "Registrar Nuevo Cliente":
         st.markdown("<p style='color: black; font-weight: bold;'>➕ Registro de Nuevo Clientes</p>", unsafe_allow_html=True)
@@ -99,7 +99,8 @@ def render_clientes():
                         
                     st.dataframe(df_filtrado, use_container_width=True)
                     
-                    st.divider()
+                    #st.divider()
+                    st.markdown("")
                     st.markdown("##### 🛠️ Modificar o Eliminar Cliente por ID")
                     
                     c_id_input = st.number_input("ID del Cliente a Editar", min_value=1, step=1, key="select_cliente_id")
