@@ -9,6 +9,18 @@ from datetime import date, datetime
 API_BASE = os.getenv("API_BASE_URL", "https://fajasisabella-production.up.railway.app").rstrip("/")
 API_URL = f"{API_BASE}/api" if not API_BASE.endswith("/api") else API_BASE
 
+def obtener_semaforo_estado(estado):
+    est = str(estado).upper().strip()
+    if est == "PENDIENTE":
+        return "🔴 PENDIENTE"
+    elif est == "EMPACADO":
+        return "🟡 EMPACADO"
+    elif est in ["EN TRÁNSITO", "EN TRANSITO"]:
+        return "🟢 EN TRÁNSITO"
+    elif est == "ENTREGADO":
+        return "🔵 ENTREGADO"
+    return f"⚪ {est}"
+
 def render_despachos():
     st.subheader("📦 Control de Despachos y Envíos por Courier")
     st.markdown("Gestiona estados de paquetes, asigna guías, repartidores, números de control y genera etiquetas imprimibles 'De / Para'.")
@@ -84,23 +96,24 @@ def render_despachos():
                 df_filtrado["fecha_dt"] = pd.to_datetime(df_filtrado[col_fecha_name], errors="coerce").dt.date
                 df_filtrado = df_filtrado[(df_filtrado["fecha_dt"] >= fecha_inicio) & (df_filtrado["fecha_dt"] <= fecha_fin)]
 
-            # --- TARJETAS DE MÉTRICAS (KPIs) CORREGIDAS Y COHERENTES ---
+            # --- TARJETAS DE MÉTRICAS (KPIs) CORREGIDAS ---
             total_pedidos = len(df_filtrado)
             col_est = "estado_despacho" if "estado_despacho" in df_filtrado.columns else "estado"
             
             if col_est in df_filtrado.columns:
                 estados_upper = df_filtrado[col_est].astype(str).str.upper().str.strip()
-                pendientes_empacados = len(df_filtrado[estados_upper.isin(["PENDIENTE", "EMPACADO"])])
+                pendientes = len(df_filtrado[estados_upper == "PENDIENTE"])
+                empacados = len(df_filtrado[estados_upper == "EMPACADO"])
                 en_transito = len(df_filtrado[estados_upper.isin(["EN TRÁNSITO", "EN TRANSITO"])])
                 entregados = len(df_filtrado[estados_upper == "ENTREGADO"])
             else:
-                pendientes_empacados, en_transito, entregados = 0, 0, 0
+                pendientes, empacados, en_transito, entregados = 0, 0, 0, 0
 
             m1, m2, m3, m4 = st.columns(4)
             m1.metric("📦 Total Pedidos", total_pedidos)
-            m2.metric("⏳ Pend. / Empacados", pendientes_empacados)
-            m3.metric("🚚 En Tránsito", en_transito)
-            m4.metric("✅ Entregados", entregados)
+            m2.metric("⏳ Pendientes", pendientes)
+            m3.metric("🟡 Empacados", empacados)
+            m4.metric("🚚 En Tránsito", en_transito)
 
             st.divider()
 
@@ -125,9 +138,11 @@ def render_despachos():
                 except Exception as ex:
                     st.caption("⚠️ Instale openpyxl para exportar Excel")
 
-            # Tabla limpia con Repartidor y término Orden de Venta
+            # Tabla limpia con Repartidor, Orden de Venta y Semáforo Visual
             data_tabla = []
             for _, r in df_filtrado.iterrows():
+                estado_bruto = r.get("estado_despacho", r.get("estado", "PENDIENTE"))
+                
                 data_tabla.append({
                     "Nº Orden Venta": r.get("numero_factura", "N/A"),
                     "Fecha": r.get("fecha", r.get("fecha_factura", "N/A")),
@@ -139,7 +154,7 @@ def render_despachos():
                     "Nº Guía": r.get("numero_guia", "SIN GUÍA"),
                     "Nº Control": r.get("numero_control", r.get("codigo_control", "SIN CONTROL")),
                     "Total ($)": f"${r.get('total_norm', 0.0):,.2f}",
-                    "Estado Despacho": r.get("estado_despacho", r.get("estado", "PENDIENTE"))
+                    "Estado Despacho": obtener_semaforo_estado(estado_bruto)
                 })
 
             st.dataframe(pd.DataFrame(data_tabla), use_container_width=True, hide_index=True)
@@ -285,38 +300,42 @@ def render_despachos():
                         submit_guia = st.form_submit_button("💾 Guardar Cambios de Despacho", type="primary", use_container_width=True)
 
                         if submit_guia:
-                            payload = {
-                                "factura_id": f_id_sel,
-                                "numero_factura": str(num_fact),
-                                "courier": nuevo_courier,
-                                "repartidor": nuevo_repartidor or "N/D",
-                                "numero_guia": nueva_guia or "SIN GUÍA",
-                                "numero_control": nuevo_control or "SIN CONTROL",
-                                "estado_despacho": nuevo_estado
-                            }
-                            try:
-                                res_put = requests.post(f"{API_URL}/despachos/actualizar", json=payload, timeout=5)
-                                if res_put.status_code in [200, 201]:
-                                    st.success(f"¡Despacho guardado con éxito! Repartidor: {nuevo_repartidor or 'N/D'}")
-                                    st.rerun()
-                                else:
-                                    res_put2 = requests.put(
-                                        f"{API_URL}/pedidos/{f_id_sel}/guia", 
-                                        params={
-                                            "numero_guia": nueva_guia or "SIN GUÍA",
-                                            "courier_nombre": nuevo_courier,
-                                            "repartidor": nuevo_repartidor or "N/D",
-                                            "estado_despacho": nuevo_estado
-                                        },
-                                        timeout=5
-                                    )
-                                    if res_put2.status_code == 200:
-                                        st.success("¡Actualizado correctamente!")
+                            # --- VALIDACIÓN: NO GUARDAR GUÍA CON NÚMERO DE CONTROL EN BLANCO ---
+                            if (nueva_guia and nueva_guia != "SIN GUÍA") and (not nuevo_control or nuevo_control == "SIN CONTROL"):
+                                st.error("⚠️ No se puede registrar un Número de Guía ni cambiar a 'EN TRÁNSITO' si el Número de Control está en blanco. Por favor, asigne primero el Número de Control del paquete.")
+                            else:
+                                payload = {
+                                    "factura_id": f_id_sel,
+                                    "numero_factura": str(num_fact),
+                                    "courier": nuevo_courier,
+                                    "repartidor": nuevo_repartidor or "N/D",
+                                    "numero_guia": nueva_guia or "SIN GUÍA",
+                                    "numero_control": nuevo_control or "SIN CONTROL",
+                                    "estado_despacho": nuevo_estado
+                                }
+                                try:
+                                    res_put = requests.post(f"{API_URL}/despachos/actualizar", json=payload, timeout=5)
+                                    if res_put.status_code in [200, 201]:
+                                        st.success(f"¡Despacho guardado con éxito! Repartidor: {nuevo_repartidor or 'N/D'}")
                                         st.rerun()
                                     else:
-                                        st.error(f"Error al actualizar: {res_put.text}")
-                            except Exception as ex:
-                                st.error(f"Error de conexión: {str(ex)}")
+                                        res_put2 = requests.put(
+                                            f"{API_URL}/pedidos/{f_id_sel}/guia", 
+                                            params={
+                                                "numero_guia": nueva_guia or "SIN GUÍA",
+                                                "courier_nombre": nuevo_courier,
+                                                "repartidor": nuevo_repartidor or "N/D",
+                                                "estado_despacho": nuevo_estado
+                                            },
+                                            timeout=5
+                                        )
+                                        if res_put2.status_code == 200:
+                                            st.success("¡Actualizado correctamente!")
+                                            st.rerun()
+                                        else:
+                                            st.error(f"Error al actualizar: {res_put.text}")
+                                except Exception as ex:
+                                    st.error(f"Error de conexión: {str(ex)}")
 
             with col_b:
                 st.markdown("#### 🏷️ Generar Membrete de Envío (De / Para)")
