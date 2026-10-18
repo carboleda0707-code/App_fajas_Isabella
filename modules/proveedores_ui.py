@@ -11,7 +11,6 @@ def render_proveedores():
     st.header("🏭 Mantenimiento de Proveedores")
     st.markdown("Gestión de datos comerciales, de ubicación y de contacto de tus proveedores.")
     
-    # Selector de acción superior
     accion = st.radio(
         "Acción:",
         ("Registrar Nuevo Proveedor", "Consultar y Modificar Proveedores"),
@@ -47,7 +46,7 @@ def render_proveedores():
                         "direccion": p_dir if p_dir else ""
                     }
                     res_post = requests.post(f"{API_URL}/proveedores", json=payload)
-                    if res_post.status_code == 200:
+                    if res_post.status_code in (200, 201):
                         st.success("✅ Proveedor registrado correctamente.")
                     else:
                         st.error(f"Error al registrar: {res_post.text}")
@@ -78,7 +77,6 @@ def render_proveedores():
                     
                     df_proveedores = pd.DataFrame(data_tabla)
                     
-                    # Filtro de búsqueda
                     filtro_busqueda = st.text_input("🔍 Buscar por RUC o Empresa:", placeholder="Escribe para filtrar...")
                     if filtro_busqueda:
                         mask = df_proveedores["RUC"].str.contains(filtro_busqueda, case=False, na=False) | \
@@ -92,18 +90,17 @@ def render_proveedores():
                     st.divider()
                     st.markdown("#### 🛠️ Modificar o Eliminar Proveedor por ID")
                     
-                    with st.form("form_modificar_proveedor"):
-                        p_id_input = st.number_input("ID del Proveedor a Editar", min_value=1, step=1)
-                        prov_encontrado = mapa_provs.get(p_id_input)
-                        
-                        # Valores seguros ante nulos
-                        val_ruc = str(prov_encontrado.get("ruc_cedula", "")) if prov_encontrado and prov_encontrado.get("ruc_cedula") else ""
-                        val_nom = str(prov_encontrado.get("nombre", "")) if prov_encontrado and prov_encontrado.get("nombre") else ""
-                        val_ciudad = str(prov_encontrado.get("ciudad", "")) if prov_encontrado and prov_encontrado.get("ciudad") else ""
-                        val_telf = str(prov_encontrado.get("telefono", "")) if prov_encontrado and prov_encontrado.get("telefono") else ""
-                        val_correo = str(prov_encontrado.get("correo", "")) if prov_encontrado and prov_encontrado.get("correo") else ""
-                        val_dir = str(prov_encontrado.get("direccion", "")) if prov_encontrado and prov_encontrado.get("direccion") else ""
+                    p_id_input = st.number_input("ID del Proveedor a Editar", min_value=1, step=1, key="select_prov_id")
+                    prov_encontrado = mapa_provs.get(p_id_input)
+                    
+                    val_ruc = str(prov_encontrado.get("ruc_cedula", "")) if prov_encontrado and prov_encontrado.get("ruc_cedula") else ""
+                    val_nom = str(prov_encontrado.get("nombre", "")) if prov_encontrado and prov_encontrado.get("nombre") else ""
+                    val_ciudad = str(prov_encontrado.get("ciudad", "")) if prov_encontrado and prov_encontrado.get("ciudad") else ""
+                    val_telf = str(prov_encontrado.get("telefono", "")) if prov_encontrado and prov_encontrado.get("telefono") else ""
+                    val_correo = str(prov_encontrado.get("correo", "")) if prov_encontrado and prov_encontrado.get("correo") else ""
+                    val_dir = str(prov_encontrado.get("direccion", "")) if prov_encontrado and prov_encontrado.get("direccion") else ""
 
+                    with st.form("form_modificar_proveedor"):
                         col_m_1, col_m_2 = st.columns(2)
                         with col_m_1:
                             mod_ruc = st.text_input("RUC del Proveedor *", value=val_ruc).strip()
@@ -128,7 +125,7 @@ def render_proveedores():
                                     "correo": mod_correo,
                                     "direccion": mod_dir
                                 }
-                                res_upd = requests.post(f"{API_URL}/proveedores", json=payload)
+                                res_upd = requests.put(f"{API_URL}/proveedores/{p_id_input}", json=payload)
                                 if res_upd.status_code == 200:
                                     st.success(f"✅ Proveedor ID {p_id_input} actualizado con éxito.")
                                     st.rerun()
