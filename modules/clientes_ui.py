@@ -8,7 +8,7 @@ API_BASE = os.getenv("API_BASE_URL", "https://fajasisabella-production.up.railwa
 API_URL = f"{API_BASE}/api" if not API_BASE.endswith("/api") else API_BASE
 
 def render_clientes():
-    st.header("👥 Mantenimiento de Clientes")
+    st.subheader("👥 Mantenimiento de Clientes")
     st.markdown("Datos fiscales, comerciales, ubicación - descuentos.")
     
     accion = st.radio(

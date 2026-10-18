@@ -8,8 +8,7 @@ API_BASE = os.getenv("API_BASE_URL", "https://fajasisabella-production.up.railwa
 API_URL = f"{API_BASE}/api" if not API_BASE.endswith("/api") else API_BASE
 
 def render_proveedores():
-    #st.header("🏭 Mantenimiento de Proveedores")
-    st.markdown("🏭 Gestión de datos contacto de tus proveedores.")
+    st.markdown("<p style='color: black; font-weight: bold;'>🏭 Gestión de Datos de Proveedores.</p>", unsafe_allow_html=True)
     
     accion = st.radio(
         "Acción:",
@@ -20,7 +19,7 @@ def render_proveedores():
     st.divider()
 
     if accion == "Registrar Nuevo Proveedor":
-        st.subheader("➕ Registro de Nuevo Proveedor")
+        st.markdown("<p style='color: black; font-weight: bold;'>➕ Registro de Nuevo Proveedor</p>", unsafe_allow_html=True)
         
         with st.form("form_crear_proveedor", clear_on_submit=True):
             col1, col2 = st.columns(2)
@@ -55,7 +54,7 @@ def render_proveedores():
                     st.warning("Debe completar al menos el RUC, el Nombre/Razón Social y la Ciudad.")
 
     elif accion == "Consultar y Modificar Proveedores":
-        st.subheader("📋 Consulta, Modificación y Gestión de Proveedores")
+        st.subheader("📋 Consulta, Modificación de Proveedores")
         
         try:
             res = requests.get(f"{API_URL}/proveedores")
