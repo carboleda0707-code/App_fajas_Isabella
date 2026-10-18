@@ -9,7 +9,8 @@ API_BASE = os.getenv("API_BASE_URL", "https://fajasisabella-production.up.railwa
 API_URL = f"{API_BASE}/api" if not API_BASE.endswith("/api") else API_BASE
 
 def render_inventario():
-    accion = st.radio("Acción a ralizar en : Productos e Inventarios" ,
+    st.markdown("<p style='color: black; font-weight: bold;'>🖼️ Productos e Inventarios</p>", unsafe_allow_html=True)   
+    accion = st.radio("Acción:" ,
         ("Registrar Nuevo Ítem", "Consultar y Modificar Inventario", "Mantenimiento de Categorías"),
         horizontal=True,
         #label_visibility="collapsed"
