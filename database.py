@@ -103,7 +103,9 @@ class Factura(Base):
     direccion_entrega = Column(String, nullable=True)
     referencia_direccion = Column(String, nullable=True)
     courier_nombre = Column(String(50), nullable=True)
+    repartidor = Column(String(100), nullable=True)         # <--- NUEVO: Nombre del chofer/repartidor
     numero_guia = Column(String(100), nullable=True)
+    numero_control = Column(String(100), nullable=True)    # <--- NUEVO: Número de control asociado
     estado_despacho = Column(String(30), default='PENDIENTE')
 
     cliente_web = relationship("ClienteWeb", back_populates="facturas")
@@ -165,7 +167,9 @@ def asegurar_columnas_logistica():
         conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS direccion_entrega TEXT;"))
         conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS referencia_direccion TEXT;"))
         conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS courier_nombre VARCHAR(50);"))
+        conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS repartidor VARCHAR(100);"))        # <--- NUEVO
         conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS numero_guia VARCHAR(100);"))
+        conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS numero_control VARCHAR(100);"))    # <--- NUEVO
         conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS estado_despacho VARCHAR(30) DEFAULT 'PENDIENTE';"))
         conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS cliente_web_id INTEGER;"))
         conn.execute(text("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ciudad VARCHAR(100);"))

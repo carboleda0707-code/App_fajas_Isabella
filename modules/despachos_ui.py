@@ -11,7 +11,7 @@ API_URL = f"{API_BASE}/api" if not API_BASE.endswith("/api") else API_BASE
 
 def render_despachos():
     st.subheader("📦 Control de Despachos y Envíos por Courier")
-    st.markdown("Gestiona estados de paquetes, asigna guías, números de control automáticos y consulta el detalle completo de ítems enviados.")
+    st.markdown("Gestiona estados de paquetes, asigna guías, repartidores, números de control y genera etiquetas imprimibles 'De / Para'.")
 
     col_btn1, col_btn2 = st.columns([0.15, 0.85])
     with col_btn1:
@@ -40,12 +40,12 @@ def render_despachos():
             col_total_key = "total" if "total" in df_raw.columns else ("total_factura" if "total_factura" in df_raw.columns else None)
             df_raw["total_norm"] = pd.to_numeric(df_raw[col_total_key], errors="coerce").fillna(0.0) if col_total_key else 0.0
 
-            # --- SECCIÓN DE FILTROS Y BÚSQUEDA (IDÉNTICA A CONSULTA DE VENTAS) ---
+            # --- SECCIÓN DE FILTROS Y BÚSQUEDA ---
             st.markdown("##### 🔍 Filtros de Búsqueda y Rango")
             col_f1, col_f2, col_f3, col_f4 = st.columns([2, 1.5, 1.5, 1.5])
             
             with col_f1:
-                busqueda = st.text_input("Buscador Rápido:", placeholder="Buscar por Nº Factura, Cliente, Guía o Nº Control...").strip()
+                busqueda = st.text_input("Buscador Rápido:", placeholder="Buscar por Nº Factura, Cliente, Repartidor, Guía o Nº Control...").strip()
             
             with col_f2:
                 filtro_estado = st.selectbox(
@@ -68,6 +68,7 @@ def render_despachos():
                 mask = (
                     df_filtrado.get("numero_factura", "").astype(str).str.contains(busqueda, case=False, na=False) |
                     df_filtrado.get("cliente", df_filtrado.get("entidad_nombre", "")).astype(str).str.contains(busqueda, case=False, na=False) |
+                    df_filtrado.get("repartidor", df_filtrado.get("chofer", "")).astype(str).str.contains(busqueda, case=False, na=False) |
                     df_filtrado.get("numero_guia", "").astype(str).str.contains(busqueda, case=False, na=False) |
                     df_filtrado.get("numero_control", "").astype(str).str.contains(busqueda, case=False, na=False)
                 )
@@ -117,7 +118,7 @@ def render_despachos():
                 except Exception as ex:
                     st.caption("⚠️ Instale openpyxl para exportar Excel")
 
-            # Tabla limpia sin columna de dirección
+            # Tabla limpia con Repartidor y sin columna dirección
             data_tabla = []
             for _, r in df_filtrado.iterrows():
                 data_tabla.append({
@@ -127,6 +128,7 @@ def render_despachos():
                     "Provincia": r.get("provincia", "Guayas"),
                     "Ciudad": r.get("ciudad", "Guayaquil"),
                     "Courier": r.get("courier", r.get("courier_nombre", "Servientrega")),
+                    "Repartidor/Chofer": r.get("repartidor", r.get("chofer", "N/D")),
                     "Nº Guía": r.get("numero_guia", "SIN GUÍA"),
                     "Nº Control": r.get("numero_control", r.get("codigo_control", "SIN CONTROL")),
                     "Total ($)": f"${r.get('total_norm', 0.0):,.2f}",
@@ -157,7 +159,7 @@ def render_despachos():
                         st.write(f"**Dirección:** {fact_info.get('direccion', fact_info.get('direccion_entrega', 'N/A'))}")
                         st.write(f"**Referencia:** {fact_info.get('referencia', fact_info.get('referencia_direccion', 'Sin referencia'))}")
                     with c3:
-                        st.write(f"**Courier:** {fact_info.get('courier', fact_info.get('courier_nombre', 'Servientrega'))}")
+                        st.write(f"**Courier / Repartidor:** {fact_info.get('courier', 'Servientrega')} ({fact_info.get('repartidor', 'N/D')})")
                         st.write(f"**Nº Guía:** {fact_info.get('numero_guia', 'SIN GUÍA')}")
                         st.write(f"**Nº Control:** {fact_info.get('numero_control', fact_info.get('codigo_control', 'SIN CONTROL'))}")
                         st.write(f"**Estado Despacho:** `{fact_info.get('estado_despacho', 'PENDIENTE')}`")
@@ -215,11 +217,11 @@ def render_despachos():
 
             st.divider()
 
-            # --- SECCIÓN OPERATIVA: ACTUALIZACIÓN Y ETIQUETA MEMBRETE ---
+            # --- SECCIÓN OPERATIVA: ACTUALIZACIÓN DE GUÍA, CONTROL Y REPARTIDOR ---
             col_a, col_b = st.columns(2)
 
             with col_a:
-                st.markdown("#### 🚚 Actualizar Guía, Control y Estado")
+                st.markdown("#### 🚚 Actualizar Guía, Repartidor, Control y Estado")
                 
                 opts_pedidos = {
                     f"Factura #{r.get('numero_factura')} - {r.get('cliente', r.get('entidad_nombre', 'N/A'))} ({r.get('ciudad', 'Guayaquil')})": r
@@ -234,16 +236,23 @@ def render_despachos():
                     num_fact = pedido_sel.get("numero_factura")
                     
                     val_courier_def = pedido_sel.get("courier", pedido_sel.get("courier_nombre", "Servientrega"))
+                    val_repartidor_def = pedido_sel.get("repartidor", pedido_sel.get("chofer", ""))
                     val_guia_def = pedido_sel.get("numero_guia", "")
                     val_control_def = pedido_sel.get("numero_control", pedido_sel.get("codigo_control", ""))
 
                     with st.form("form_actualizar_guia_control_auto"):
                         st.write(f"**Modificando:** Factura Nº `{num_fact}`")
                         
-                        couriers_opt = ["Servientrega", "Tame Cargo", "Cooperativa", "Uber/Moto", "Retiro en Local", "Otro"]
-                        c_idx = couriers_opt.index(val_courier_def) if val_courier_def in couriers_opt else 0
-                        nuevo_courier = st.selectbox("Courier / Transporte", couriers_opt, index=c_idx)
+                        # FILA 1: COURIER Y NOMBRE DEL REPARTIDOR AL LADO
+                        c_col1, c_col2 = st.columns(2)
+                        with c_col1:
+                            couriers_opt = ["Servientrega", "Tame Cargo", "Cooperativa", "Uber/Moto", "Retiro en Local", "Otro"]
+                            c_idx = couriers_opt.index(val_courier_def) if val_courier_def in couriers_opt else 0
+                            nuevo_courier = st.selectbox("Courier / Transporte", couriers_opt, index=c_idx)
+                        with c_col2:
+                            nuevo_repartidor = st.text_input("Nombre Repartidor / Chofer", value=str(val_repartidor_def or ""), placeholder="Ej: Juan Pérez / Placa HJA-123").strip()
 
+                        # FILA 2: GUÍA Y NÚMERO DE CONTROL
                         g1, g2 = st.columns(2)
                         with g1:
                             guia_val = str(val_guia_def)
@@ -252,7 +261,7 @@ def render_despachos():
                             ctrl_val = str(val_control_def)
                             nuevo_control = st.text_input("Número de Control", value="" if ctrl_val == "SIN CONTROL" else ctrl_val).strip()
 
-                        # --- LÓGICA AUTOMÁTICA DE ESTADO ---
+                        # LÓGICA AUTOMÁTICA DE ESTADO
                         if nueva_guia and nueva_guia != "SIN GUÍA":
                             auto_estado = "EN TRÁNSITO"
                         elif nuevo_control and nuevo_control != "SIN CONTROL":
@@ -273,6 +282,7 @@ def render_despachos():
                                 "factura_id": f_id_sel,
                                 "numero_factura": str(num_fact),
                                 "courier": nuevo_courier,
+                                "repartidor": nuevo_repartidor or "N/D",
                                 "numero_guia": nueva_guia or "SIN GUÍA",
                                 "numero_control": nuevo_control or "SIN CONTROL",
                                 "estado_despacho": nuevo_estado
@@ -280,7 +290,7 @@ def render_despachos():
                             try:
                                 res_put = requests.post(f"{API_URL}/despachos/actualizar", json=payload, timeout=5)
                                 if res_put.status_code in [200, 201]:
-                                    st.success("¡Guía, número de control y estado actualizados con éxito!")
+                                    st.success(f"¡Despacho guardado con éxito! Repartidor: {nuevo_repartidor or 'N/D'}")
                                     st.rerun()
                                 else:
                                     res_put2 = requests.put(
@@ -288,6 +298,7 @@ def render_despachos():
                                         params={
                                             "numero_guia": nueva_guia or "SIN GUÍA",
                                             "courier_nombre": nuevo_courier,
+                                            "repartidor": nuevo_repartidor or "N/D",
                                             "estado_despacho": nuevo_estado
                                         },
                                         timeout=5
@@ -315,6 +326,7 @@ def render_despachos():
                     dir_dest = ped_lbl.get('direccion_entrega', ped_lbl.get('direccion', 'Dirección no especificada'))
                     ref_dest = ped_lbl.get('referencia_direccion', ped_lbl.get('referencia', 'Sin referencia'))
                     cour_etq = ped_lbl.get('courier', ped_lbl.get('courier_nombre', 'Servientrega'))
+                    rep_etq = ped_lbl.get('repartidor', ped_lbl.get('chofer', 'N/D'))
                     guia_etq = ped_lbl.get('numero_guia', 'SIN GUÍA')
                     ctrl_etq = ped_lbl.get('numero_control', ped_lbl.get('codigo_control', 'SIN CONTROL'))
                     num_fact_etq = ped_lbl.get('numero_factura', 'N/A')
@@ -348,10 +360,13 @@ def render_despachos():
                             <span><strong>Guía #:</strong> {guia_etq}</span>
                             <span><strong>Control #:</strong> {ctrl_etq}</span>
                         </div>
+                        <div style="margin-top: 5px; font-size: 0.8rem; color: #555;">
+                            <strong>Repartidor / Chofer:</strong> {rep_etq}
+                        </div>
                     </div>
                     """
                     
-                    st.components.v1.html(html_label, height=330, scrolling=True)
+                    st.components.v1.html(html_label, height=350, scrolling=True)
 
                     st.download_button(
                         label="💾 Guardar Membrete (HTML)",

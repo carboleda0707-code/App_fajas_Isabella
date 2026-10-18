@@ -2,7 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
-from routers import clientes, proveedores, productos, compras, ventas, reportes, web_publica, auth_web
+# Importamos el nuevo router de despachos junto con los demás
+from routers import clientes, proveedores, productos, compras, ventas, reportes, web_publica, auth_web, despachos
 
 app = FastAPI(title="Fajas Isabella - Sistema Modular API", version="5.0")
 
@@ -33,6 +34,7 @@ app.include_router(proveedores.router, prefix="/api", tags=["Proveedores"])
 app.include_router(productos.router, prefix="/api", tags=["Productos & Inventario"])
 app.include_router(compras.router, prefix="/api", tags=["Compras"])
 app.include_router(reportes.router, prefix="/api", tags=["Reportes"])
+app.include_router(despachos.router, prefix="/api", tags=["Despachos"])  # <--- ROUTER DE LOGÍSTICA Y DESPACHOS
 app.include_router(auth_web.router)
 
 # Archivos estáticos
