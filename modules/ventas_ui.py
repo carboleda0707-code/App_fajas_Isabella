@@ -11,7 +11,6 @@ API_URL = f"{API_BASE}/api" if not API_BASE.endswith("/api") else API_BASE
 def render_ventas():
             
     accion = st.radio("Acción a realizar en : 💳 Ventas y Facturación", ["Registrar Nueva Venta", "Consultar Facturas Emitidas"], horizontal=True)
-    #st.markdown("---")
     
     if accion == "Consultar Facturas Emitidas":
         col_btn1, col_btn2 = st.columns([0.15, 0.85])
@@ -22,7 +21,7 @@ def render_ventas():
         st.subheader("📋 Consulta y Control General de Facturas Emitidas")
         
         try:
-            # Intentar obtener el reporte completo optimizado de despachos/ventas
+            # Obtener listado general de facturas / despachos
             res = requests.get(f"{API_URL}/despachos/reporte", timeout=3)
             if res.status_code != 200:
                 res = requests.get(f"{API_URL}/facturas", timeout=3)
@@ -33,13 +32,13 @@ def render_ventas():
                     st.info("No hay facturas de venta registradas en el sistema.")
                     return
                 
-                # Filtrar solo ventas si viene del endpoint general de facturas
+                # Filtrar solo facturas tipo VENTA
                 if isinstance(facturas_data, list) and len(facturas_data) > 0 and "tipo_factura" in facturas_data[0]:
                     facturas_data = [f for f in facturas_data if f.get('tipo_factura') == 'VENTA']
 
                 df_raw = pd.DataFrame(facturas_data)
                 
-                # Normalizar columna de totales y fechas
+                # Normalizar columna de totales
                 col_total_key = "total" if "total" in df_raw.columns else ("total_factura" if "total_factura" in df_raw.columns else None)
                 df_raw["total_norm"] = pd.to_numeric(df_raw[col_total_key], errors="coerce").fillna(0.0) if col_total_key else 0.0
                 
@@ -67,7 +66,6 @@ def render_ventas():
                 # --- APLICAR FILTROS ---
                 df_filtrado = df_raw.copy()
 
-                # Filtro por texto
                 if busqueda:
                     mask = (
                         df_filtrado.get("numero_factura", "").astype(str).str.contains(busqueda, case=False, na=False) |
@@ -76,13 +74,11 @@ def render_ventas():
                     )
                     df_filtrado = df_filtrado[mask]
 
-                # Filtro por estado
                 if f_estado != "TODOS":
                     col_estado = "estado_despacho" if "estado_despacho" in df_filtrado.columns else "estado"
                     if col_estado in df_filtrado.columns:
                         df_filtrado = df_filtrado[df_filtrado[col_estado].astype(str).str.upper() == f_estado]
 
-                # Filtro por fecha
                 col_fecha_name = "fecha" if "fecha" in df_filtrado.columns else ("fecha_factura" if "fecha_factura" in df_filtrado.columns else None)
                 if col_fecha_name:
                     df_filtrado["fecha_dt"] = pd.to_datetime(df_filtrado[col_fecha_name], errors="coerce").dt.date
@@ -102,7 +98,7 @@ def render_ventas():
 
                 st.markdown("---")
 
-                # --- TABLA PRESENTABLE Y PROFESIONAL ---
+                # --- TABLA RESUMEN DE FACTURAS ---
                 data_tabla = []
                 for _, r in df_filtrado.iterrows():
                     data_tabla.append({
@@ -130,6 +126,7 @@ def render_ventas():
                     factura_sel = st.selectbox("Seleccione una Factura para ver su información detallada:", lista_facturas)
                     
                     fact_info = df_filtrado[df_filtrado["numero_factura"] == factura_sel].iloc[0]
+                    monto_factura_tot = float(fact_info.get("total_norm", 0.0))
                     
                     with st.expander(f"📦 Ver información completa y productos de la Factura Nº {factura_sel}", expanded=True):
                         c1, c2, c3 = st.columns(3)
@@ -149,27 +146,10 @@ def render_ventas():
                         st.markdown("---")
                         st.markdown("##### 🛍️ Detalle de Ítems / Fajas Vendidas")
 
-                        # 1. Intentar tomar los items directamente del objeto factura
+                        # Búsqueda rigurosa de items
                         items_factura = fact_info.get("items", [])
-                        if isinstance(items_factura, str):
-                            import json
-                            try:
-                                items_factura = json.loads(items_factura)
-                            except Exception:
-                                items_factura = []
-
-                        # 2. Si viene vacío, consultar al endpoint específico de la factura
                         num_fact_str = str(factura_sel).strip()
-                        if not items_factura:
-                            try:
-                                res_single = requests.get(f"{API_URL}/facturas/{num_fact_str}", timeout=3)
-                                if res_single.status_code == 200:
-                                    fact_single = res_single.json()
-                                    items_factura = fact_single.get("items", [])
-                            except Exception:
-                                pass
 
-                        # 3. Si sigue vacío, buscar en movimientos por coincidencia flexible (numérico)
                         if not items_factura:
                             try:
                                 res_mov = requests.get(f"{API_URL}/movimientos", timeout=3)
@@ -183,13 +163,26 @@ def render_ventas():
                             except Exception:
                                 items_factura = []
 
-                        # Renderizado de la tabla de ítems
                         if items_factura:
                             tabla_items = []
                             for idx, it in enumerate(items_factura, 1):
                                 sku = it.get("sku", it.get("sku_producto", it.get("codigo_producto", "N/A")))
                                 cant = abs(int(it.get("cantidad", it.get("cant", 1))))
-                                prec = float(it.get("precio_unitario", it.get("precio", it.get("precio_venta", 0.0))))
+                                
+                                # Extraer precio probando múltiples campos
+                                prec_bruto = (
+                                    it.get("precio_unitario") or 
+                                    it.get("precio") or 
+                                    it.get("precio_venta") or 
+                                    it.get("costo_unitario") or 
+                                    0.0
+                                )
+                                prec = float(prec_bruto)
+                                
+                                # Si el precio sigue viniendo en 0, inferir del total de la factura
+                                if prec == 0.0 and monto_factura_tot > 0 and len(items_factura) > 0:
+                                    prec = monto_factura_tot / len(items_factura) / cant
+                                
                                 subtotal = cant * prec
                                 
                                 tabla_items.append({
