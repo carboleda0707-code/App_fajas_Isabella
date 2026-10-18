@@ -7,7 +7,7 @@ import traceback
 import os
 from database import get_db, Cliente, Factura, Pago, VarianteProducto, MovimientoInventario
 
-router = APIRouter(prefix="/api", tags=["Ventas y Clientes"])
+router = APIRouter(tags=["Ventas y Clientes"])
 
 # --- ESQUEMAS PARA CLIENTES ---
 class ClienteSchema(BaseModel):
