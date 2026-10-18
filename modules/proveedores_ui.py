@@ -16,7 +16,7 @@ def render_proveedores():
         horizontal=True
     )
     
-    st.divider()
+    st.markdown("")
 
     if accion == "Registrar Nuevo Proveedor":
         st.markdown("<p style='color: black; font-weight: bold;'>➕ Registro de Nuevo Proveedor</p>", unsafe_allow_html=True)
@@ -87,7 +87,7 @@ def render_proveedores():
                         
                     st.dataframe(df_filtrado, use_container_width=True)
                     
-                    st.divider()
+                    st.markdown("")
                     st.markdown("##### 🛠️ Modificar o Eliminar Proveedor por ID")
                     
                     p_id_input = st.number_input("ID del Proveedor a Editar", min_value=1, step=1, key="select_prov_id")
