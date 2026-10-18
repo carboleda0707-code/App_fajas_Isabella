@@ -45,7 +45,7 @@ def render_despachos():
             col_f1, col_f2, col_f3, col_f4 = st.columns([2, 1.5, 1.5, 1.5])
             
             with col_f1:
-                busqueda = st.text_input("Buscador Rápido:", placeholder="Buscar por Nº Factura, Cliente, Repartidor, Guía o Nº Control...").strip()
+                busqueda = st.text_input("Buscador Rápido:", placeholder="Buscar por Nº Orden, Cliente, Repartidor, Guía o Nº Control...").strip()
             
             with col_f2:
                 filtro_estado = st.selectbox(
@@ -100,7 +100,7 @@ def render_despachos():
             # --- SECCIÓN: TABLA COMPACTA Y EXCEL ---
             col_t1, col_t2 = st.columns([3, 1])
             with col_t1:
-                st.markdown("#### 📋 Listado Consolidado")
+                st.markdown("#### 📋 Listado Consolidado de Órdenes")
             with col_t2:
                 try:
                     output = io.BytesIO()
@@ -118,11 +118,11 @@ def render_despachos():
                 except Exception as ex:
                     st.caption("⚠️ Instale openpyxl para exportar Excel")
 
-            # Tabla limpia con Repartidor y sin columna dirección
+            # Tabla limpia con Repartidor y término Orden de Venta
             data_tabla = []
             for _, r in df_filtrado.iterrows():
                 data_tabla.append({
-                    "Nº Factura": r.get("numero_factura", "N/A"),
+                    "Nº Orden Venta": r.get("numero_factura", "N/A"),
                     "Fecha": r.get("fecha", r.get("fecha_factura", "N/A")),
                     "Cliente": r.get("cliente", r.get("entidad_nombre", "Consumidor Final")),
                     "Provincia": r.get("provincia", "Guayas"),
@@ -143,12 +143,12 @@ def render_despachos():
             
             lista_facturas = df_filtrado["numero_factura"].dropna().unique().tolist() if "numero_factura" in df_filtrado.columns else []
             if lista_facturas:
-                factura_sel = st.selectbox("Seleccione una Factura para ver su información detallada:", lista_facturas, key="sel_fact_det_log")
+                factura_sel = st.selectbox("Seleccione una Orden de Venta para ver su información detallada:", lista_facturas, key="sel_fact_det_log")
                 
                 fact_info = df_filtrado[df_filtrado["numero_factura"] == factura_sel].iloc[0]
                 monto_factura_tot = float(fact_info.get("total_norm", 0.0))
                 
-                with st.expander(f"📦 Ver información completa y productos de la Factura Nº {factura_sel}", expanded=True):
+                with st.expander(f"📦 Ver información completa y productos de la Orden Nº {factura_sel}", expanded=True):
                     c1, c2, c3 = st.columns(3)
                     with c1:
                         st.write(f"**Cliente:** {fact_info.get('cliente', fact_info.get('entidad_nombre', 'N/A'))}")
@@ -213,7 +213,7 @@ def render_despachos():
                         
                         st.dataframe(pd.DataFrame(tabla_items), use_container_width=True, hide_index=True)
                     else:
-                        st.info(f"⚠️ No se encontraron ítems desglosados para la Factura Nº {factura_sel}.")
+                        st.info(f"⚠️ No se encontraron ítems desglosados para la Orden Nº {factura_sel}.")
 
             st.divider()
 
@@ -224,12 +224,12 @@ def render_despachos():
                 st.markdown("#### 🚚 Actualizar Guía, Repartidor, Control y Estado")
                 
                 opts_pedidos = {
-                    f"Factura #{r.get('numero_factura')} - {r.get('cliente', r.get('entidad_nombre', 'N/A'))} ({r.get('ciudad', 'Guayaquil')})": r
+                    f"Orden #{r.get('numero_factura')} - {r.get('cliente', r.get('entidad_nombre', 'N/A'))} ({r.get('ciudad', 'Guayaquil')})": r
                     for _, r in df_filtrado.iterrows()
                 }
 
                 if opts_pedidos:
-                    ped_sel_label = st.selectbox("Seleccione Pedido / Factura", list(opts_pedidos.keys()), key="sel_pedido_act_log")
+                    ped_sel_label = st.selectbox("Seleccione Orden de Venta", list(opts_pedidos.keys()), key="sel_pedido_act_log")
                     pedido_sel = opts_pedidos[ped_sel_label]
                     
                     f_id_sel = pedido_sel.get("factura_id", pedido_sel.get("id"))
@@ -241,7 +241,7 @@ def render_despachos():
                     val_control_def = pedido_sel.get("numero_control", pedido_sel.get("codigo_control", ""))
 
                     with st.form("form_actualizar_guia_control_auto"):
-                        st.write(f"**Modificando:** Factura Nº `{num_fact}`")
+                        st.write(f"**Modificando:** Orden de Venta Nº `{num_fact}`")
                         
                         # FILA 1: COURIER Y NOMBRE DEL REPARTIDOR AL LADO
                         c_col1, c_col2 = st.columns(2)
@@ -315,7 +315,7 @@ def render_despachos():
                 st.markdown("#### 🏷️ Generar Membrete de Envío (De / Para)")
                 
                 if opts_pedidos:
-                    ped_label_etq = st.selectbox("Seleccione Pedido para Etiqueta", list(opts_pedidos.keys()), key="sel_etiqueta_log_2")
+                    ped_label_etq = st.selectbox("Seleccione Orden para Etiqueta", list(opts_pedidos.keys()), key="sel_etiqueta_log_2")
                     ped_lbl = opts_pedidos[ped_label_etq]
 
                     nom_dest = ped_lbl.get('cliente', ped_lbl.get('entidad_nombre', 'Consumidor Final'))
@@ -356,7 +356,7 @@ def render_despachos():
                         </div>
                         
                         <div style="margin-top: 12px; font-size: 0.85rem; display: flex; justify-content: space-between;">
-                            <span><strong>Factura #:</strong> {num_fact_etq}</span>
+                            <span><strong>Orden #:</strong> {num_fact_etq}</span>
                             <span><strong>Guía #:</strong> {guia_etq}</span>
                             <span><strong>Control #:</strong> {ctrl_etq}</span>
                         </div>
@@ -371,7 +371,7 @@ def render_despachos():
                     st.download_button(
                         label="💾 Guardar Membrete (HTML)",
                         data=html_label,
-                        file_name=f"Membrete_Factura_{num_fact_etq}.html",
+                        file_name=f"Membrete_Orden_{num_fact_etq}.html",
                         mime="text/html",
                         use_container_width=True
                     )
