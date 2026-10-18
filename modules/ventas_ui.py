@@ -11,20 +11,20 @@ API_URL = f"{API_BASE}/api" if not API_BASE.endswith("/api") else API_BASE
 
 def generar_excel_contifico(data_facturas):
     """
-    Transforma las facturas y sus ítems al formato plano por ítem 
-    requerido por la plantilla de importación masiva de Contifico.
+    Transforma las órdenes de venta y sus ítems al formato plano de importación de Contifico,
+    incluyendo Dirección para la creación automática de clientes y la referencia de Orden de Venta.
     """
     filas_contifico = []
     
     for f in data_facturas:
-        num_fact = f.get("numero_factura", "001-001-000000000")
+        num_orden = f.get("numero_factura", "OV-001")
         fecha = f.get("fecha", f.get("fecha_factura", ""))
         ruc = f.get("ruc_cedula", f.get("entidad_ruc", "9999999999001"))
         cliente = f.get("cliente", f.get("entidad_nombre", "Consumidor Final"))
+        direccion = f.get("direccion", f.get("direccion_entrega", "Guayaquil, Ecuador"))
         forma_pago = f.get("metodo_pago", "Efectivo")
         
-        # Determinar tipo de identificación para Contifico
-        # 04 = RUC, 05 = Cédula, 07 = Consumidor Final
+        # Tipo Identificación Contifico: 04 = RUC, 05 = Cédula, 07 = Consumidor Final
         tipo_id = "05"
         if len(str(ruc)) == 13:
             tipo_id = "04"
@@ -37,8 +37,9 @@ def generar_excel_contifico(data_facturas):
                 "Tipo Identificación": tipo_id,
                 "Identificación": ruc,
                 "Razón Social": cliente,
+                "Dirección": direccion,
                 "Fecha": fecha,
-                "Número Factura": num_fact,
+                "Número Orden Venta": num_orden,
                 "Código Producto": "FAJA-GEN",
                 "Cantidad": 1,
                 "Precio Unitario": float(f.get("total_norm", f.get("total", 0.0))),
@@ -54,8 +55,9 @@ def generar_excel_contifico(data_facturas):
                     "Tipo Identificación": tipo_id,
                     "Identificación": ruc,
                     "Razón Social": cliente,
+                    "Dirección": direccion,
                     "Fecha": fecha,
-                    "Número Factura": num_fact,
+                    "Número Orden Venta": num_orden,
                     "Código Producto": sku,
                     "Cantidad": cant,
                     "Precio Unitario": precio,
@@ -80,7 +82,7 @@ def render_ventas():
             if st.button("🔄 Actualizar"):
                 st.rerun()
                 
-        st.subheader("📋 Consulta y Control General de Facturas Emitidas")
+        st.subheader("📋 Consulta y Control General de Órdenes de Venta")
         
         try:
             res = requests.get(f"{API_URL}/despachos/reporte", timeout=3)
@@ -90,7 +92,7 @@ def render_ventas():
             if res.status_code == 200:
                 facturas_data = res.json()
                 if not facturas_data:
-                    st.info("No hay facturas de venta registradas en el sistema.")
+                    st.info("No hay órdenes de venta registradas en el sistema.")
                     return
                 
                 if isinstance(facturas_data, list) and len(facturas_data) > 0 and "tipo_factura" in facturas_data[0]:
@@ -106,7 +108,7 @@ def render_ventas():
                 col_f1, col_f2, col_f3, col_f4 = st.columns([2, 1.5, 1.5, 1.5])
                 
                 with col_f1:
-                    busqueda = st.text_input("Buscador Rápido:", placeholder="Buscar por Nº Factura, Cliente o RUC...").strip()
+                    busqueda = st.text_input("Buscador Rápido:", placeholder="Buscar por Nº Orden, Cliente o RUC...").strip()
                 
                 with col_f2:
                     f_estado = st.selectbox(
@@ -152,7 +154,7 @@ def render_ventas():
 
                 kpi1, kpi2, kpi3 = st.columns(3)
                 kpi1.metric("💰 Total Ventas ($)", f"${total_monto:,.2f}")
-                kpi2.metric("📄 Facturas Encontradas", f"{cant_facturas}")
+                kpi2.metric("📄 Órdenes Encontradas", f"{cant_facturas}")
                 kpi3.metric("⏳ Pendientes de Entrega", f"{pendientes}")
 
                 st.markdown("---")
@@ -176,7 +178,6 @@ def render_ventas():
 
                 with col_exp2:
                     try:
-                        # Convertir dataframe filtrado a dict para armar formato contifico
                         lista_dict_filtrada = df_filtrado.to_dict(orient="records")
                         excel_contifico_bytes = generar_excel_contifico(lista_dict_filtrada)
                         st.download_button(
@@ -191,11 +192,11 @@ def render_ventas():
 
                 st.markdown("")
 
-                # --- TABLA RESUMEN COMPACTA DE FACTURAS ---
+                # --- TABLA RESUMEN COMPACTA ---
                 data_tabla = []
                 for _, r in df_filtrado.iterrows():
                     data_tabla.append({
-                        "Nº Factura": r.get("numero_factura", "N/A"),
+                        "Nº Orden": r.get("numero_factura", "N/A"),
                         "Fecha": r.get("fecha", r.get("fecha_factura", "N/A")),
                         "RUC / Cédula": r.get("ruc_cedula", r.get("entidad_ruc", "N/A")),
                         "Cliente": r.get("cliente", r.get("entidad_nombre", "Consumidor Final")),
@@ -209,18 +210,18 @@ def render_ventas():
                 df_pantalla = pd.DataFrame(data_tabla)
                 st.dataframe(df_pantalla, use_container_width=True, hide_index=True)
 
-                # --- DETALLE INDIVIDUAL DE FACTURA ---
+                # --- DETALLE INDIVIDUAL ---
                 st.divider()
-                st.markdown("#### 🔎 Inspeccionar Detalle de Factura / Orden")
+                st.markdown("#### 🔎 Inspeccionar Detalle de Orden de Venta")
                 
                 lista_facturas = df_filtrado["numero_factura"].dropna().unique().tolist() if "numero_factura" in df_filtrado.columns else []
                 if lista_facturas:
-                    factura_sel = st.selectbox("Seleccione una Factura para ver su información detallada:", lista_facturas)
+                    factura_sel = st.selectbox("Seleccione una Orden para ver su información detallada:", lista_facturas)
                     
                     fact_info = df_filtrado[df_filtrado["numero_factura"] == factura_sel].iloc[0]
                     monto_factura_tot = float(fact_info.get("total_norm", 0.0))
                     
-                    with st.expander(f"📦 Ver información completa y productos de la Factura Nº {factura_sel}", expanded=True):
+                    with st.expander(f"📦 Ver información completa y productos de la Orden Nº {factura_sel}", expanded=True):
                         c1, c2, c3 = st.columns(3)
                         with c1:
                             st.write(f"**Cliente:** {fact_info.get('cliente', fact_info.get('entidad_nombre', 'N/A'))}")
@@ -284,12 +285,12 @@ def render_ventas():
                             
                             st.dataframe(pd.DataFrame(tabla_items), use_container_width=True, hide_index=True)
                         else:
-                            st.info(f"⚠️ No se encontraron ítems desglosados en el Kardex para la Factura Nº {factura_sel}.")
+                            st.info(f"⚠️ No se encontraron ítems desglosados en el Kardex para la Orden Nº {factura_sel}.")
             else:
                 st.error("No se pudo obtener el historial de ventas desde el servidor.")
         except Exception as e:
             st.error(f"Error al conectar con el servidor: {e}")
             
     elif accion == "Registrar Nueva Venta":
-        # ... (Tu lógica existente para registro de ventas se mantiene intacta)
+        # Mantiene tu lógica existente de registro
         pass
