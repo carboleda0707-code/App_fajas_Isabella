@@ -108,7 +108,6 @@ def render_ventas():
                         "Cliente": r.get("cliente", r.get("entidad_nombre", "Consumidor Final")),
                         "Total ($)": f"${r.get('total_norm', 0.0):,.2f}",
                         "Ciudad": r.get("ciudad", "N/A"),
-                        "Dirección Entrega": r.get("direccion", r.get("direccion_entrega", "N/A")),
                         "Courier": r.get("courier", r.get("courier_nombre", "Servientrega")),
                         "Nº Guía": r.get("numero_guia", "SIN GUÍA"),
                         "Estado Despacho": r.get("estado_despacho", "PENDIENTE")
@@ -118,8 +117,8 @@ def render_ventas():
                 st.dataframe(df_pantalla, use_container_width=True, hide_index=True)
 
                 # --- DETALLE INDIVIDUAL DE FACTURA ---
-                st.divider()
-                st.markdown("#### 🔎 Inspeccionar Detalle de Factura / Orden")
+                st.markdown("")
+                st.markdown("##### 🔎 Inspeccionar Detalle de Factura / Orden")
                 
                 lista_facturas = df_filtrado["numero_factura"].dropna().unique().tolist() if "numero_factura" in df_filtrado.columns else []
                 if lista_facturas:
