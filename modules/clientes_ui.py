@@ -8,7 +8,7 @@ API_BASE = os.getenv("API_BASE_URL", "https://fajasisabella-production.up.railwa
 API_URL = f"{API_BASE}/api" if not API_BASE.endswith("/api") else API_BASE
 
 def render_clientes():
-    st.subheader("👥 Mantenimiento de Clientes")
+    st.markdown("<p style='color: black; font-weight: bold;'>👥 Mantenimiento de Clientes</p>", unsafe_allow_html=True)
     st.markdown("Datos fiscales, comerciales, ubicación - descuentos.")
     
     accion = st.radio(
@@ -20,7 +20,7 @@ def render_clientes():
     st.divider()
 
     if accion == "Registrar Nuevo Cliente":
-        st.subheader("➕ Registro de Nuevo Cliente")
+        st.markdown("<p style='color: black; font-weight: bold;'>➕ Registro de Nuevo Clientes</p>", unsafe_allow_html=True)
         
         with st.form("form_crear_cliente", clear_on_submit=True):
             col1, col2, col3 = st.columns(3)
@@ -64,8 +64,8 @@ def render_clientes():
                     st.warning("Debe completar al menos el RUC/Cédula, el Nombre y la Ciudad.")
 
     elif accion == "Consultar y Modificar Clientes":
-        st.subheader("📋 Consulta y Actualización de Clientes")
-        
+        st.markdown("<p style='color: black; font-weight: bold;'>📋 Consulta y Actualización de Clientes</p>", unsafe_allow_html=True)
+                
         try:
             res = requests.get(f"{API_URL}/clientes")
             if res.status_code == 200:

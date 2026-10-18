@@ -8,7 +8,7 @@ API_BASE = os.getenv("API_BASE_URL", "https://fajasisabella-production.up.railwa
 API_URL = f"{API_BASE}/api" if not API_BASE.endswith("/api") else API_BASE
 
 def render_proveedores():
-    st.markdown("<p style='color: black; font-weight: bold;'>🏭 Gestión de Datos de Proveedores.</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color: black; font-weight: bold;'>🏭 Gestión de Datos de Proveedores</p>", unsafe_allow_html=True)
     
     accion = st.radio(
         "Acción:",
@@ -54,8 +54,8 @@ def render_proveedores():
                     st.warning("Debe completar al menos el RUC, el Nombre/Razón Social y la Ciudad.")
 
     elif accion == "Consultar y Modificar Proveedores":
-        st.subheader("📋 Consulta, Modificación de Proveedores")
-        
+        st.markdown("<p style='color: black; font-weight: bold;'>📋 Consulta, Modificación de Proveedores</p>", unsafe_allow_html=True)
+                
         try:
             res = requests.get(f"{API_URL}/proveedores")
             if res.status_code == 200:
