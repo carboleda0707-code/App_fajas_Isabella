@@ -8,8 +8,8 @@ API_BASE = os.getenv("API_BASE_URL", "https://fajasisabella-production.up.railwa
 API_URL = f"{API_BASE}/api" if not API_BASE.endswith("/api") else API_BASE
 
 def render_proveedores():
-    st.header("🏭 Mantenimiento de Proveedores")
-    st.markdown("Gestión de datos comerciales, de ubicación y de contacto de tus proveedores.")
+    #st.header("🏭 Mantenimiento de Proveedores")
+    st.markdown("🏭 Gestión de datos contacto de tus proveedores.")
     
     accion = st.radio(
         "Acción:",
@@ -89,7 +89,7 @@ def render_proveedores():
                     st.dataframe(df_filtrado, use_container_width=True)
                     
                     st.divider()
-                    st.markdown("#### 🛠️ Modificar o Eliminar Proveedor por ID")
+                    st.markdown("##### 🛠️ Modificar o Eliminar Proveedor por ID")
                     
                     p_id_input = st.number_input("ID del Proveedor a Editar", min_value=1, step=1, key="select_prov_id")
                     prov_encontrado = mapa_provs.get(p_id_input)

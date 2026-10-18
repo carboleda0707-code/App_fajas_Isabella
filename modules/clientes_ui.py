@@ -34,8 +34,7 @@ def render_clientes():
                 m_correo = st.text_input("Correo Electrónico", placeholder="Ej: correo@dominio.com").strip()
                 m_dir = st.text_input("Dirección Fiscal / Entrega", placeholder="Ej: Mucho Lote 2").strip()
 
-            st.markdown("---")
-            st.markdown("#### 🏷️ Configuración Comercial de Tarifa")
+            st.markdown("##### 🏷️ Configuración Comercial de Tarifa")
             col_c1, col_c2 = st.columns(2)
             with col_c1:
                 m_tipo_precio = st.selectbox("Categoría de Tarifa", ["REGULAR", "MAYORISTA", "VIP"])
@@ -101,7 +100,7 @@ def render_clientes():
                     st.dataframe(df_filtrado, use_container_width=True)
                     
                     st.divider()
-                    st.markdown("#### 🛠️ Modificar o Eliminar Cliente por ID")
+                    st.markdown("##### 🛠️ Modificar o Eliminar Cliente por ID")
                     
                     c_id_input = st.number_input("ID del Cliente a Editar", min_value=1, step=1, key="select_cliente_id")
                     cli_encontrado = mapa_clientes.get(c_id_input)
