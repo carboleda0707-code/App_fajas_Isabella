@@ -300,42 +300,31 @@ def render_despachos():
                         submit_guia = st.form_submit_button("💾 Guardar Cambios de Despacho", type="primary", use_container_width=True)
 
                         if submit_guia:
-                            # --- VALIDACIÓN: NO GUARDAR GUÍA CON NÚMERO DE CONTROL EN BLANCO ---
-                            if (nueva_guia and nueva_guia != "SIN GUÍA") and (not nuevo_control or nuevo_control == "SIN CONTROL"):
-                                st.error("⚠️ No se puede registrar un Número de Guía ni cambiar a 'EN TRÁNSITO' si el Número de Control está en blanco. Por favor, asigne primero el Número de Control del paquete.")
+                            ctrl_envio = nuevo_control if (nuevo_control and nuevo_control.strip() != "") else "SIN CONTROL"
+                            guia_envio = nueva_guia if (nueva_guia and nueva_guia.strip() != "") else "SIN GUÍA"
+
+                            # Validación: No guardar guía con número de control en blanco
+                            if (guia_envio != "SIN GUÍA") and (ctrl_envio == "SIN CONTROL"):
+                                st.error("⚠️ No se puede registrar un Número de Guía ni cambiar a 'EN TRÁNSITO' si el Número de Control está en blanco. Asigne primero el Número de Control.")
                             else:
                                 payload = {
                                     "factura_id": f_id_sel,
                                     "numero_factura": str(num_fact),
                                     "courier": nuevo_courier,
                                     "repartidor": nuevo_repartidor or "N/D",
-                                    "numero_guia": nueva_guia or "SIN GUÍA",
-                                    "numero_control": nuevo_control or "SIN CONTROL",
+                                    "numero_guia": guia_envio,
+                                    "numero_control": ctrl_envio,
                                     "estado_despacho": nuevo_estado
                                 }
                                 try:
                                     res_put = requests.post(f"{API_URL}/despachos/actualizar", json=payload, timeout=5)
                                     if res_put.status_code in [200, 201]:
-                                        st.success(f"¡Despacho guardado con éxito! Repartidor: {nuevo_repartidor or 'N/D'}")
-                                        st.rerun()
+                                        st.success(f"✅ Orden de Venta #{num_fact} actualizada con éxito.")
+                                        st.rerun() # Recarga para actualizar tablas y membretes visuales
                                     else:
-                                        res_put2 = requests.put(
-                                            f"{API_URL}/pedidos/{f_id_sel}/guia", 
-                                            params={
-                                                "numero_guia": nueva_guia or "SIN GUÍA",
-                                                "courier_nombre": nuevo_courier,
-                                                "repartidor": nuevo_repartidor or "N/D",
-                                                "estado_despacho": nuevo_estado
-                                            },
-                                            timeout=5
-                                        )
-                                        if res_put2.status_code == 200:
-                                            st.success("¡Actualizado correctamente!")
-                                            st.rerun()
-                                        else:
-                                            st.error(f"Error al actualizar: {res_put.text}")
+                                        st.error(f"Error al actualizar el despacho: {res_put.text}")
                                 except Exception as ex:
-                                    st.error(f"Error de conexión: {str(ex)}")
+                                    st.error(f"Error de conexión con el servidor: {str(ex)}")
 
             with col_b:
                 st.markdown("#### 🏷️ Generar Membrete de Envío (De / Para)")
