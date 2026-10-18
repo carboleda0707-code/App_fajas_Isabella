@@ -131,7 +131,7 @@ def render_ventas():
                     
                     fact_info = df_filtrado[df_filtrado["numero_factura"] == factura_sel].iloc[0]
                     
-                    with st.expander(f"📦 Ver información completa de la Factura Nº {factura_sel}", expanded=True):
+                    with st.expander(f"📦 Ver información completa y productos de la Factura Nº {factura_sel}", expanded=True):
                         c1, c2, c3 = st.columns(3)
                         with c1:
                             st.write(f"**Cliente:** {fact_info.get('cliente', fact_info.get('entidad_nombre', 'N/A'))}")
@@ -140,11 +140,46 @@ def render_ventas():
                         with c2:
                             st.write(f"**Provincia / Ciudad:** {fact_info.get('provincia', 'Guayas')} / {fact_info.get('ciudad', 'Guayaquil')}")
                             st.write(f"**Dirección:** {fact_info.get('direccion', fact_info.get('direccion_entrega', 'N/A'))}")
-                            st.write(f"**Referencia:** {fact_info.get('referencia', 'Sin referencia')}")
+                            st.write(f"**Referencia:** {fact_info.get('referencia', fact_info.get('referencia_direccion', 'Sin referencia'))}")
                         with c3:
                             st.write(f"**Courier:** {fact_info.get('courier', fact_info.get('courier_nombre', 'Servientrega'))}")
                             st.write(f"**Nº Guía:** {fact_info.get('numero_guia', 'SIN GUÍA')}")
                             st.write(f"**Estado Despacho:** `{fact_info.get('estado_despacho', 'PENDIENTE')}`")
+
+                        st.markdown("---")
+                        st.markdown("##### 🛍️ Detalle de Ítems / Fajas Vendidas")
+
+                        # Obtener los productos asociados a la factura desde el JSON o consultando movimientos
+                        items_factura = fact_info.get("items", [])
+                        
+                        if not items_factura:
+                            try:
+                                res_mov = requests.get(f"{API_URL}/movimientos", timeout=3)
+                                if res_mov.status_code == 200:
+                                    movs = res_mov.json()
+                                    items_factura = [m for m in movs if str(m.get('referencia_factura', '')) == str(factura_sel)]
+                            except Exception:
+                                items_factura = []
+
+                        if items_factura:
+                            tabla_items = []
+                            for idx, it in enumerate(items_factura, 1):
+                                sku = it.get("sku", it.get("sku_producto", "N/A"))
+                                cant = abs(int(it.get("cantidad", 1)))
+                                prec = float(it.get("precio_unitario", it.get("precio", 0.0)))
+                                subtotal = cant * prec
+                                
+                                tabla_items.append({
+                                    "Item #": idx,
+                                    "SKU": sku,
+                                    "Cantidad": cant,
+                                    "Precio Unit. ($)": f"${prec:,.2f}",
+                                    "Subtotal ($)": f"${subtotal:,.2f}"
+                                })
+                            
+                            st.dataframe(pd.DataFrame(tabla_items), use_container_width=True, hide_index=True)
+                        else:
+                            st.info("⚠️ No se encontraron ítems detallados desglosados para esta factura.")
             else:
                 st.error("No se pudo obtener el historial de ventas desde el servidor.")
         except Exception as e:
