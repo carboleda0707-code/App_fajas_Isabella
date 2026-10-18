@@ -49,7 +49,8 @@ def render_proveedores():
                     if res_post.status_code in (200, 201):
                         st.success("✅ Proveedor registrado correctamente.")
                     else:
-                        st.error(f"Error al registrar: {res_post.text}")
+                        # Muestra el detalle exacto que devuelve FastAPI
+                        st.error(f"Error al registrar ({res_post.status_code}): {res_post.text}")
                 else:
                     st.warning("Debe completar al menos el RUC, el Nombre/Razón Social y la Ciudad.")
 

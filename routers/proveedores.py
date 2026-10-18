@@ -8,7 +8,7 @@ router = APIRouter(tags=["Proveedores"])
 
 class ProveedorSchema(BaseModel):
     ruc_cedula: str
-    nombre: str
+    nombre: str  # Streamlit envía 'nombre', lo mapeamos a 'nombre_empresa'
     ciudad: Optional[str] = None
     telefono: Optional[str] = None
     correo: Optional[str] = None
@@ -22,10 +22,10 @@ def listar_proveedores(db: Session = Depends(get_db)):
         resultado.append({
             "id": p.id,
             "ruc_cedula": p.ruc_cedula,
-            "nombre": getattr(p, 'nombre', getattr(p, 'nombre_empresa', '')),
-            "ciudad": p.ciudad or "",
+            "nombre": getattr(p, 'nombre_empresa', getattr(p, 'nombre', '')),
+            "ciudad": getattr(p, 'ciudad', '') or "",
             "telefono": p.telefono or "",
-            "correo": p.correo or "",
+            "correo": getattr(p, 'correo', '') or "",
             "direccion": p.direccion or ""
         })
     return resultado
@@ -38,7 +38,7 @@ def guardar_proveedor(prov: ProveedorSchema, db: Session = Depends(get_db)):
     
     nuevo_prov = Proveedor(
         ruc_cedula=prov.ruc_cedula.strip(),
-        nombre=prov.nombre.strip(),
+        nombre_empresa=prov.nombre.strip(),
         ciudad=prov.ciudad.strip().title() if prov.ciudad else None,
         telefono=prov.telefono.strip() if prov.telefono else None,
         correo=prov.correo.strip().lower() if prov.correo else None,
@@ -56,7 +56,7 @@ def actualizar_proveedor(proveedor_id: int, prov: ProveedorSchema, db: Session =
         raise HTTPException(status_code=404, detail="Proveedor no encontrado.")
     
     db_prov.ruc_cedula = prov.ruc_cedula.strip()
-    db_prov.nombre = prov.nombre.strip()
+    db_prov.nombre_empresa = prov.nombre.strip()
     db_prov.ciudad = prov.ciudad.strip().title() if prov.ciudad else None
     db_prov.telefono = prov.telefono.strip() if prov.telefono else None
     db_prov.correo = prov.correo.strip().lower() if prov.correo else None

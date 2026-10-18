@@ -50,12 +50,14 @@ class ClienteWeb(Base):
 
 class Proveedor(Base):
     __tablename__ = "proveedores"
+
     id = Column(Integer, primary_key=True, index=True)
-    ruc_cedula = Column(String, unique=True, index=True, nullable=False)
-    nombre_empresa = Column(String, nullable=False)
-    contacto = Column(String)
-    telefono = Column(String)
-    direccion = Column(String)
+    ruc_cedula = Column(String, unique=True, index=True)
+    nombre = Column(String, name="nombre_empresa" ) # Asegúrate de que se llame nombre o nombre_empresa según corresponda
+    ciudad = Column(String, nullable=True)
+    telefono = Column(String, nullable=True)
+    correo = Column(String, nullable=True)
+    direccion = Column(String, nullable=True)
 
 class Producto(Base):
     __tablename__ = "productos"
