@@ -26,7 +26,9 @@ def registrar_cliente_web(data: RegistroWebSchema, db: Session = Depends(get_db)
         if existente:
             raise HTTPException(status_code=400, detail="Este correo ya se encuentra registrado.")
         
-        hashed_password = pwd_context.hash(data.password)
+        # Corrección: Bcrypt limita la contraseña a 72 bytes máximo
+        password_bytes = data.password.encode('utf-8')[:72]
+        hashed_password = pwd_context.hash(password_bytes)
         
         nuevo_cliente = ClienteWeb(
             nombre=data.nombre,
@@ -56,14 +58,15 @@ def registrar_cliente_web(data: RegistroWebSchema, db: Session = Depends(get_db)
         db.rollback()
         error_detallado = traceback.format_exc()
         print("ERROR EN REGISTRO:", error_detallado)
-        # Esto enviará el error exacto de Python a la pantalla para verlo de inmediato
         raise HTTPException(status_code=400, detail=f"Error interno: {str(e)}")
 
 @router.post("/login")
 def login_cliente_web(data: LoginWebSchema, db: Session = Depends(get_db)):
     try:
         cliente = db.query(ClienteWeb).filter(ClienteWeb.correo == data.correo).first()
-        if not cliente or not pwd_context.verify(data.password, cliente.password_hash):
+        password_bytes = data.password.encode('utf-8')[:72]
+        
+        if not cliente or not pwd_context.verify(password_bytes, cliente.password_hash):
             raise HTTPException(status_code=401, detail="Correo o contraseña incorrectos.")
         
         return {

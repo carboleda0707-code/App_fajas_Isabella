@@ -7,8 +7,20 @@ import traceback
 import os
 from database import get_db, Cliente, Factura, Pago, VarianteProducto, MovimientoInventario
 
-router = APIRouter()
+router = APIRouter(prefix="/api", tags=["Ventas y Clientes"])
 
+# --- ESQUEMAS PARA CLIENTES ---
+class ClienteSchema(BaseModel):
+    ruc_cedula: str
+    nombre: str
+    ciudad: Optional[str] = None
+    telefono: Optional[str] = None
+    correo: Optional[str] = None
+    direccion: Optional[str] = None
+    tipo_precio: Optional[str] = "REGULAR"
+    descuento_porcentaje: Optional[float] = 0.0
+
+# --- ESQUEMAS PARA VENTAS ---
 class ItemVentaSchema(BaseModel):
     sku: str
     cantidad: int
@@ -36,6 +48,80 @@ class VentaFacturaSchema(BaseModel):
     
     items: List[ItemVentaSchema]
 
+
+# --- ENDPOINTS CRUD DE CLIENTES ---
+
+@router.get("/clientes")
+def obtener_clientes(db: Session = Depends(get_db)):
+    clientes = db.query(Cliente).all()
+    resultado = []
+    for c in clientes:
+        resultado.append({
+            "id": c.id,
+            "ruc_cedula": c.ruc_cedula,
+            "nombre": c.nombre,
+            "ciudad": c.ciudad or "",
+            "telefono": c.telefono or "",
+            "correo": c.correo or "",
+            "direccion": c.direccion or "",
+            "tipo_precio": c.tipo_precio or "REGULAR",
+            "descuento_porcentaje": float(c.descuento_porcentaje or 0.0)
+        })
+    return resultado
+
+@router.post("/clientes")
+def crear_cliente(data: ClienteSchema, db: Session = Depends(get_db)):
+    existente = db.query(Cliente).filter(Cliente.ruc_cedula == data.ruc_cedula).first()
+    if existente:
+        raise HTTPException(status_code=400, detail="El RUC o Cédula ya se encuentra registrado.")
+    
+    nuevo_cliente = Cliente(
+        ruc_cedula=data.ruc_cedula,
+        nombre=data.nombre,
+        ciudad=data.ciudad.strip().title() if data.ciudad else None,
+        telefono=data.telefono.strip() if data.telefono else None,
+        correo=data.correo.strip().lower() if data.correo else None,
+        direccion=data.direccion.strip() if data.direccion else None,
+        tipo_precio=data.tipo_precio or "REGULAR",
+        descuento_porcentaje=data.descuento_porcentaje or 0.0
+    )
+    db.add(nuevo_cliente)
+    db.commit()
+    db.refresh(nuevo_cliente)
+    return nuevo_cliente
+
+@router.put("/clientes/{cliente_id}")
+def actualizar_cliente(cliente_id: int, data: ClienteSchema, db: Session = Depends(get_db)):
+    cliente = db.query(Cliente).filter(Cliente.id == cliente_id).first()
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado.")
+    
+    cliente.ruc_cedula = data.ruc_cedula.strip()
+    cliente.nombre = data.nombre.strip()
+    cliente.ciudad = data.ciudad.strip().title() if data.ciudad else None
+    cliente.telefono = data.telefono.strip() if data.telefono else None
+    cliente.correo = data.correo.strip().lower() if data.correo else None
+    cliente.direccion = data.direccion.strip() if data.direccion else None
+    cliente.tipo_precio = data.tipo_precio or "REGULAR"
+    cliente.descuento_porcentaje = data.descuento_porcentaje or 0.0
+    
+    db.commit()
+    db.refresh(cliente)
+    return {"status": "success", "mensaje": "Cliente actualizado correctamente.", "cliente_id": cliente.id}
+
+@router.delete("/clientes/{cliente_id}")
+def eliminar_cliente(cliente_id: int, db: Session = Depends(get_db)):
+    cliente = db.query(Cliente).filter(Cliente.id == cliente_id).first()
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado.")
+    
+    db.delete(cliente)
+    db.commit()
+    return {"status": "success", "mensaje": f"Cliente ID {cliente_id} eliminado correctamente."}
+
+
+# --- ENDPOINT REGISTRO DE VENTA ---
+
 @router.post("/ventas-factura")
 def registrar_venta(venta: VentaFacturaSchema, db: Session = Depends(get_db)):
     try:
@@ -50,7 +136,6 @@ def registrar_venta(venta: VentaFacturaSchema, db: Session = Depends(get_db)):
                 status_code=400, 
                 detail=f"La factura de venta Nº {venta.numero_factura} ya se encuentra registrada en el sistema."
             )
-        # ----------------------------------------
 
         # Verificar o registrar/actualizar datos básicos del cliente
         cliente = db.query(Cliente).filter(Cliente.ruc_cedula == venta.ruc_cliente).first()
@@ -59,7 +144,8 @@ def registrar_venta(venta: VentaFacturaSchema, db: Session = Depends(get_db)):
                 ruc_cedula=venta.ruc_cliente, 
                 nombre=venta.nombre_cliente,
                 direccion=venta.direccion_cliente or "", 
-                telefono=venta.telefono_cliente or ""
+                telefono=venta.telefono_cliente or "",
+                ciudad=venta.ciudad or "Guayaquil"
             )
             db.add(cliente)
             db.commit()
@@ -175,7 +261,6 @@ def obtener_reporte_despachos(
     if provincia:
         query = query.filter(Factura.provincia.ilike(f"%{provincia}%"))
         
-    # Ordenar por Provincia y Ciudad para agrupar paquetes por zona de envío
     pedidos = query.order_by(Factura.provincia.asc(), Factura.ciudad.asc(), Factura.id.desc()).all()
     
     reporte = []
@@ -213,7 +298,6 @@ def iniciar_transaccion_paymentez(data: dict, db: Session = Depends(get_db)):
 
         total_pedido = sum(item.get("cantidad", 1) * item.get("precio_unitario", 0.0) for item in items)
         
-        # Modo simulación local mientras se configuran las credenciales oficiales
         if PAYMENTEZ_APP_CODE == "test_app_code":
             return {
                 "status": "success",

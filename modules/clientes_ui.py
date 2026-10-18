@@ -57,7 +57,7 @@ def render_clientes():
                         "descuento_porcentaje": float(m_descuento)
                     }
                     res_post = requests.post(f"{API_URL}/clientes", json=payload)
-                    if res_post.status_code == 200:
+                    if res_post.status_code in (200, 201):
                         st.success("✅ Cliente registrado correctamente.")
                     else:
                         st.error(f"Error al registrar: {res_post.text}")
@@ -80,6 +80,7 @@ def render_clientes():
                             "ID": c["id"],
                             "RUC / Cédula": c.get("ruc_cedula", ""),
                             "Nombre": c.get("nombre", ""),
+                            "Correo": c.get("correo", "") or "",
                             "Ciudad": c.get("ciudad", "") or "",
                             "Teléfono": c.get("telefono", "") or "",
                             "Tarifa": c.get("tipo_precio", "REGULAR"),
@@ -102,19 +103,19 @@ def render_clientes():
                     st.divider()
                     st.markdown("#### 🛠️ Modificar o Eliminar Cliente por ID")
                     
-                    with st.form("form_modificar_cliente"):
-                        c_id_input = st.number_input("ID del Cliente a Editar", min_value=1, step=1)
-                        cli_encontrado = mapa_clientes.get(c_id_input)
-                        
-                        val_ruc = str(cli_encontrado.get("ruc_cedula", "")) if cli_encontrado and cli_encontrado.get("ruc_cedula") else ""
-                        val_nom = str(cli_encontrado.get("nombre", "")) if cli_encontrado and cli_encontrado.get("nombre") else ""
-                        val_ciudad = str(cli_encontrado.get("ciudad", "")) if cli_encontrado and cli_encontrado.get("ciudad") else ""
-                        val_telf = str(cli_encontrado.get("telefono", "")) if cli_encontrado and cli_encontrado.get("telefono") else ""
-                        val_correo = str(cli_encontrado.get("correo", "")) if cli_encontrado and cli_encontrado.get("correo") else ""
-                        val_dir = str(cli_encontrado.get("direccion", "")) if cli_encontrado and cli_encontrado.get("direccion") else ""
-                        val_tipo_p = str(cli_encontrado.get("tipo_precio", "REGULAR")) if cli_encontrado else "REGULAR"
-                        val_desc = float(cli_encontrado.get("descuento_porcentaje", 0.0)) if cli_encontrado else 0.0
+                    c_id_input = st.number_input("ID del Cliente a Editar", min_value=1, step=1, key="select_cliente_id")
+                    cli_encontrado = mapa_clientes.get(c_id_input)
+                    
+                    val_ruc = str(cli_encontrado.get("ruc_cedula", "")) if cli_encontrado and cli_encontrado.get("ruc_cedula") else ""
+                    val_nom = str(cli_encontrado.get("nombre", "")) if cli_encontrado and cli_encontrado.get("nombre") else ""
+                    val_ciudad = str(cli_encontrado.get("ciudad", "")) if cli_encontrado and cli_encontrado.get("ciudad") else ""
+                    val_telf = str(cli_encontrado.get("telefono", "")) if cli_encontrado and cli_encontrado.get("telefono") else ""
+                    val_correo = str(cli_encontrado.get("correo", "")) if cli_encontrado and cli_encontrado.get("correo") else ""
+                    val_dir = str(cli_encontrado.get("direccion", "")) if cli_encontrado and cli_encontrado.get("direccion") else ""
+                    val_tipo_p = str(cli_encontrado.get("tipo_precio", "REGULAR")) if cli_encontrado else "REGULAR"
+                    val_desc = float(cli_encontrado.get("descuento_porcentaje", 0.0)) if cli_encontrado else 0.0
 
+                    with st.form("form_modificar_cliente"):
                         col_m_1, col_m_2 = st.columns(2)
                         with col_m_1:
                             mod_ruc = st.text_input("RUC / Cédula *", value=val_ruc).strip()
@@ -143,7 +144,7 @@ def render_clientes():
                                     "tipo_precio": mod_tipo_p,
                                     "descuento_porcentaje": float(mod_desc)
                                 }
-                                res_upd = requests.post(f"{API_URL}/clientes", json=payload)
+                                res_upd = requests.put(f"{API_URL}/clientes/{c_id_input}", json=payload)
                                 if res_upd.status_code == 200:
                                     st.success(f"✅ Cliente ID {c_id_input} actualizado con éxito.")
                                     st.rerun()
