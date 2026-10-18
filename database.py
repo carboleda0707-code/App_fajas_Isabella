@@ -53,11 +53,12 @@ class Proveedor(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     ruc_cedula = Column(String, unique=True, index=True)
-    nombre = Column(String, name="nombre_empresa" ) # Asegúrate de que se llame nombre o nombre_empresa según corresponda
-    ciudad = Column(String, nullable=True)
+    nombre_empresa = Column(String)
+    contacto = Column(String, nullable=True)
     telefono = Column(String, nullable=True)
-    correo = Column(String, nullable=True)
     direccion = Column(String, nullable=True)
+    ciudad = Column(String, nullable=True)  # <-- Añadir esta línea si falta
+    correo = Column(String, nullable=True)
 
 class Producto(Base):
     __tablename__ = "productos"
