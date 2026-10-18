@@ -13,15 +13,10 @@ SVG_FALLBACK = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' 
 def obtener_url_imagen(img_path):
     if not img_path or str(img_path).strip() in ["", "None", "null", "/logo.png", "logo.png"]:
         return SVG_FALLBACK
-    
     img_str = str(img_path).strip()
     if img_str.startswith("http://") or img_str.startswith("https://"):
         return img_str
-    
-    # Limpiar cualquier prefijo para obtener solo el nombre del archivo
     nombre_archivo = img_str.split('/')[-1].strip()
-    
-    # Ruta oficial donde FastAPI sirve la carpeta estática web/img
     return f"{API_BASE}/img/{nombre_archivo}"
 
 def render_compras():
@@ -67,16 +62,12 @@ def render_compras():
         for item in inventario:
             sku_val = item.get('sku') or item.get('SKU') or 'N/D'
             
-            nombre_prod = "Faja"
-            imagen_url = ""
-            
-            # Extracción flexible de producto e imagen según el tipo de objeto retornado
             if isinstance(item.get('producto'), dict):
                 nombre_prod = item.get('producto', {}).get('nombre') or item.get('producto', {}).get('modelo') or "Faja"
                 imagen_url = item.get('producto', {}).get('imagen_url') or ""
             else:
-                nombre_prod = item.get('Producto') or item.get('producto') or item.get('nombre') or item.get('modelo') or item.get('Modelo') or "Faja"
-                imagen_url = item.get('imagen_url') or item.get('imagen') or item.get('Imagen') or ""
+                nombre_prod = item.get('Producto') or item.get('producto') or item.get('nombre') or item.get('modelo') or "Faja"
+                imagen_url = item.get('imagen_url') or item.get('imagen') or ""
 
             talla_val = item.get('talla') or item.get('Talla') or 'Única'
             color_val = item.get('color') or item.get('Color') or 'Único'
@@ -100,9 +91,9 @@ def render_compras():
         except:
             proveedores = []
         
-        dict_provs = {p.get('nombre_empresa') or p.get('nombre', ''): p for p in proveedores} if proveedores else {}
+        dict_provs = {p.get('nombre') or p.get('nombre_empresa', ''): p for p in proveedores} if proveedores else {}
 
-        st.subheader("📄 Membrete y Cabecera de la Factura")
+        st.subheader("📄 Membrete y Cabecera de la Factura de Compra")
         
         with st.form("form_compra_nueva"):
             c1, c2 = st.columns(2)
@@ -111,17 +102,14 @@ def render_compras():
             with c2:
                 f_compra = st.date_input("Fecha de Compra", value=date.today())
                 
-            p1, p2 = st.columns(2)
-            with p1:
-                if dict_provs:
-                    sel_prov = st.selectbox("Seleccionar Proveedor Guardado", ["-- Ingresar Nuevo Proveedor --"] + list(dict_provs.keys()))
-                else:
-                    sel_prov = "-- Ingresar Nuevo Proveedor --"
-            with p2:
-                pass
+            if dict_provs:
+                sel_prov = st.selectbox("Seleccionar Proveedor Registrado", ["-- Ingresar Proveedor Nuevo --"] + list(dict_provs.keys()))
+            else:
+                sel_prov = "-- Ingresar Proveedor Nuevo --"
 
-            if sel_prov != "-- Ingresar Nuevo Proveedor --":
-                ruc_sugerido = dict_provs[sel_prov].get("ruc_cedula") or dict_provs[sel_prov].get("ruc") or ""
+            if sel_prov != "-- Ingresar Proveedor Nuevo --":
+                prov_sel_data = dict_provs[sel_prov]
+                ruc_sugerido = prov_sel_data.get("ruc_cedula") or ""
                 nombre_sugerido = sel_prov
             else:
                 ruc_sugerido = ""
@@ -131,7 +119,7 @@ def render_compras():
             with rc1:
                 ruc_p = st.text_input("RUC / Cédula Proveedor", value=ruc_sugerido).strip()
             with rc2:
-                nom_p = st.text_input("Nombre de Empresa Proveedora", value=nombre_sugerido).strip()
+                nom_p = st.text_input("Nombre / Razón Social Proveedor", value=nombre_sugerido).strip()
 
             st.markdown("---")
             st.subheader("📦 Detalle de Variantes Recibidas en Bodega")
@@ -161,7 +149,7 @@ def render_compras():
                         st.image(SVG_FALLBACK, width=80)
 
                 with col_cant:
-                    cant_ing = st.number_input(f"Cantidad Recibida #{i+1}", min_value=1, value=1, key=f"comp_cant_{i}")
+                    cant_ing = st.number_input(f"Cantidad #{i+1}", min_value=1, value=1, key=f"comp_cant_{i}")
                 with col_costo:
                     val_neto = st.number_input(f"Costo Unit. ($) #{i+1}", min_value=0.0, value=0.0, step=0.5, key=f"comp_val_{i}")
                 
@@ -172,11 +160,11 @@ def render_compras():
                 })
                 st.markdown("---")
 
-            submitted = st.form_submit_button("💾 Guardar Compra e Incrementar Stock", use_container_width=True)
+            submitted = st.form_submit_button("💾 Guardar Compra e Incrementar Stock", type="primary", use_container_width=True)
             
             if submitted:
                 if not num_f or not ruc_p or not nom_p:
-                    st.warning("⚠️ Complete todos los campos obligatorios del proveedor y factura.")
+                    st.warning("⚠️ Complete todos los campos obligatorios del proveedor y número de factura.")
                 else:
                     payload = {
                         "numero_factura": num_f,
@@ -187,11 +175,11 @@ def render_compras():
                     }
                     try:
                         resp = requests.post(f"{API_URL}/compras-factura", json=payload, timeout=10)
-                        if resp.status_code == 200:
+                        if resp.status_code in (200, 201):
                             st.success("✅ ¡Compra registrada con éxito y stock actualizado en bodega!")
                             st.balloons()
                         else:
-                            detail = resp.json().get('detail', 'Error al procesar')
-                            st.error(f"❌ Ocurrió un error: {detail}")
+                            detail = resp.json().get('detail', 'Error al procesar la compra')
+                            st.error(f"❌ {detail}")
                     except Exception as e:
-                        st.error(f"❌ Error de conexión: {e}")
+                        st.error(f"❌ Error de conexión con el servidor: {e}")
