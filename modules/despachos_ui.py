@@ -3,6 +3,7 @@ import requests
 import os
 import pandas as pd
 import io
+from datetime import date, datetime
 
 # Conexión estricta de Producción en Nube
 API_BASE = os.getenv("API_BASE_URL", "https://fajasisabella-production.up.railway.app").rstrip("/")
@@ -10,58 +11,100 @@ API_URL = f"{API_BASE}/api" if not API_BASE.endswith("/api") else API_BASE
 
 def render_despachos():
     st.subheader("📦 Control de Despachos y Envíos por Courier")
-    st.markdown("Gestiona estados de paquetes, asigna guías y genera etiquetas imprimibles 'De / Para'.")
+    st.markdown("Gestiona estados de paquetes, asigna guías, números de control automáticos y consulta el detalle completo de ítems enviados.")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        filtro_estado = st.selectbox(
-            "Filtrar por Estado de Despacho", 
-            ["TODOS", "PENDIENTE", "EMPACADO", "EN TRÁNSITO", "ENTREGADO"]
-        )
-    with col2:
-        filtro_provincia = st.text_input("Filtrar por Provincia", placeholder="Ej: Guayas, Pichincha...")
-
-    params = {}
-    if filtro_estado != "TODOS":
-        params["estado"] = filtro_estado
-    if filtro_provincia.strip():
-        params["provincia"] = filtro_provincia.strip()
+    col_btn1, col_btn2 = st.columns([0.15, 0.85])
+    with col_btn1:
+        if st.button("🔄 Actualizar", key="btn_refresh_desp"):
+            st.rerun()
 
     try:
-        response = requests.get(f"{API_URL}/despachos/reporte", params=params)
+        response = requests.get(f"{API_URL}/despachos/reporte", timeout=5)
+        if response.status_code != 200:
+            response = requests.get(f"{API_URL}/facturas", timeout=5)
+
         if response.status_code == 200:
             data_despachos = response.json()
             
             if not data_despachos:
-                st.info("No se encontraron despachos con los filtros seleccionados.")
+                st.info("No se encontraron despachos registrados en el sistema.")
                 return
 
-            df = pd.DataFrame(data_despachos)
+            # Filtrar solo ventas
+            if isinstance(data_despachos, list) and len(data_despachos) > 0 and "tipo_factura" in data_despachos[0]:
+                data_despachos = [f for f in data_despachos if f.get('tipo_factura') == 'VENTA']
+
+            df_raw = pd.DataFrame(data_despachos)
+
+            # Normalizar totales
+            col_total_key = "total" if "total" in df_raw.columns else ("total_factura" if "total_factura" in df_raw.columns else None)
+            df_raw["total_norm"] = pd.to_numeric(df_raw[col_total_key], errors="coerce").fillna(0.0) if col_total_key else 0.0
+
+            # --- SECCIÓN DE FILTROS Y BÚSQUEDA (IDÉNTICA A CONSULTA DE VENTAS) ---
+            st.markdown("##### 🔍 Filtros de Búsqueda y Rango")
+            col_f1, col_f2, col_f3, col_f4 = st.columns([2, 1.5, 1.5, 1.5])
             
-            # Métricas
-            total_pedidos = len(df)
-            pendientes = len(df[df["estado_despacho"] == "PENDIENTE"])
-            en_transito = len(df[df["estado_despacho"] == "EN TRÁNSITO"])
+            with col_f1:
+                busqueda = st.text_input("Buscador Rápido:", placeholder="Buscar por Nº Factura, Cliente, Guía o Nº Control...").strip()
             
-            m1, m2, m3 = st.columns(3)
-            m1.metric("Total Pedidos Listados", total_pedidos)
-            m2.metric("Pendientes / Empacando", pendientes)
-            m3.metric("En Tránsito (Con Guía)", en_transito)
+            with col_f2:
+                filtro_estado = st.selectbox(
+                    "Estado Despacho:",
+                    ["TODOS", "PENDIENTE", "EMPACADO", "EN TRÁNSITO", "ENTREGADO"]
+                )
+            
+            with col_f3:
+                fecha_inicio = st.date_input("Fecha Desde:", value=date(2026, 1, 1))
+            
+            with col_f4:
+                fecha_fin = st.date_input("Fecha Hasta:", value=date.today())
 
             st.divider()
 
-            # --- SECCIÓN: TABLA Y BOTÓN EXCEL ---
+            # --- APLICAR FILTROS ---
+            df_filtrado = df_raw.copy()
+
+            if busqueda:
+                mask = (
+                    df_filtrado.get("numero_factura", "").astype(str).str.contains(busqueda, case=False, na=False) |
+                    df_filtrado.get("cliente", df_filtrado.get("entidad_nombre", "")).astype(str).str.contains(busqueda, case=False, na=False) |
+                    df_filtrado.get("numero_guia", "").astype(str).str.contains(busqueda, case=False, na=False) |
+                    df_filtrado.get("numero_control", "").astype(str).str.contains(busqueda, case=False, na=False)
+                )
+                df_filtrado = df_filtrado[mask]
+
+            if filtro_estado != "TODOS":
+                col_est = "estado_despacho" if "estado_despacho" in df_filtrado.columns else "estado"
+                if col_est in df_filtrado.columns:
+                    df_filtrado = df_filtrado[df_filtrado[col_est].astype(str).str.upper() == filtro_estado]
+
+            col_fecha_name = "fecha" if "fecha" in df_filtrado.columns else ("fecha_factura" if "fecha_factura" in df_filtrado.columns else None)
+            if col_fecha_name:
+                df_filtrado["fecha_dt"] = pd.to_datetime(df_filtrado[col_fecha_name], errors="coerce").dt.date
+                df_filtrado = df_filtrado[(df_filtrado["fecha_dt"] >= fecha_inicio) & (df_filtrado["fecha_dt"] <= fecha_fin)]
+
+            # --- TARJETAS DE MÉTRICAS (KPIs) ---
+            total_pedidos = len(df_filtrado)
+            col_est = "estado_despacho" if "estado_despacho" in df_filtrado.columns else "estado"
+            pendientes = len(df_filtrado[df_filtrado[col_est].astype(str).str.upper() == "PENDIENTE"]) if col_est in df_filtrado.columns else 0
+            en_transito = len(df_filtrado[df_filtrado[col_est].astype(str).str.upper() == "EN TRÁNSITO"]) if col_est in df_filtrado.columns else 0
+            
+            m1, m2, m3 = st.columns(3)
+            m1.metric("📦 Total Pedidos Listados", total_pedidos)
+            m2.metric("⏳ Pendientes / Empacando", pendientes)
+            m3.metric("🚚 En Tránsito (Con Guía)", en_transito)
+
+            st.divider()
+
+            # --- SECCIÓN: TABLA COMPACTA Y EXCEL ---
             col_t1, col_t2 = st.columns([3, 1])
             with col_t1:
-                st.markdown("#### 📋 Listado Consolidado (Organizado por Zona)")
+                st.markdown("#### 📋 Listado Consolidado")
             with col_t2:
                 try:
                     output = io.BytesIO()
                     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                        df[[
-                            "factura_id", "numero_factura", "fecha", "cliente", 
-                            "provincia", "ciudad", "courier", "numero_guia", "estado_despacho", "total"
-                        ]].to_excel(writer, index=False, sheet_name='Despachos')
+                        df_filtrado.to_excel(writer, index=False, sheet_name='Despachos')
                     excel_data = output.getvalue()
                     
                     st.download_button(
@@ -72,113 +115,251 @@ def render_despachos():
                         use_container_width=True
                     )
                 except Exception as ex:
-                    st.caption("⚠️ Instale openpyxl para exportar Excel (`pip install openpyxl`)")
+                    st.caption("⚠️ Instale openpyxl para exportar Excel")
 
-            st.dataframe(
-                df[[
-                    "factura_id", "numero_factura", "fecha", "cliente", 
-                    "provincia", "ciudad", "courier", "numero_guia", "estado_despacho", "total"
-                ]],
-                use_container_width=True
-            )
+            # Tabla limpia sin columna de dirección
+            data_tabla = []
+            for _, r in df_filtrado.iterrows():
+                data_tabla.append({
+                    "Nº Factura": r.get("numero_factura", "N/A"),
+                    "Fecha": r.get("fecha", r.get("fecha_factura", "N/A")),
+                    "Cliente": r.get("cliente", r.get("entidad_nombre", "Consumidor Final")),
+                    "Provincia": r.get("provincia", "Guayas"),
+                    "Ciudad": r.get("ciudad", "Guayaquil"),
+                    "Courier": r.get("courier", r.get("courier_nombre", "Servientrega")),
+                    "Nº Guía": r.get("numero_guia", "SIN GUÍA"),
+                    "Nº Control": r.get("numero_control", r.get("codigo_control", "SIN CONTROL")),
+                    "Total ($)": f"${r.get('total_norm', 0.0):,.2f}",
+                    "Estado Despacho": r.get("estado_despacho", r.get("estado", "PENDIENTE"))
+                })
+
+            st.dataframe(pd.DataFrame(data_tabla), use_container_width=True, hide_index=True)
+
+            # --- DETALLE DE INSPECCIÓN CON ÍTEMS VENDIDOS ---
+            st.divider()
+            st.markdown("#### 🔎 Inspeccionar Detalle de Despacho e Ítems Vendidos")
+            
+            lista_facturas = df_filtrado["numero_factura"].dropna().unique().tolist() if "numero_factura" in df_filtrado.columns else []
+            if lista_facturas:
+                factura_sel = st.selectbox("Seleccione una Factura para ver su información detallada:", lista_facturas, key="sel_fact_det_log")
+                
+                fact_info = df_filtrado[df_filtrado["numero_factura"] == factura_sel].iloc[0]
+                monto_factura_tot = float(fact_info.get("total_norm", 0.0))
+                
+                with st.expander(f"📦 Ver información completa y productos de la Factura Nº {factura_sel}", expanded=True):
+                    c1, c2, c3 = st.columns(3)
+                    with c1:
+                        st.write(f"**Cliente:** {fact_info.get('cliente', fact_info.get('entidad_nombre', 'N/A'))}")
+                        st.write(f"**RUC/Cédula:** {fact_info.get('ruc_cedula', fact_info.get('entidad_ruc', 'N/A'))}")
+                        st.write(f"**Fecha:** {fact_info.get('fecha', fact_info.get('fecha_factura', 'N/A'))}")
+                    with c2:
+                        st.write(f"**Provincia / Ciudad:** {fact_info.get('provincia', 'Guayas')} / {fact_info.get('ciudad', 'Guayaquil')}")
+                        st.write(f"**Dirección:** {fact_info.get('direccion', fact_info.get('direccion_entrega', 'N/A'))}")
+                        st.write(f"**Referencia:** {fact_info.get('referencia', fact_info.get('referencia_direccion', 'Sin referencia'))}")
+                    with c3:
+                        st.write(f"**Courier:** {fact_info.get('courier', fact_info.get('courier_nombre', 'Servientrega'))}")
+                        st.write(f"**Nº Guía:** {fact_info.get('numero_guia', 'SIN GUÍA')}")
+                        st.write(f"**Nº Control:** {fact_info.get('numero_control', fact_info.get('codigo_control', 'SIN CONTROL'))}")
+                        st.write(f"**Estado Despacho:** `{fact_info.get('estado_despacho', 'PENDIENTE')}`")
+
+                    st.markdown("---")
+                    st.markdown("##### 🛍️ Detalle de Ítems / Fajas Vendidas")
+
+                    items_factura = fact_info.get("items", [])
+                    num_fact_str = str(factura_sel).strip()
+
+                    if not items_factura:
+                        try:
+                            res_mov = requests.get(f"{API_URL}/movimientos", timeout=3)
+                            if res_mov.status_code == 200:
+                                movs = res_mov.json()
+                                for m in movs:
+                                    ref_f = str(m.get('referencia_factura', '')).strip()
+                                    num_m = str(m.get('numero_factura', '')).strip()
+                                    if num_fact_str in ref_f or num_fact_str in num_m or (ref_f and ref_f.lstrip('0') == num_fact_str.lstrip('0')):
+                                        items_factura.append(m)
+                        except Exception:
+                            items_factura = []
+
+                    if items_factura:
+                        tabla_items = []
+                        for idx, it in enumerate(items_factura, 1):
+                            sku = it.get("sku", it.get("sku_producto", it.get("codigo_producto", "N/A")))
+                            cant = abs(int(it.get("cantidad", it.get("cant", 1))))
+                            
+                            prec_bruto = (
+                                it.get("precio_unitario") or 
+                                it.get("precio") or 
+                                it.get("precio_venta") or 
+                                it.get("costo_unitario") or 
+                                0.0
+                            )
+                            prec = float(prec_bruto)
+                            
+                            if prec == 0.0 and monto_factura_tot > 0 and len(items_factura) > 0:
+                                prec = monto_factura_tot / len(items_factura) / cant
+                            
+                            subtotal = cant * prec
+                            
+                            tabla_items.append({
+                                "Item #": idx,
+                                "SKU": sku,
+                                "Cantidad": cant,
+                                "Precio Unit. ($)": f"${prec:,.2f}",
+                                "Subtotal ($)": f"${subtotal:,.2f}"
+                            })
+                        
+                        st.dataframe(pd.DataFrame(tabla_items), use_container_width=True, hide_index=True)
+                    else:
+                        st.info(f"⚠️ No se encontraron ítems desglosados para la Factura Nº {factura_sel}.")
 
             st.divider()
 
+            # --- SECCIÓN OPERATIVA: ACTUALIZACIÓN Y ETIQUETA MEMBRETE ---
             col_a, col_b = st.columns(2)
 
-            # --- COLUMNA A: ACTUALIZAR GUÍA ---
             with col_a:
-                st.markdown("#### 🚚 Actualizar Guía y Estado")
-                with st.form("form_actualizar_guia"):
-                    f_id_sel = st.selectbox(
-                        "Seleccione Pedido / Factura", 
-                        options=df["factura_id"].tolist(),
-                        format_func=lambda x: f"Factura #{df[df['factura_id'] == x]['numero_factura'].values[0]} - {df[df['factura_id'] == x]['cliente'].values[0]} ({df[df['factura_id'] == x]['ciudad'].values[0]})"
-                    )
-                    
-                    pedido_sel = df[df["factura_id"] == f_id_sel].iloc[0]
-                    
-                    nuevo_courier = st.text_input("Courier", value=str(pedido_sel["courier"]))
-                    guia_val = str(pedido_sel["numero_guia"])
-                    nueva_guia = st.text_input("Número de Guía", value="" if guia_val == "SIN GUÍA" else guia_val)
-                    nuevo_estado = st.selectbox(
-                        "Estado de Despacho", 
-                        ["EMPACADO", "EN TRÁNSITO", "ENTREGADO", "PENDIENTE"],
-                        index=1 if pedido_sel["estado_despacho"] == "PENDIENTE" else 0
-                    )
+                st.markdown("#### 🚚 Actualizar Guía, Control y Estado")
+                
+                opts_pedidos = {
+                    f"Factura #{r.get('numero_factura')} - {r.get('cliente', r.get('entidad_nombre', 'N/A'))} ({r.get('ciudad', 'Guayaquil')})": r
+                    for _, r in df_filtrado.iterrows()
+                }
 
-                    submit_guia = st.form_submit_button("Guardar Cambios")
+                if opts_pedidos:
+                    ped_sel_label = st.selectbox("Seleccione Pedido / Factura", list(opts_pedidos.keys()), key="sel_pedido_act_log")
+                    pedido_sel = opts_pedidos[ped_sel_label]
+                    
+                    f_id_sel = pedido_sel.get("factura_id", pedido_sel.get("id"))
+                    num_fact = pedido_sel.get("numero_factura")
+                    
+                    val_courier_def = pedido_sel.get("courier", pedido_sel.get("courier_nombre", "Servientrega"))
+                    val_guia_def = pedido_sel.get("numero_guia", "")
+                    val_control_def = pedido_sel.get("numero_control", pedido_sel.get("codigo_control", ""))
 
-                    if submit_guia:
-                        if not nueva_guia.strip():
-                            st.error("Ingrese el número de guía.")
+                    with st.form("form_actualizar_guia_control_auto"):
+                        st.write(f"**Modificando:** Factura Nº `{num_fact}`")
+                        
+                        couriers_opt = ["Servientrega", "Tame Cargo", "Cooperativa", "Uber/Moto", "Retiro en Local", "Otro"]
+                        c_idx = couriers_opt.index(val_courier_def) if val_courier_def in couriers_opt else 0
+                        nuevo_courier = st.selectbox("Courier / Transporte", couriers_opt, index=c_idx)
+
+                        g1, g2 = st.columns(2)
+                        with g1:
+                            guia_val = str(val_guia_def)
+                            nueva_guia = st.text_input("Número de Guía", value="" if guia_val == "SIN GUÍA" else guia_val).strip()
+                        with g2:
+                            ctrl_val = str(val_control_def)
+                            nuevo_control = st.text_input("Número de Control", value="" if ctrl_val == "SIN CONTROL" else ctrl_val).strip()
+
+                        # --- LÓGICA AUTOMÁTICA DE ESTADO ---
+                        if nueva_guia and nueva_guia != "SIN GUÍA":
+                            auto_estado = "EN TRÁNSITO"
+                        elif nuevo_control and nuevo_control != "SIN CONTROL":
+                            auto_estado = "EMPACADO"
                         else:
-                            res_put = requests.put(
-                                f"{API_URL}/pedidos/{f_id_sel}/guia", 
-                                params={
-                                    "numero_guia": nueva_guia.strip(),
-                                    "courier_nombre": nuevo_courier.strip(),
-                                    "estado_despacho": nuevo_estado
-                                }
-                            )
-                            if res_put.status_code == 200:
-                                st.success("¡Guía y estado actualizados!")
-                                st.rerun()
-                            else:
-                                st.error(f"Error: {res_put.text}")
+                            auto_estado = "PENDIENTE"
 
-            # --- COLUMNA B: GENERAR MEMBRETE IMPRIMIBLE Y BOTÓN GUARDAR ---
+                        st.info(f"💡 Estado calculado automáticamente: **{auto_estado}**")
+
+                        estados_opt = ["PENDIENTE", "EMPACADO", "EN TRÁNSITO", "ENTREGADO"]
+                        e_idx = estados_opt.index(auto_estado) if auto_estado in estados_opt else 0
+                        nuevo_estado = st.selectbox("Estado de Despacho (Automático / Manual)", estados_opt, index=e_idx)
+
+                        submit_guia = st.form_submit_button("💾 Guardar Cambios de Despacho", type="primary", use_container_width=True)
+
+                        if submit_guia:
+                            payload = {
+                                "factura_id": f_id_sel,
+                                "numero_factura": str(num_fact),
+                                "courier": nuevo_courier,
+                                "numero_guia": nueva_guia or "SIN GUÍA",
+                                "numero_control": nuevo_control or "SIN CONTROL",
+                                "estado_despacho": nuevo_estado
+                            }
+                            try:
+                                res_put = requests.post(f"{API_URL}/despachos/actualizar", json=payload, timeout=5)
+                                if res_put.status_code in [200, 201]:
+                                    st.success("¡Guía, número de control y estado actualizados con éxito!")
+                                    st.rerun()
+                                else:
+                                    res_put2 = requests.put(
+                                        f"{API_URL}/pedidos/{f_id_sel}/guia", 
+                                        params={
+                                            "numero_guia": nueva_guia or "SIN GUÍA",
+                                            "courier_nombre": nuevo_courier,
+                                            "estado_despacho": nuevo_estado
+                                        },
+                                        timeout=5
+                                    )
+                                    if res_put2.status_code == 200:
+                                        st.success("¡Actualizado correctamente!")
+                                        st.rerun()
+                                    else:
+                                        st.error(f"Error al actualizar: {res_put.text}")
+                            except Exception as ex:
+                                st.error(f"Error de conexión: {str(ex)}")
+
             with col_b:
                 st.markdown("#### 🏷️ Generar Membrete de Envío (De / Para)")
-                f_id_label = st.selectbox(
-                    "Seleccione Pedido para Etiqueta", 
-                    options=df["factura_id"].tolist(),
-                    format_func=lambda x: f"Factura #{df[df['factura_id'] == x]['numero_factura'].values[0]} - {df[df['factura_id'] == x]['cliente'].values[0]}"
-                )
                 
-                ped_lbl = df[df["factura_id"] == f_id_label].iloc[0]
+                if opts_pedidos:
+                    ped_label_etq = st.selectbox("Seleccione Pedido para Etiqueta", list(opts_pedidos.keys()), key="sel_etiqueta_log_2")
+                    ped_lbl = opts_pedidos[ped_label_etq]
 
-                html_label = f"""
-                <div style="border: 2px dashed #1e293b; padding: 20px; border-radius: 10px; background-color: #ffffff; color: #000000; font-family: Arial, sans-serif; max-width: 480px; margin: auto;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px;">
-                        <span style="font-weight: bold; font-size: 1.2rem;">🛍️ FAJAS ISABELLA</span>
-                        <span style="font-size: 0.85rem; font-weight: bold;">ENVÍO: {ped_lbl['courier'].upper()}</span>
-                    </div>
-                    
-                    <!-- REMITENTE (DE) -->
-                    <div style="background-color: #f1f5f9; padding: 8px; border-radius: 5px; margin-bottom: 12px; font-size: 0.85rem;">
-                        <strong>DE (REMITENTE):</strong> FAJAS ISABELLA<br>
-                        <strong>Ciudad:</strong> Guayaquil, Ecuador<br>
-                        <strong>Atención al cliente:</strong> +593 99 999 9999
-                    </div>
-                    
-                    <!-- DESTINATARIO (PARA) -->
-                    <div style="border: 1px solid #cbd5e1; padding: 12px; border-radius: 5px; font-size: 0.95rem;">
-                        <span style="font-size: 1.1rem; font-weight: bold; color: #2563eb;">PARA (DESTINATARIO):</span><br>
-                        <strong>Cliente:</strong> {ped_lbl['cliente']}<br>
-                        <strong>CI/RUC:</strong> {ped_lbl['ruc_cedula']}<br>
-                        <strong>Provincia/Ciudad:</strong> {ped_lbl['provincia']} - {ped_lbl['ciudad']}<br>
-                        <strong>Dirección:</strong> {ped_lbl['direccion']}<br>
-                        <strong>Referencia:</strong> {ped_lbl['referencia'] if ped_lbl['referencia'] else 'N/A'}<br>
-                    </div>
-                    
-                    <div style="margin-top: 12px; font-size: 0.85rem; display: flex; justify-content: space-between;">
-                        <span><strong>Factura #:</strong> {ped_lbl['numero_factura']}</span>
-                        <span><strong>Guía #:</strong> {ped_lbl['numero_guia']}</span>
-                    </div>
-                </div>
-                """
-                
-                st.components.v1.html(html_label, height=330, scrolling=True)
+                    nom_dest = ped_lbl.get('cliente', ped_lbl.get('entidad_nombre', 'Consumidor Final'))
+                    ruc_dest = ped_lbl.get('ruc_cedula', ped_lbl.get('entidad_ruc', 'N/D'))
+                    telf_dest = ped_lbl.get('telefono', 'N/D')
+                    prov_dest = ped_lbl.get('provincia', 'Guayas')
+                    ciud_dest = ped_lbl.get('ciudad', 'Guayaquil')
+                    dir_dest = ped_lbl.get('direccion_entrega', ped_lbl.get('direccion', 'Dirección no especificada'))
+                    ref_dest = ped_lbl.get('referencia_direccion', ped_lbl.get('referencia', 'Sin referencia'))
+                    cour_etq = ped_lbl.get('courier', ped_lbl.get('courier_nombre', 'Servientrega'))
+                    guia_etq = ped_lbl.get('numero_guia', 'SIN GUÍA')
+                    ctrl_etq = ped_lbl.get('numero_control', ped_lbl.get('codigo_control', 'SIN CONTROL'))
+                    num_fact_etq = ped_lbl.get('numero_factura', 'N/A')
 
-                # Botón al lado / debajo para guardar el membrete en HTML
-                st.download_button(
-                    label="💾 Guardar Membrete (HTML)",
-                    data=html_label,
-                    file_name=f"Membrete_Factura_{ped_lbl['numero_factura']}.html",
-                    mime="text/html",
-                    use_container_width=True
-                )
+                    html_label = f"""
+                    <div style="border: 2px dashed #1e293b; padding: 20px; border-radius: 10px; background-color: #ffffff; color: #000000; font-family: Arial, sans-serif; max-width: 480px; margin: auto;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px;">
+                            <span style="font-weight: bold; font-size: 1.2rem;">🛍️ FAJAS ISABELLA</span>
+                            <span style="font-size: 0.85rem; font-weight: bold;">ENVÍO: {str(cour_etq).upper()}</span>
+                        </div>
+                        
+                        <!-- REMITENTE (DE) -->
+                        <div style="background-color: #f1f5f9; padding: 8px; border-radius: 5px; margin-bottom: 12px; font-size: 0.85rem;">
+                            <strong>DE (REMITENTE):</strong> FAJAS ISABELLA<br>
+                            <strong>Ciudad:</strong> Guayaquil, Ecuador<br>
+                            <strong>Atención al cliente:</strong> +593 99 999 9999
+                        </div>
+                        
+                        <!-- DESTINATARIO (PARA) -->
+                        <div style="border: 1px solid #cbd5e1; padding: 12px; border-radius: 5px; font-size: 0.95rem;">
+                            <span style="font-size: 1.1rem; font-weight: bold; color: #2563eb;">PARA (DESTINATARIO):</span><br>
+                            <strong>Cliente:</strong> {nom_dest}<br>
+                            <strong>CI/RUC:</strong> {ruc_dest} | <strong>Teléfono:</strong> {telf_dest}<br>
+                            <strong>Destino:</strong> {prov_dest} - {ciud_dest}<br>
+                            <strong>Dirección:</strong> {dir_dest}<br>
+                            <strong>Referencia:</strong> {ref_dest}<br>
+                        </div>
+                        
+                        <div style="margin-top: 12px; font-size: 0.85rem; display: flex; justify-content: space-between;">
+                            <span><strong>Factura #:</strong> {num_fact_etq}</span>
+                            <span><strong>Guía #:</strong> {guia_etq}</span>
+                            <span><strong>Control #:</strong> {ctrl_etq}</span>
+                        </div>
+                    </div>
+                    """
+                    
+                    st.components.v1.html(html_label, height=330, scrolling=True)
+
+                    st.download_button(
+                        label="💾 Guardar Membrete (HTML)",
+                        data=html_label,
+                        file_name=f"Membrete_Factura_{num_fact_etq}.html",
+                        mime="text/html",
+                        use_container_width=True
+                    )
 
         else:
             st.error(f"Error al conectar con la API: {response.text}")
