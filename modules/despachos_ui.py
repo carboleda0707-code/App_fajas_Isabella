@@ -84,16 +84,23 @@ def render_despachos():
                 df_filtrado["fecha_dt"] = pd.to_datetime(df_filtrado[col_fecha_name], errors="coerce").dt.date
                 df_filtrado = df_filtrado[(df_filtrado["fecha_dt"] >= fecha_inicio) & (df_filtrado["fecha_dt"] <= fecha_fin)]
 
-            # --- TARJETAS DE MÉTRICAS (KPIs) ---
+            # --- TARJETAS DE MÉTRICAS (KPIs) CORREGIDAS Y COHERENTES ---
             total_pedidos = len(df_filtrado)
             col_est = "estado_despacho" if "estado_despacho" in df_filtrado.columns else "estado"
-            pendientes = len(df_filtrado[df_filtrado[col_est].astype(str).str.upper() == "PENDIENTE"]) if col_est in df_filtrado.columns else 0
-            en_transito = len(df_filtrado[df_filtrado[col_est].astype(str).str.upper() == "EN TRÁNSITO"]) if col_est in df_filtrado.columns else 0
             
-            m1, m2, m3 = st.columns(3)
-            m1.metric("📦 Total Pedidos Listados", total_pedidos)
-            m2.metric("⏳ Pendientes / Empacando", pendientes)
-            m3.metric("🚚 En Tránsito (Con Guía)", en_transito)
+            if col_est in df_filtrado.columns:
+                estados_upper = df_filtrado[col_est].astype(str).str.upper().str.strip()
+                pendientes_empacados = len(df_filtrado[estados_upper.isin(["PENDIENTE", "EMPACADO"])])
+                en_transito = len(df_filtrado[estados_upper.isin(["EN TRÁNSITO", "EN TRANSITO"])])
+                entregados = len(df_filtrado[estados_upper == "ENTREGADO"])
+            else:
+                pendientes_empacados, en_transito, entregados = 0, 0, 0
+
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("📦 Total Pedidos", total_pedidos)
+            m2.metric("⏳ Pend. / Empacados", pendientes_empacados)
+            m3.metric("🚚 En Tránsito", en_transito)
+            m4.metric("✅ Entregados", entregados)
 
             st.divider()
 

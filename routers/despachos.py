@@ -52,13 +52,13 @@ def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
         factura = db.query(Factura).filter(Factura.numero_factura == numero_factura).first()
         
     if not factura:
-        raise HTTPException(status_code=404, detail="Pedido o Factura no encontrado en el sistema.")
+        raise HTTPException(status_code=404, detail="Orden de Venta no encontrada en el sistema.")
     
-    # Asignar y guardar cambios en PostgreSQL
+    # Asignar y guardar los cambios de logística en PostgreSQL
     factura.courier_nombre = payload.get("courier", factura.courier_nombre)
-    factura.repartidor = payload.get("repartidor", "N/D").strip()
+    factura.repartidor = payload.get("repartidor", "N/D").strip()               # <--- Captura y guarda el repartidor
     factura.numero_guia = payload.get("numero_guia", "SIN GUÍA").strip()
-    factura.numero_control = payload.get("numero_control", "SIN CONTROL").strip()
+    factura.numero_control = payload.get("numero_control", "SIN CONTROL").strip() # <--- Captura y guarda el número de control
     factura.estado_despacho = payload.get("estado_despacho", "PENDIENTE").upper().strip()
     
     db.commit()
@@ -66,7 +66,7 @@ def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
     
     return {
         "status": "success",
-        "message": f"Despacho de factura {factura.numero_factura} actualizado correctamente.",
+        "message": f"Despacho de la orden {factura.numero_factura} actualizado correctamente.",
         "numero_control": factura.numero_control,
         "repartidor": factura.repartidor,
         "estado": factura.estado_despacho
