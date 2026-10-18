@@ -9,8 +9,8 @@ API_BASE = os.getenv("API_BASE_URL", "https://fajasisabella-production.up.railwa
 API_URL = f"{API_BASE}/api" if not API_BASE.endswith("/api") else API_BASE
 
 def render_ventas():
-            
-    accion = st.radio("Acción a realizar en : 💳 Ventas y Facturación", ["Registrar Nueva Venta", "Consultar Facturas Emitidas"], horizontal=True)
+    st.markdown("<p style='color: black; font-weight: bold;'>💳 Ventas y Facturación</p>", unsafe_allow_html=True)        
+    accion = st.radio("Acción: ", ["Registrar Nueva Venta", "Consultar Facturas Emitidas"], horizontal=True)
     
     if accion == "Consultar Facturas Emitidas":
         col_btn1, col_btn2 = st.columns([0.15, 0.85])
@@ -61,7 +61,7 @@ def render_ventas():
                 with col_f4:
                     fecha_fin = st.date_input("Fecha Hasta:", value=date.today())
                     
-                st.divider()
+                st.markdown("")
 
                 # --- APLICAR FILTROS ---
                 df_filtrado = df_raw.copy()
@@ -98,7 +98,7 @@ def render_ventas():
 
                 st.markdown("---")
 
-                # --- TABLA RESUMEN DE FACTURAS ---
+                # --- TABLA RESUMEN COMPACTA DE FACTURAS (Sin columna dirección) ---
                 data_tabla = []
                 for _, r in df_filtrado.iterrows():
                     data_tabla.append({
@@ -117,8 +117,8 @@ def render_ventas():
                 st.dataframe(df_pantalla, use_container_width=True, hide_index=True)
 
                 # --- DETALLE INDIVIDUAL DE FACTURA ---
-                st.markdown("")
-                st.markdown("##### 🔎 Inspeccionar Detalle de Factura / Orden")
+                st.divider()
+                st.markdown("#### 🔎 Inspeccionar Detalle de Factura / Orden")
                 
                 lista_facturas = df_filtrado["numero_factura"].dropna().unique().tolist() if "numero_factura" in df_filtrado.columns else []
                 if lista_facturas:
@@ -145,7 +145,6 @@ def render_ventas():
                         st.markdown("---")
                         st.markdown("##### 🛍️ Detalle de Ítems / Fajas Vendidas")
 
-                        # Búsqueda rigurosa de items
                         items_factura = fact_info.get("items", [])
                         num_fact_str = str(factura_sel).strip()
 
@@ -168,7 +167,6 @@ def render_ventas():
                                 sku = it.get("sku", it.get("sku_producto", it.get("codigo_producto", "N/A")))
                                 cant = abs(int(it.get("cantidad", it.get("cant", 1))))
                                 
-                                # Extraer precio probando múltiples campos
                                 prec_bruto = (
                                     it.get("precio_unitario") or 
                                     it.get("precio") or 
@@ -178,7 +176,6 @@ def render_ventas():
                                 )
                                 prec = float(prec_bruto)
                                 
-                                # Si el precio sigue viniendo en 0, inferir del total de la factura
                                 if prec == 0.0 and monto_factura_tot > 0 and len(items_factura) > 0:
                                     prec = monto_factura_tot / len(items_factura) / cant
                                 
@@ -323,16 +320,13 @@ def render_ventas():
                     del st.session_state.mensaje_exito_venta
                     st.rerun()
 
-        st.markdown("#### 🛍️ Configuración de Ítems")
-        col_ci1, col_ci2 = st.columns([1, 3])
-        with col_ci1:
-            n_items = st.number_input("Cantidad de Ítems", min_value=1, max_value=20, value=1, key="num_items_input")
-
         if "form_reset_counter" not in st.session_state:
             st.session_state.form_reset_counter = 0
         rc = st.session_state.form_reset_counter
 
+        # --- INICIO DEL FORMULARIO DE VENTA ---
         with st.form(f"form_venta_mod_{rc}"):
+            st.markdown("#### 📄 Datos de la Factura y Pago")
             c1, c2, c3 = st.columns(3)
             with c1:
                 num_f = st.text_input("Nº de Factura", key=f"input_num_fact_{rc}").strip()
@@ -367,6 +361,12 @@ def render_ventas():
                 ref_env = st.text_input("Referencia de Dirección", value=def_ref, key=f"input_ref_{rc}").strip()
 
             st.markdown("---")
+            # --- SECCIÓN DE CONFIGURACIÓN DE ÍTEMS REUBICADA AQUÍ COHERENTEMENTE ---
+            st.markdown("#### 🛍️ Configuración de Ítems")
+            col_ci1, _ = st.columns([1, 3])
+            with col_ci1:
+                n_items = st.number_input("Cantidad de Ítems / Fajas a ingresar:", min_value=1, max_value=20, value=1, key=f"num_items_input_{rc}")
+
             st.markdown("#### 📋 Detalle de Productos a Vender")
             items_lista = []
             if lista_desc:
