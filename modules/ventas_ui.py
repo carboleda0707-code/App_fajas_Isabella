@@ -1,7 +1,8 @@
 import streamlit as st
 import requests
 import os
-from datetime import date
+import pandas as pd
+from datetime import date, datetime
 
 # Conexión estricta de Producción en Nube
 API_BASE = os.getenv("API_BASE_URL", "https://fajasisabella-production.up.railway.app").rstrip("/")
@@ -13,20 +14,141 @@ def render_ventas():
     #st.markdown("---")
     
     if accion == "Consultar Facturas Emitidas":
-        if st.button("🔄 Actualizar Facturas"):
-            st.rerun()
+        col_btn1, col_btn2 = st.columns([0.15, 0.85])
+        with col_btn1:
+            if st.button("🔄 Actualizar"):
+                st.rerun()
+                
+        st.subheader("📋 Consulta y Control General de Facturas Emitidas")
+        
         try:
-            res = requests.get(f"{API_URL}/facturas", timeout=3)
-            if res.status_code == 200 and res.json():
-                facturas_venta = [f for f in res.json() if f.get('tipo_factura') == 'VENTA']
-                if facturas_venta:
-                    st.dataframe(facturas_venta, use_container_width=True)
-                else:
-                    st.info("No hay facturas de venta registradas.")
+            # Intentar obtener el reporte completo optimizado de despachos/ventas
+            res = requests.get(f"{API_URL}/despachos/reporte", timeout=3)
+            if res.status_code != 200:
+                res = requests.get(f"{API_URL}/facturas", timeout=3)
+                
+            if res.status_code == 200:
+                facturas_data = res.json()
+                if not facturas_data:
+                    st.info("No hay facturas de venta registradas en el sistema.")
+                    return
+                
+                # Filtrar solo ventas si viene del endpoint general de facturas
+                if isinstance(facturas_data, list) and len(facturas_data) > 0 and "tipo_factura" in facturas_data[0]:
+                    facturas_data = [f for f in facturas_data if f.get('tipo_factura') == 'VENTA']
+
+                df_raw = pd.DataFrame(facturas_data)
+                
+                # Normalizar columna de totales y fechas
+                col_total_key = "total" if "total" in df_raw.columns else ("total_factura" if "total_factura" in df_raw.columns else None)
+                df_raw["total_norm"] = pd.to_numeric(df_raw[col_total_key], errors="coerce").fillna(0.0) if col_total_key else 0.0
+                
+                # --- SECCIÓN DE FILTROS Y BÚSQUEDA ---
+                st.markdown("##### 🔍 Filtros de Búsqueda y Rango")
+                col_f1, col_f2, col_f3, col_f4 = st.columns([2, 1.5, 1.5, 1.5])
+                
+                with col_f1:
+                    busqueda = st.text_input("Buscador Rápido:", placeholder="Buscar por Nº Factura, Cliente o RUC...").strip()
+                
+                with col_f2:
+                    f_estado = st.selectbox(
+                        "Estado Despacho:",
+                        ["TODOS", "PENDIENTE", "EMPACADO", "EN TRÁNSITO", "ENTREGADO"]
+                    )
+                
+                with col_f3:
+                    fecha_inicio = st.date_input("Fecha Desde:", value=date(2026, 1, 1))
+                
+                with col_f4:
+                    fecha_fin = st.date_input("Fecha Hasta:", value=date.today())
+                    
+                st.divider()
+
+                # --- APLICAR FILTROS ---
+                df_filtrado = df_raw.copy()
+
+                # Filtro por texto
+                if busqueda:
+                    mask = (
+                        df_filtrado.get("numero_factura", "").astype(str).str.contains(busqueda, case=False, na=False) |
+                        df_filtrado.get("cliente", df_filtrado.get("entidad_nombre", "")).astype(str).str.contains(busqueda, case=False, na=False) |
+                        df_filtrado.get("ruc_cedula", df_filtrado.get("entidad_ruc", "")).astype(str).str.contains(busqueda, case=False, na=False)
+                    )
+                    df_filtrado = df_filtrado[mask]
+
+                # Filtro por estado
+                if f_estado != "TODOS":
+                    col_estado = "estado_despacho" if "estado_despacho" in df_filtrado.columns else "estado"
+                    if col_estado in df_filtrado.columns:
+                        df_filtrado = df_filtrado[df_filtrado[col_estado].astype(str).str.upper() == f_estado]
+
+                # Filtro por fecha
+                col_fecha_name = "fecha" if "fecha" in df_filtrado.columns else ("fecha_factura" if "fecha_factura" in df_filtrado.columns else None)
+                if col_fecha_name:
+                    df_filtrado["fecha_dt"] = pd.to_datetime(df_filtrado[col_fecha_name], errors="coerce").dt.date
+                    df_filtrado = df_filtrado[(df_filtrado["fecha_dt"] >= fecha_inicio) & (df_filtrado["fecha_dt"] <= fecha_fin)]
+
+                # --- TARJETAS DE MÉTRICAS (KPIs) ---
+                total_monto = df_filtrado["total_norm"].sum()
+                cant_facturas = len(df_filtrado)
+                
+                col_est_estado = "estado_despacho" if "estado_despacho" in df_filtrado.columns else "estado"
+                pendientes = len(df_filtrado[df_filtrado[col_est_estado].astype(str).str.upper() == "PENDIENTE"]) if col_est_estado in df_filtrado.columns else 0
+
+                kpi1, kpi2, kpi3 = st.columns(3)
+                kpi1.metric("💰 Total Ventas ($)", f"${total_monto:,.2f}")
+                kpi2.metric("📄 Facturas Encontradas", f"{cant_facturas}")
+                kpi3.metric("⏳ Pendientes de Entrega", f"{pendientes}")
+
+                st.markdown("---")
+
+                # --- TABLA PRESENTABLE Y PROFESIONAL ---
+                data_tabla = []
+                for _, r in df_filtrado.iterrows():
+                    data_tabla.append({
+                        "Nº Factura": r.get("numero_factura", "N/A"),
+                        "Fecha": r.get("fecha", r.get("fecha_factura", "N/A")),
+                        "RUC / Cédula": r.get("ruc_cedula", r.get("entidad_ruc", "N/A")),
+                        "Cliente": r.get("cliente", r.get("entidad_nombre", "Consumidor Final")),
+                        "Total ($)": f"${r.get('total_norm', 0.0):,.2f}",
+                        "Ciudad": r.get("ciudad", "N/A"),
+                        "Dirección Entrega": r.get("direccion", r.get("direccion_entrega", "N/A")),
+                        "Courier": r.get("courier", r.get("courier_nombre", "Servientrega")),
+                        "Nº Guía": r.get("numero_guia", "SIN GUÍA"),
+                        "Estado Despacho": r.get("estado_despacho", "PENDIENTE")
+                    })
+
+                df_pantalla = pd.DataFrame(data_tabla)
+                st.dataframe(df_pantalla, use_container_width=True, hide_index=True)
+
+                # --- DETALLE INDIVIDUAL DE FACTURA ---
+                st.divider()
+                st.markdown("#### 🔎 Inspeccionar Detalle de Factura / Orden")
+                
+                lista_facturas = df_filtrado["numero_factura"].dropna().unique().tolist() if "numero_factura" in df_filtrado.columns else []
+                if lista_facturas:
+                    factura_sel = st.selectbox("Seleccione una Factura para ver su información detallada:", lista_facturas)
+                    
+                    fact_info = df_filtrado[df_filtrado["numero_factura"] == factura_sel].iloc[0]
+                    
+                    with st.expander(f"📦 Ver información completa de la Factura Nº {factura_sel}", expanded=True):
+                        c1, c2, c3 = st.columns(3)
+                        with c1:
+                            st.write(f"**Cliente:** {fact_info.get('cliente', fact_info.get('entidad_nombre', 'N/A'))}")
+                            st.write(f"**RUC/Cédula:** {fact_info.get('ruc_cedula', fact_info.get('entidad_ruc', 'N/A'))}")
+                            st.write(f"**Fecha:** {fact_info.get('fecha', fact_info.get('fecha_factura', 'N/A'))}")
+                        with c2:
+                            st.write(f"**Provincia / Ciudad:** {fact_info.get('provincia', 'Guayas')} / {fact_info.get('ciudad', 'Guayaquil')}")
+                            st.write(f"**Dirección:** {fact_info.get('direccion', fact_info.get('direccion_entrega', 'N/A'))}")
+                            st.write(f"**Referencia:** {fact_info.get('referencia', 'Sin referencia')}")
+                        with c3:
+                            st.write(f"**Courier:** {fact_info.get('courier', fact_info.get('courier_nombre', 'Servientrega'))}")
+                            st.write(f"**Nº Guía:** {fact_info.get('numero_guia', 'SIN GUÍA')}")
+                            st.write(f"**Estado Despacho:** `{fact_info.get('estado_despacho', 'PENDIENTE')}`")
             else:
-                st.info("No hay registros en el sistema.")
-        except:
-            st.error("Error al conectar con el servidor.")
+                st.error("No se pudo obtener el historial de ventas desde el servidor.")
+        except Exception as e:
+            st.error(f"Error al conectar con el servidor: {e}")
             
     elif accion == "Registrar Nueva Venta":
         dict_skus = {}
@@ -77,7 +199,6 @@ def render_ventas():
                     if sel_key:
                         nuevo_sel = opts[sel_key]
                         if cliente_sel != nuevo_sel:
-                            # Limpiar mensajes antiguos de éxito o alerta al cambiar de cliente
                             st.session_state.pop("mensaje_exito_venta", None)
                             st.session_state.pop("mensaje_alerta_venta", None)
                         cliente_sel = nuevo_sel
@@ -141,7 +262,6 @@ def render_ventas():
             else:
                 st.warning("⚠️ Ningún cliente seleccionado aún.")
        
-        # Mostrar alertas o éxitos y ofrecer un botón rápido para descartarlos
         if "mensaje_alerta_venta" in st.session_state:
             st.warning(st.session_state.mensaje_alerta_venta)
         if "mensaje_exito_venta" in st.session_state:
@@ -225,7 +345,6 @@ def render_ventas():
             submitted = st.form_submit_button("💾 Confirmar Venta", type="primary", use_container_width=True)
 
         if submitted:
-            # Limpieza previa de estados
             st.session_state.pop("mensaje_alerta_venta", None)
             st.session_state.pop("mensaje_exito_venta", None)
 
