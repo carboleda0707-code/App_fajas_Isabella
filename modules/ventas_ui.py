@@ -149,24 +149,47 @@ def render_ventas():
                         st.markdown("---")
                         st.markdown("##### 🛍️ Detalle de Ítems / Fajas Vendidas")
 
-                        # Obtener los productos asociados a la factura desde el JSON o consultando movimientos
+                        # 1. Intentar tomar los items directamente del objeto factura
                         items_factura = fact_info.get("items", [])
-                        
+                        if isinstance(items_factura, str):
+                            import json
+                            try:
+                                items_factura = json.loads(items_factura)
+                            except Exception:
+                                items_factura = []
+
+                        # 2. Si viene vacío, consultar al endpoint específico de la factura
+                        num_fact_str = str(factura_sel).strip()
+                        if not items_factura:
+                            try:
+                                res_single = requests.get(f"{API_URL}/facturas/{num_fact_str}", timeout=3)
+                                if res_single.status_code == 200:
+                                    fact_single = res_single.json()
+                                    items_factura = fact_single.get("items", [])
+                            except Exception:
+                                pass
+
+                        # 3. Si sigue vacío, buscar en movimientos por coincidencia flexible (numérico)
                         if not items_factura:
                             try:
                                 res_mov = requests.get(f"{API_URL}/movimientos", timeout=3)
                                 if res_mov.status_code == 200:
                                     movs = res_mov.json()
-                                    items_factura = [m for m in movs if str(m.get('referencia_factura', '')) == str(factura_sel)]
+                                    for m in movs:
+                                        ref_f = str(m.get('referencia_factura', '')).strip()
+                                        num_m = str(m.get('numero_factura', '')).strip()
+                                        if num_fact_str in ref_f or num_fact_str in num_m or (ref_f and ref_f.lstrip('0') == num_fact_str.lstrip('0')):
+                                            items_factura.append(m)
                             except Exception:
                                 items_factura = []
 
+                        # Renderizado de la tabla de ítems
                         if items_factura:
                             tabla_items = []
                             for idx, it in enumerate(items_factura, 1):
-                                sku = it.get("sku", it.get("sku_producto", "N/A"))
-                                cant = abs(int(it.get("cantidad", 1)))
-                                prec = float(it.get("precio_unitario", it.get("precio", 0.0)))
+                                sku = it.get("sku", it.get("sku_producto", it.get("codigo_producto", "N/A")))
+                                cant = abs(int(it.get("cantidad", it.get("cant", 1))))
+                                prec = float(it.get("precio_unitario", it.get("precio", it.get("precio_venta", 0.0))))
                                 subtotal = cant * prec
                                 
                                 tabla_items.append({
@@ -179,7 +202,7 @@ def render_ventas():
                             
                             st.dataframe(pd.DataFrame(tabla_items), use_container_width=True, hide_index=True)
                         else:
-                            st.info("⚠️ No se encontraron ítems detallados desglosados para esta factura.")
+                            st.info(f"⚠️ No se encontraron ítems desglosados en el Kardex para la Factura Nº {factura_sel}.")
             else:
                 st.error("No se pudo obtener el historial de ventas desde el servidor.")
         except Exception as e:
