@@ -105,8 +105,8 @@ def render_despachos():
                 estado_bruto = r.get("estado_despacho", r.get("estado", "PENDIENTE"))
                 
                 # Extracción robusta directa garantizada
-                c_val = r.get("control_numero") or r.get("numero_control")
-                ctrl_val = str(c_val).strip() if (c_val is not None and str(c_val).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
+                ctrl_val = r.get("control_numero", "SIN CONTROL")
+                val_ctrl_final = str(ctrl_val).strip() if (ctrl_val is not None and str(ctrl_val).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
 
                 data_tabla.append({
                     "Nº Orden Venta": r.get("numero_factura", "N/A"),
@@ -139,7 +139,7 @@ def render_despachos():
                 num_fact = pedido_sel.get("numero_factura")
                 
                 # Extracción robusta para el detalle y formulario
-                raw_ctrl = pedido_sel.get("control_numero") or pedido_sel.get("numero_control")
+                raw_ctrl = pedido_sel.get("control_numero", "SIN CONTROL")
                 val_ctrl_final = str(raw_ctrl).strip() if (raw_ctrl is not None and str(raw_ctrl).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
                 
                 with st.expander(f"📦 Ver información completa y productos de la Orden Nº {num_fact}", expanded=True):

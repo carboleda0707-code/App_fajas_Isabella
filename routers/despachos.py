@@ -11,7 +11,6 @@ def obtener_reporte_despachos(
     provincia: str = None,
     db: Session = Depends(get_db)
 ):
-    # Usamos SQL directo para garantizar que leemos la columna control_numero de Postgres
     sql = text("""
         SELECT id, numero_factura, tipo_factura, fecha_factura, entidad_nombre, entidad_ruc, 
                provincia, ciudad, direccion_entrega, referencia_direccion, courier_nombre, 
@@ -24,10 +23,8 @@ def obtener_reporte_despachos(
     
     reporte = []
     for row in result:
-        # Convertir cada fila a diccionario de manera segura
         d = row._asdict() if hasattr(row, '_asdict') else dict(zip(row.keys(), row))
         
-        # Obtener el número de control exacto de la base de datos
         ctrl_val = d.get('control_numero')
         ctrl_str = str(ctrl_val).strip() if (ctrl_val is not None and str(ctrl_val).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
 
@@ -44,7 +41,6 @@ def obtener_reporte_despachos(
             "courier": d.get('courier_nombre') or "Servientrega",
             "repartidor": d.get('repartidor') or "N/D",
             "numero_guia": d.get('numero_guia') or "SIN GUÍA",
-            "numero_control": ctrl_str,
             "control_numero": ctrl_str,
             "estado_despacho": d.get('estado_despacho') or "PENDIENTE",
             "total": float(d.get('total_factura') or 0.0)
@@ -77,18 +73,17 @@ def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
         
     estado_solicitado = payload.get("estado_despacho", "").upper().strip()
 
-    # Obtener el número de control actual directamente de la BD
+    # Leer control_numero directamente de la BD
     res_ctrl = db.execute(text("SELECT control_numero FROM facturas WHERE id = :fid"), {"fid": factura.id}).fetchone()
     ctrl_actual_str = str(res_ctrl[0]).strip() if (res_ctrl and res_ctrl[0] is not None and str(res_ctrl[0]).strip() not in ["None", "null", "", "SIN CONTROL"]) else ""
 
-    # Si no tiene control y se asigna guía o pasa a estado avanzado, autogenerar
+    # Autogenerar si hay guía o estado avanzado y no tiene control
     if (numero_guia != "SIN GUÍA") or estado_solicitado in ["EMPACADO", "EN TRÁNSITO", "ENTREGADO"]:
         if not ctrl_actual_str:
             res_max = db.execute(text("SELECT MAX(CAST(NULLIF(control_numero, '') AS INTEGER)) FROM facturas WHERE tipo_factura = 'VENTA' AND control_numero ~ '^[0-9]+$'")).fetchone()
             max_num = res_max[0] if res_max and res_max[0] is not None else 0
             ctrl_actual_str = str(max_num + 1)
 
-    # Reglas de negocio para el estado
     if estado_solicitado == "ENTREGADO":
         if numero_guia == "SIN GUÍA":
             raise HTTPException(status_code=400, detail="⚠️ No se puede marcar como ENTREGADO sin un Número de Guía.")
@@ -106,7 +101,7 @@ def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
         else:
             estado_despacho = "PENDIENTE"
 
-    # Actualizar directamente en la base de datos
+    # Actualizar control_numero en la BD
     db.execute(text("""
         UPDATE facturas 
         SET control_numero = :ctrl, 
@@ -128,7 +123,6 @@ def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
     return {
         "status": "success",
         "message": f"Orden {factura.numero_factura} actualizada con éxito.",
-        "numero_control": ctrl_actual_str,
         "control_numero": ctrl_actual_str,
         "numero_guia": numero_guia,
         "repartidor": repartidor,
