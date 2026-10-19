@@ -88,8 +88,9 @@ def render_despachos():
                 pendientes = len(df_filtrado[estados_upper == "PENDIENTE"])
                 empacados = len(df_filtrado[estados_upper == "EMPACADO"])
                 en_transito = len(df_filtrado[estados_upper.isin(["EN TRÁNSITO", "EN TRANSITO"])])
+                entregados = len(df_filtrado[estados_upper == "ENTREGADO"])
             else:
-                pendientes, empacados, en_transito = 0, 0, 0
+                pendientes, empacados, en_transito, entregados = 0, 0, 0, 0
 
             m1, m2, m3, m4 = st.columns(4)
             m1.metric("📦 Total Pedidos", total_pedidos)
@@ -154,12 +155,13 @@ def render_despachos():
                 val_courier_def = pedido_sel.get("courier", pedido_sel.get("courier_nombre", "Servientrega"))
                 val_repartidor_def = pedido_sel.get("repartidor", pedido_sel.get("chofer", ""))
                 val_guia_def = pedido_sel.get("numero_guia", "")
-                val_control_def = pedido_sel.get("numero_control", "")
+                val_control_def = pedido_sel.get("numero_control", "SIN CONTROL")
+                val_estado_def = str(pedido_sel.get("estado_despacho", "PENDIENTE")).upper().strip()
 
                 col_a, col_b = st.columns(2)
 
                 with col_a:
-                    st.markdown("#### 🚚 Actualizar Guía, Repartidor, Control y Estado")
+                    st.markdown("#### 🚚 Actualizar Guía, Repartidor y Estado")
                     
                     with st.form("form_actualizar_guia_control_auto"):
                         st.write(f"**Modificando:** Orden de Venta Nº `{num_fact}`")
@@ -177,49 +179,37 @@ def render_despachos():
                             guia_val = str(val_guia_def)
                             nueva_guia = st.text_input("Número de Guía", value="" if guia_val == "SIN GUÍA" else guia_val).strip()
                         with g2:
-                            ctrl_val = str(val_control_def)
-                            nuevo_control = st.text_input("Número de Control (En blanco autogenera)", value="" if ctrl_val in ["SIN CONTROL", "None", ""] else ctrl_val).strip()
+                            # 🚫 PROHIBIDO EDICIÓN MANUAL: Deshabilitado estrictamente
+                            st.text_input("Número de Control (Autogenerado)", value=str(val_control_def), disabled=True)
 
-                        if nueva_guia and nueva_guia != "SIN GUÍA":
-                            auto_estado = "EN TRÁNSITO"
-                        elif (nuevo_control and nuevo_control != "SIN CONTROL") or (val_control_def and str(val_control_def) not in ["SIN CONTROL", "None", ""]):
-                            auto_estado = "EMPACADO"
-                        else:
-                            auto_estado = "PENDIENTE"
-
-                        st.info(f"💡 Estado calculado automáticamente: **{auto_estado}**")
-
-                        estados_opt = ["PENDIENTE", "EMPACADO", "EN TRÁNSITO", "ENTREGADO"]
-                        e_idx = estados_opt.index(auto_estado) if auto_estado in estados_opt else 0
-                        nuevo_estado = st.selectbox("Estado de Despacho (Automático / Manual)", estados_opt, index=e_idx)
+                        # Selección de estado: Automático o forzar manualmente a ENTREGADO
+                        opciones_estado = ["Automático (Según Guía y Control)", "ENTREGADO"]
+                        estado_accion = st.selectbox("Acción de Estado", opciones_estado)
 
                         submit_guia = st.form_submit_button("💾 Guardar Cambios de Despacho", type="primary", use_container_width=True)
 
                         if submit_guia:
-                            ctrl_envio = nuevo_control if (nuevo_control and nuevo_control.strip() != "") else ""
                             guia_envio = nueva_guia if (nueva_guia and nueva_guia.strip() != "") else "SIN GUÍA"
+                            estado_final = "ENTREGADO" if estado_accion == "ENTREGADO" else ""
 
-                            if (guia_envio != "SIN GUÍA") and (not ctrl_envio or ctrl_envio == "SIN CONTROL"):
-                                st.error("⚠️ No se puede registrar un Número de Guía ni cambiar a 'EN TRÁNSITO' si el Número de Control está en blanco.")
-                            else:
-                                payload = {
-                                    "factura_id": f_id_sel,
-                                    "numero_factura": str(num_fact),
-                                    "courier": nuevo_courier,
-                                    "repartidor": nuevo_repartidor or "N/D",
-                                    "numero_guia": guia_envio,
-                                    "numero_control": ctrl_envio,
-                                    "estado_despacho": nuevo_estado
-                                }
-                                try:
-                                    res_put = requests.post(f"{API_URL}/despachos/actualizar", json=payload, timeout=5)
-                                    if res_put.status_code in [200, 201]:
-                                        st.success(f"✅ Orden de Venta #{num_fact} actualizada con éxito.")
-                                        st.rerun() 
-                                    else:
-                                        st.error(f"Error al actualizar el despacho: {res_put.text}")
-                                except Exception as ex:
-                                    st.error(f"Error de conexión con el servidor: {str(ex)}")
+                            payload = {
+                                "factura_id": f_id_sel,
+                                "numero_factura": str(num_fact),
+                                "courier": nuevo_courier,
+                                "repartidor": nuevo_repartidor or "N/D",
+                                "numero_guia": guia_envio,
+                                "estado_despacho": estado_final
+                            }
+                            try:
+                                res_put = requests.post(f"{API_URL}/despachos/actualizar", json=payload, timeout=5)
+                                if res_put.status_code in [200, 201]:
+                                    st.success(f"✅ Orden de Venta #{num_fact} actualizada con éxito.")
+                                    st.rerun() 
+                                else:
+                                    err_detail = res_put.json().get("detail", res_put.text)
+                                    st.error(f"Error: {err_detail}")
+                            except Exception as ex:
+                                st.error(f"Error de conexión con el servidor: {str(ex)}")
 
                 with col_b:
                     st.markdown("#### 🏷️ Generar Membrete de Envío (De / Para)")
