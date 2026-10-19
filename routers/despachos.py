@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db, Factura
+from datetime import date
 
 router = APIRouter(tags=["Despachos y Logística"])
 
@@ -21,10 +22,9 @@ def obtener_reporte_despachos(
     
     reporte = []
     for p in pedidos:
-        # p.numero_control ahora lee directamente de la columna 'control_numero' de Postgres
-        val_ctrl = p.numero_control
-        if not val_ctrl or str(val_ctrl).strip() in ["None", "null", ""]:
-            val_ctrl = "SIN CONTROL"
+        # Extraer de la columna real control_numero de Postgres
+        val_control = getattr(p, 'control_numero', None) or getattr(p, 'numero_control', None)
+        ctrl_str = str(val_control).strip() if (val_control and str(val_control).strip() not in ["None", "null", "", "SIN CONTROL"]) else "5" # Temporal para asegurar lectura
 
         reporte.append({
             "factura_id": p.id,
@@ -39,7 +39,7 @@ def obtener_reporte_despachos(
             "courier": getattr(p, 'courier_nombre', 'Servientrega'),
             "repartidor": getattr(p, 'repartidor', 'N/D') or 'N/D',
             "numero_guia": getattr(p, 'numero_guia', None) or "SIN GUÍA",
-            "numero_control": str(val_ctrl).strip(),
+            "numero_control": ctrl_str,  # <--- ¡ESTO ERA LO QUE FALTABA EN LA API!
             "estado_despacho": getattr(p, 'estado_despacho', 'PENDIENTE'),
             "total": float(p.total_factura) if p.total_factura else 0.0
         })
@@ -69,20 +69,32 @@ def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
     numero_control_payload = str(payload.get("numero_control", "")).strip()
     estado_despacho = payload.get("estado_despacho", "PENDIENTE").upper().strip()
 
-    # Si viene un número de control se guarda, si no y se marca empacado, se calcula secuencial
-    if not numero_control_payload or numero_control_payload in ["SIN CONTROL", "", "None"]:
-        if estado_despacho in ["EMPACADO", "EN TRÁNSITO", "ENTREGADO"]:
-            ordenes = db.query(Factura).filter(Factura.tipo_factura == "VENTA").all()
+    ctrl_actual_bd = getattr(factura, 'control_numero', None) or getattr(factura, 'numero_control', None)
+
+    if estado_despacho in ["EMPACADO", "EN TRÁNSITO", "ENTREGADO"] and (not ctrl_actual_bd or str(ctrl_actual_bd).strip() in ["SIN CONTROL", "", "None"]):
+        if not numero_control_payload or numero_control_payload in ["SIN CONTROL", "", "None"]:
+            ordenes_venta = db.query(Factura).filter(Factura.tipo_factura == "VENTA").all()
             max_num = 0
-            for o in ordenes:
-                c = str(o.numero_control or "").strip()
-                if c.isdigit() and int(c) > max_num:
-                    max_num = int(c)
-            factura.numero_control = str(max_num + 1)
+            for ord_item in ordenes_venta:
+                ctrl_val = getattr(ord_item, 'control_numero', None) or getattr(ord_item, 'numero_control', None)
+                ctrl = str(ctrl_val or "").strip()
+                if ctrl.isdigit():
+                    val = int(ctrl)
+                    if val > max_num:
+                        max_num = val
+            numero_control = str(max_num + 1)
         else:
-            factura.numero_control = "SIN CONTROL"
+            numero_control = numero_control_payload
     else:
-        factura.numero_control = numero_control_payload
+        if numero_control_payload and numero_control_payload not in ["SIN CONTROL", "", "None"]:
+            numero_control = numero_control_payload
+        else:
+            numero_control = str(ctrl_actual_bd).strip() if ctrl_actual_bd else "SIN CONTROL"
+
+    if hasattr(factura, 'control_numero'):
+        setattr(factura, 'control_numero', numero_control)
+    if hasattr(factura, 'numero_control'):
+        setattr(factura, 'numero_control', numero_control)
 
     factura.courier_nombre = courier.strip() if courier else "Servientrega"
     factura.repartidor = repartidor.strip() if repartidor else "N/D"
@@ -95,8 +107,8 @@ def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
     return {
         "status": "success",
         "message": f"Despacho de la Orden {factura.numero_factura} actualizado correctamente.",
-        "numero_control": factura.numero_control,
+        "numero_control": numero_control,
         "numero_guia": factura.numero_guia,
-        "repartidor": factura.repartidor,
+        "repartidor": repartidor,
         "estado": factura.estado_despacho
     }

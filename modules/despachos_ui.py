@@ -5,7 +5,6 @@ import pandas as pd
 import io
 from datetime import date, datetime
 
-# Conexión estricta de Producción en Nube
 API_BASE = os.getenv("API_BASE_URL", "https://fajasisabella-production.up.railway.app").rstrip("/")
 API_URL = f"{API_BASE}/api" if not API_BASE.endswith("/api") else API_BASE
 
@@ -25,7 +24,7 @@ def render_despachos():
     st.subheader("📦 Control de Despachos y Envíos por Courier")
     st.markdown("Gestiona estados de paquetes, asigna guías, repartidores, números de control y genera etiquetas imprimibles 'De / Para'.")
 
-    col_btn1, col_btn2 = st.columns([0.15, 0.85])
+    col_btn1, _ = st.columns([0.15, 0.85])
     with col_btn1:
         if st.button("🔄 Actualizar", key="btn_refresh_desp"):
             st.rerun()
@@ -37,45 +36,31 @@ def render_despachos():
 
         if response.status_code == 200:
             data_despachos = response.json()
-            
             if not data_despachos:
                 st.info("No se encontraron despachos registrados en el sistema.")
                 return
 
-            # Filtrar solo ventas
             if isinstance(data_despachos, list) and len(data_despachos) > 0 and "tipo_factura" in data_despachos[0]:
                 data_despachos = [f for f in data_despachos if f.get('tipo_factura') == 'VENTA']
 
             df_raw = pd.DataFrame(data_despachos)
-
-            # Normalizar totales
             col_total_key = "total" if "total" in df_raw.columns else ("total_factura" if "total_factura" in df_raw.columns else None)
             df_raw["total_norm"] = pd.to_numeric(df_raw[col_total_key], errors="coerce").fillna(0.0) if col_total_key else 0.0
 
-            # --- SECCIÓN DE FILTROS Y BÚSQUEDA ---
             st.markdown("##### 🔍 Filtros de Búsqueda y Rango")
             col_f1, col_f2, col_f3, col_f4 = st.columns([2, 1.5, 1.5, 1.5])
-            
             with col_f1:
                 busqueda = st.text_input("Buscador Rápido:", placeholder="Buscar por Nº Orden, Cliente, Repartidor, Guía o Nº Control...").strip()
-            
             with col_f2:
-                filtro_estado = st.selectbox(
-                    "Estado Despacho:",
-                    ["TODOS", "PENDIENTE", "EMPACADO", "EN TRÁNSITO", "ENTREGADO"]
-                )
-            
+                filtro_estado = st.selectbox("Estado Despacho:", ["TODOS", "PENDIENTE", "EMPACADO", "EN TRÁNSITO", "ENTREGADO"])
             with col_f3:
                 fecha_inicio = st.date_input("Fecha Desde:", value=date(2026, 1, 1))
-            
             with col_f4:
                 fecha_fin = st.date_input("Fecha Hasta:", value=date.today())
 
             st.divider()
 
-            # --- APLICAR FILTROS ---
             df_filtrado = df_raw.copy()
-
             if busqueda:
                 mask = (
                     df_filtrado.get("numero_factura", "").astype(str).str.contains(busqueda, case=False, na=False) |
@@ -96,18 +81,15 @@ def render_despachos():
                 df_filtrado["fecha_dt"] = pd.to_datetime(df_filtrado[col_fecha_name], errors="coerce").dt.date
                 df_filtrado = df_filtrado[(df_filtrado["fecha_dt"] >= fecha_inicio) & (df_filtrado["fecha_dt"] <= fecha_fin)]
 
-            # --- TARJETAS DE MÉTRICAS (KPIs) ---
             total_pedidos = len(df_filtrado)
             col_est = "estado_despacho" if "estado_despacho" in df_filtrado.columns else "estado"
-            
             if col_est in df_filtrado.columns:
                 estados_upper = df_filtrado[col_est].astype(str).str.upper().str.strip()
                 pendientes = len(df_filtrado[estados_upper == "PENDIENTE"])
                 empacados = len(df_filtrado[estados_upper == "EMPACADO"])
                 en_transito = len(df_filtrado[estados_upper.isin(["EN TRÁNSITO", "EN TRANSITO"])])
-                entregados = len(df_filtrado[estados_upper == "ENTREGADO"])
             else:
-                pendientes, empacados, en_transito, entregados = 0, 0, 0, 0
+                pendientes, empacados, en_transito = 0, 0, 0
 
             m1, m2, m3, m4 = st.columns(4)
             m1.metric("📦 Total Pedidos", total_pedidos)
@@ -117,31 +99,9 @@ def render_despachos():
 
             st.divider()
 
-            # --- SECCIÓN: TABLA COMPACTA Y EXCEL ---
-            col_t1, col_t2 = st.columns([3, 1])
-            with col_t1:
-                st.markdown("#### 📋 Listado Consolidado de Órdenes")
-            with col_t2:
-                try:
-                    output = io.BytesIO()
-                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                        df_filtrado.to_excel(writer, index=False, sheet_name='Despachos')
-                    excel_data = output.getvalue()
-                    
-                    st.download_button(
-                        label="📥 Descargar Excel",
-                        data=excel_data,
-                        file_name="Listado_Despachos.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True
-                    )
-                except Exception as ex:
-                    st.caption("⚠️ Instale openpyxl para exportar Excel")
-
             data_tabla = []
             for _, r in df_filtrado.iterrows():
                 estado_bruto = r.get("estado_despacho", r.get("estado", "PENDIENTE"))
-                
                 data_tabla.append({
                     "Nº Orden Venta": r.get("numero_factura", "N/A"),
                     "Fecha": r.get("fecha", r.get("fecha_factura", "N/A")),
@@ -151,16 +111,14 @@ def render_despachos():
                     "Courier": r.get("courier", r.get("courier_nombre", "Servientrega")),
                     "Repartidor/Chofer": r.get("repartidor", r.get("chofer", "N/D")),
                     "Nº Guía": r.get("numero_guia", "SIN GUÍA"),
-                    "Nº Control": r.get("numero_control", r.get("control_numero", r.get("codigo_control", "SIN CONTROL"))),
+                    "Nº Control": r.get("numero_control", "SIN CONTROL"),
                     "Total ($)": f"${r.get('total_norm', 0.0):,.2f}",
                     "Estado Despacho": obtener_semaforo_estado(estado_bruto)
                 })
 
             st.dataframe(pd.DataFrame(data_tabla), use_container_width=True, hide_index=True)
-
             st.divider()
 
-            # --- SECCIÓN OPERATIVA ÚNICA (SELECTOR MAESTRO) ---
             opts_pedidos = {
                 f"Orden #{r.get('numero_factura')} - {r.get('cliente', r.get('entidad_nombre', 'N/A'))} ({r.get('ciudad', 'Guayaquil')})": r
                 for _, r in df_filtrado.iterrows()
@@ -171,10 +129,6 @@ def render_despachos():
                 ped_sel_label = st.selectbox("Seleccione Orden de Venta", list(opts_pedidos.keys()), key="sel_pedido_act_log")
                 pedido_sel = opts_pedidos[ped_sel_label]
                 
-                # --- 🕵️‍♂️ AQUÍ ESTÁ EL CHIVATO ---
-                st.info(f"🕵️‍♂️ **CHIVATO DE DATOS DE LA ORDEN:** `{pedido_sel}`")
-                # --------------------------------
-
                 f_id_sel = pedido_sel.get("factura_id", pedido_sel.get("id"))
                 num_fact = pedido_sel.get("numero_factura")
                 monto_factura_tot = float(pedido_sel.get("total_norm", 0.0))
@@ -192,66 +146,15 @@ def render_despachos():
                     with c3:
                         st.write(f"**Courier / Repartidor:** {pedido_sel.get('courier', 'Servientrega')} ({pedido_sel.get('repartidor', 'N/D')})")
                         st.write(f"**Nº Guía:** {pedido_sel.get('numero_guia', 'SIN GUÍA')}")
-                        st.write(f"**Nº Control:** {pedido_sel.get('numero_control', pedido_sel.get('control_numero', 'SIN CONTROL'))}")
+                        st.write(f"**Nº Control:** {pedido_sel.get('numero_control', 'SIN CONTROL')}")
                         st.write(f"**Estado Despacho:** `{pedido_sel.get('estado_despacho', 'PENDIENTE')}`")
-
-                    st.markdown("---")
-                    st.markdown("##### 🛍️ Detalle de Ítems / Fajas Vendidas")
-
-                    items_factura = pedido_sel.get("items", [])
-                    num_fact_str = str(num_fact).strip()
-
-                    if not items_factura:
-                        try:
-                            res_mov = requests.get(f"{API_URL}/movimientos", timeout=3)
-                            if res_mov.status_code == 200:
-                                movs = res_mov.json()
-                                for m in movs:
-                                    ref_f = str(m.get('referencia_factura', '')).strip()
-                                    num_m = str(m.get('numero_factura', '')).strip()
-                                    if num_fact_str in ref_f or num_fact_str in num_m or (ref_f and ref_f.lstrip('0') == num_fact_str.lstrip('0')):
-                                        items_factura.append(m)
-                        except Exception:
-                            items_factura = []
-
-                    if items_factura:
-                        tabla_items = []
-                        for idx, it in enumerate(items_factura, 1):
-                            sku = it.get("sku", it.get("sku_producto", it.get("codigo_producto", "N/A")))
-                            cant = abs(int(it.get("cantidad", it.get("cant", 1))))
-                            
-                            prec_bruto = (
-                                it.get("precio_unitario") or 
-                                it.get("precio") or 
-                                it.get("precio_venta") or 
-                                it.get("costo_unitario") or 
-                                0.0
-                            )
-                            prec = float(prec_bruto)
-                            
-                            if prec == 0.0 and monto_factura_tot > 0 and len(items_factura) > 0:
-                                prec = monto_factura_tot / len(items_factura) / cant
-                            
-                            subtotal = cant * prec
-                            
-                            tabla_items.append({
-                                "Item #": idx,
-                                "SKU": sku,
-                                "Cantidad": cant,
-                                "Precio Unit. ($)": f"${prec:,.2f}",
-                                "Subtotal ($)": f"${subtotal:,.2f}"
-                            })
-                        
-                        st.dataframe(pd.DataFrame(tabla_items), use_container_width=True, hide_index=True)
-                    else:
-                        st.info(f"⚠️ No se encontraron ítems desglosados para la Orden Nº {num_fact}.")
 
                 st.markdown("---")
 
                 val_courier_def = pedido_sel.get("courier", pedido_sel.get("courier_nombre", "Servientrega"))
                 val_repartidor_def = pedido_sel.get("repartidor", pedido_sel.get("chofer", ""))
                 val_guia_def = pedido_sel.get("numero_guia", "")
-                val_control_def = pedido_sel.get("numero_control", pedido_sel.get("control_numero", pedido_sel.get("codigo_control", "")))
+                val_control_def = pedido_sel.get("numero_control", "")
 
                 col_a, col_b = st.columns(2)
 
@@ -275,7 +178,7 @@ def render_despachos():
                             nueva_guia = st.text_input("Número de Guía", value="" if guia_val == "SIN GUÍA" else guia_val).strip()
                         with g2:
                             ctrl_val = str(val_control_def)
-                            nuevo_control = st.text_input("Número de Control (En blanco autogenera)", value="" if ctrl_val in ["SIN CONTROL", "None", "nan", ""] else ctrl_val).strip()
+                            nuevo_control = st.text_input("Número de Control (En blanco autogenera)", value="" if ctrl_val in ["SIN CONTROL", "None", ""] else ctrl_val).strip()
 
                         if nueva_guia and nueva_guia != "SIN GUÍA":
                             auto_estado = "EN TRÁNSITO"
@@ -297,7 +200,7 @@ def render_despachos():
                             guia_envio = nueva_guia if (nueva_guia and nueva_guia.strip() != "") else "SIN GUÍA"
 
                             if (guia_envio != "SIN GUÍA") and (not ctrl_envio or ctrl_envio == "SIN CONTROL"):
-                                st.error("⚠️ No se puede registrar un Número de Guía ni cambiar a 'EN TRÁNSITO' si el Número de Control está en blanco. Asigne primero el Número de Control.")
+                                st.error("⚠️ No se puede registrar un Número de Guía ni cambiar a 'EN TRÁNSITO' si el Número de Control está en blanco.")
                             else:
                                 payload = {
                                     "factura_id": f_id_sel,
@@ -331,7 +234,7 @@ def render_despachos():
                     cour_etq = pedido_sel.get('courier', pedido_sel.get('courier_nombre', 'Servientrega'))
                     rep_etq = pedido_sel.get('repartidor', pedido_sel.get('chofer', 'N/D'))
                     guia_etq = pedido_sel.get('numero_guia', 'SIN GUÍA')
-                    ctrl_etq = pedido_sel.get('numero_control', pedido_sel.get('control_numero', pedido_sel.get('codigo_control', 'SIN CONTROL')))
+                    ctrl_etq = pedido_sel.get('numero_control', 'SIN CONTROL')
                     num_fact_etq = pedido_sel.get('numero_factura', 'N/A')
 
                     html_label = f"""
@@ -376,9 +279,7 @@ def render_despachos():
                         mime="text/html",
                         use_container_width=True
                     )
-
         else:
             st.error(f"Error al conectar con la API: {response.text}")
-
     except Exception as e:
         st.error(f"Error de conexión: {str(e)}")
