@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import text
 from database import get_db, Factura
 
 router = APIRouter(tags=["Despachos y Logística"])
@@ -11,50 +10,41 @@ def obtener_reporte_despachos(
     provincia: str = None,
     db: Session = Depends(get_db)
 ):
-    # Consulta SQL directa para asegurar lectura de la columna física 'control_numero' en Postgres
-    sql_query = text("""
-        SELECT id, numero_factura, tipo_factura, fecha_factura, entidad_nombre, entidad_ruc, 
-               provincia, ciudad, direccion_entrega, referencia_direccion, courier_nombre, 
-               repartidor, numero_guia, control_numero, estado_despacho, total_factura
-        FROM facturas 
-        WHERE tipo_factura = 'VENTA'
-    """)
-    result = db.execute(sql_query).fetchall()
+    query = db.query(Factura).filter(Factura.tipo_factura == "VENTA")
+    
+    if estado and estado != "TODOS":
+        query = query.filter(Factura.estado_despacho == estado.upper())
+    if provincia:
+        query = query.filter(Factura.provincia.ilike(f"%{provincia}%"))
+        
+    pedidos = query.order_by(Factura.provincia.asc(), Factura.ciudad.asc(), Factura.id.desc()).all()
     
     reporte = []
-    for row in result:
-        # Mapeo por nombre de columna devuelto por SQL
-        row_dict = row._asdict() if hasattr(row, '_asdict') else dict(row)
-        
-        # Filtros opcionales en memoria
-        est_db = str(row_dict.get('estado_despacho') or 'PENDIENTE').upper().strip()
-        prov_db = str(row_dict.get('provincia') or 'Guayas')
-        
-        if estado and estado != "TODOS" and est_db != estado.upper():
-            continue
-        if provincia and provincia.lower() not in prov_db.lower():
-            continue
-            
-        val_control = row_dict.get('control_numero')
-        ctrl_str = str(val_control).strip() if (val_control is not None and str(val_control).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
+    for p in pedidos:
+        # Lectura directa de la columna control_numero de la base de datos
+        val_control = getattr(p, 'control_numero', None)
+        if val_control is None and hasattr(p, '__dict__'):
+            val_control = p.__dict__.get('control_numero')
+
+        ctrl_str = str(val_control).strip() if (val_control is not None and str(val_control).strip() not in ["None", "null", ""]) else "SIN CONTROL"
 
         reporte.append({
-            "factura_id": row_dict.get('id'),
-            "numero_factura": row_dict.get('numero_factura'),
-            "fecha": str(row_dict.get('fecha_factura')) if row_dict.get('fecha_factura') else "N/A",
-            "cliente": row_dict.get('entidad_nombre') or "Consumidor Final",
-            "ruc_cedula": row_dict.get('entidad_ruc') or "N/D",
-            "provincia": prov_db,
-            "ciudad": row_dict.get('ciudad') or "Guayaquil",
-            "direccion": row_dict.get('direccion_entrega') or "N/A",
-            "referencia": row_dict.get('referencia_direccion') or "",
-            "courier": row_dict.get('courier_nombre') or "Servientrega",
-            "repartidor": row_dict.get('repartidor') or "N/D",
-            "numero_guia": row_dict.get('numero_guia') or "SIN GUÍA",
+            "factura_id": p.id,
+            "numero_factura": p.numero_factura,
+            "fecha": str(p.fecha_factura) if p.fecha_factura else "N/A",
+            "cliente": p.entidad_nombre,
+            "ruc_cedula": p.entidad_ruc,
+            "provincia": getattr(p, 'provincia', 'Guayas'),
+            "ciudad": getattr(p, 'ciudad', 'Guayaquil'),
+            "direccion": getattr(p, 'direccion_entrega', 'N/A'),
+            "referencia": getattr(p, 'referencia_direccion', ''),
+            "courier": getattr(p, 'courier_nombre', 'Servientrega'),
+            "repartidor": getattr(p, 'repartidor', 'N/D') or 'N/D',
+            "numero_guia": getattr(p, 'numero_guia', None) or "SIN GUÍA",
             "numero_control": ctrl_str,
             "control_numero": ctrl_str,
-            "estado_despacho": est_db,
-            "total": float(row_dict.get('total_factura') or 0.0)
+            "estado_despacho": getattr(p, 'estado_despacho', 'PENDIENTE'),
+            "total": float(p.total_factura) if p.total_factura else 0.0
         })
     return reporte
 
@@ -81,18 +71,24 @@ def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
     numero_guia = payload.get("numero_guia", "SIN GUÍA").strip()
     estado_solicitado = payload.get("estado_despacho", "").upper().strip()
 
-    # Leer control actual directamente con SQL
-    res_ctrl = db.execute(text("SELECT control_numero FROM facturas WHERE id = :fid"), {"fid": factura.id}).fetchone()
-    ctrl_actual_str = str(res_ctrl[0]).strip() if (res_ctrl and res_ctrl[0] is not None and str(res_ctrl[0]).strip() not in ["None", "null", ""]) else ""
+    ctrl_actual_bd = getattr(factura, 'control_numero', None)
+    ctrl_actual_str = str(ctrl_actual_bd).strip() if (ctrl_actual_bd is not None and str(ctrl_actual_bd).strip() not in ["None", "null", ""]) else ""
 
     # Regla: Autogenerar número de control si se registra guía o pasa a estado avanzado y no lo tenía
     if (numero_guia and numero_guia != "SIN GUÍA") or estado_solicitado in ["EMPACADO", "EN TRÁNSITO", "ENTREGADO"]:
         if not ctrl_actual_str or ctrl_actual_str == "SIN CONTROL":
-            res_max = db.execute(text("SELECT MAX(CAST(NULLIF(control_numero, '') AS INTEGER)) FROM facturas WHERE tipo_factura = 'VENTA' AND control_numero ~ '^[0-9]+$'")).fetchone()
-            max_num = res_max[0] if res_max and res_max[0] is not None else 0
+            ordenes_venta = db.query(Factura).filter(Factura.tipo_factura == "VENTA").all()
+            max_num = 0
+            for ord_item in ordenes_venta:
+                ctrl_val = getattr(ord_item, 'control_numero', None)
+                ctrl = str(ctrl_val or "").strip()
+                if ctrl.isdigit():
+                    val = int(ctrl)
+                    if val > max_num:
+                        max_num = val
             ctrl_actual_str = str(max_num + 1)
 
-    # Determinación de estado según reglas exactas
+    # Determinación automática o manual del estado según tus reglas exactas
     if estado_solicitado == "ENTREGADO":
         if not numero_guia or numero_guia == "SIN GUÍA":
             raise HTTPException(status_code=400, detail="⚠️ No se puede marcar como ENTREGADO sin un Número de Guía.")
@@ -110,31 +106,22 @@ def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
         else:
             estado_despacho = "PENDIENTE"
 
-    # Actualizar directamente con SQL para garantizar persistencia en control_numero
-    db.execute(text("""
-        UPDATE facturas 
-        SET control_numero = :ctrl, 
-            courier_nombre = :courier, 
-            repartidor = :repartidor, 
-            numero_guia = :guia, 
-            estado_despacho = :estado 
-        WHERE id = :fid
-    """), {
-        "ctrl": ctrl_actual_str if ctrl_actual_str != "SIN CONTROL" else None,
-        "courier": courier.strip() if courier else "Servientrega",
-        "repartidor": repartidor.strip() if repartidor else "N/D",
-        "guia": numero_guia if numero_guia else "SIN GUÍA",
-        "estado": estado_despacho,
-        "fid": factura.id
-    })
+    # Guardar directamente en la columna real control_numero
+    factura.control_numero = ctrl_actual_str if ctrl_actual_str != "SIN CONTROL" else None
+    factura.courier_nombre = courier.strip() if courier else "Servientrega"
+    factura.repartidor = repartidor.strip() if repartidor else "N/D"
+    factura.numero_guia = numero_guia if numero_guia else "SIN GUÍA"
+    factura.estado_despacho = estado_despacho
+    
     db.commit()
+    db.refresh(factura)
     
     return {
         "status": "success",
         "message": f"Orden {factura.numero_factura} actualizada con éxito.",
         "numero_control": ctrl_actual_str,
         "control_numero": ctrl_actual_str,
-        "numero_guia": numero_guia,
-        "repartidor": repartidor,
-        "estado": estado_despacho
+        "numero_guia": factura.numero_guia,
+        "repartidor": factura.repartidor,
+        "estado": factura.estado_despacho
     }
