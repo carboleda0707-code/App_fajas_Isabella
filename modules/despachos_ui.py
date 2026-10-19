@@ -103,6 +103,7 @@ def render_despachos():
             data_tabla = []
             for _, r in df_filtrado.iterrows():
                 estado_bruto = r.get("estado_despacho", r.get("estado", "PENDIENTE"))
+                ctrl_val = r.get("numero_control") or r.get("control_numero") or "SIN CONTROL"
                 data_tabla.append({
                     "Nº Orden Venta": r.get("numero_factura", "N/A"),
                     "Fecha": r.get("fecha", r.get("fecha_factura", "N/A")),
@@ -112,7 +113,7 @@ def render_despachos():
                     "Courier": r.get("courier", r.get("courier_nombre", "Servientrega")),
                     "Repartidor/Chofer": r.get("repartidor", r.get("chofer", "N/D")),
                     "Nº Guía": r.get("numero_guia", "SIN GUÍA"),
-                    "Nº Control": r.get("numero_control", "SIN CONTROL"),
+                    "Nº Control": ctrl_val,
                     "Total ($)": f"${r.get('total_norm', 0.0):,.2f}",
                     "Estado Despacho": obtener_semaforo_estado(estado_bruto)
                 })
@@ -132,7 +133,7 @@ def render_despachos():
                 
                 f_id_sel = pedido_sel.get("factura_id", pedido_sel.get("id"))
                 num_fact = pedido_sel.get("numero_factura")
-                monto_factura_tot = float(pedido_sel.get("total_norm", 0.0))
+                val_ctrl_final = pedido_sel.get("numero_control") or pedido_sel.get("control_numero") or "SIN CONTROL"
                 
                 with st.expander(f"📦 Ver información completa y productos de la Orden Nº {num_fact}", expanded=True):
                     c1, c2, c3 = st.columns(3)
@@ -147,7 +148,7 @@ def render_despachos():
                     with c3:
                         st.write(f"**Courier / Repartidor:** {pedido_sel.get('courier', 'Servientrega')} ({pedido_sel.get('repartidor', 'N/D')})")
                         st.write(f"**Nº Guía:** {pedido_sel.get('numero_guia', 'SIN GUÍA')}")
-                        st.write(f"**Nº Control:** {pedido_sel.get('numero_control', 'SIN CONTROL')}")
+                        st.write(f"**Nº Control:** `{val_ctrl_final}`")
                         st.write(f"**Estado Despacho:** `{pedido_sel.get('estado_despacho', 'PENDIENTE')}`")
 
                 st.markdown("---")
@@ -155,8 +156,6 @@ def render_despachos():
                 val_courier_def = pedido_sel.get("courier", pedido_sel.get("courier_nombre", "Servientrega"))
                 val_repartidor_def = pedido_sel.get("repartidor", pedido_sel.get("chofer", ""))
                 val_guia_def = pedido_sel.get("numero_guia", "")
-                val_control_def = pedido_sel.get("numero_control", "SIN CONTROL")
-                val_estado_def = str(pedido_sel.get("estado_despacho", "PENDIENTE")).upper().strip()
 
                 col_a, col_b = st.columns(2)
 
@@ -177,12 +176,10 @@ def render_despachos():
                         g1, g2 = st.columns(2)
                         with g1:
                             guia_val = str(val_guia_def)
-                            nueva_guia = st.text_input("Número de Guía", value="" if guia_val == "SIN GUÍA" else guia_val).strip()
+                            nueva_guia = st.text_input("Número de Guía", value="" if guia_val in ["SIN GUÍA", "None"] else guia_val).strip()
                         with g2:
-                            # 🚫 PROHIBIDO EDICIÓN MANUAL: Deshabilitado estrictamente
-                            st.text_input("Número de Control (Autogenerado)", value=str(val_control_def), disabled=True)
+                            st.text_input("Número de Control (Autogenerado)", value=str(val_ctrl_final), disabled=True)
 
-                        # Selección de estado: Automático o forzar manualmente a ENTREGADO
                         opciones_estado = ["Automático (Según Guía y Control)", "ENTREGADO"]
                         estado_accion = st.selectbox("Acción de Estado", opciones_estado)
 
@@ -224,7 +221,7 @@ def render_despachos():
                     cour_etq = pedido_sel.get('courier', pedido_sel.get('courier_nombre', 'Servientrega'))
                     rep_etq = pedido_sel.get('repartidor', pedido_sel.get('chofer', 'N/D'))
                     guia_etq = pedido_sel.get('numero_guia', 'SIN GUÍA')
-                    ctrl_etq = pedido_sel.get('numero_control', 'SIN CONTROL')
+                    ctrl_etq = val_ctrl_final
                     num_fact_etq = pedido_sel.get('numero_factura', 'N/A')
 
                     html_label = f"""
