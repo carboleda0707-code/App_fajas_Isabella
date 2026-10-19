@@ -158,38 +158,45 @@ def render_despachos():
 
             st.dataframe(pd.DataFrame(data_tabla), use_container_width=True, hide_index=True)
 
-            # --- DETALLE DE INSPECCIÓN CON ÍTEMS VENDIDOS ---
             st.divider()
-            st.markdown("#### 🔎 Inspeccionar Detalle de Despacho e Ítems Vendidos")
-            
-            lista_facturas = df_filtrado["numero_factura"].dropna().unique().tolist() if "numero_factura" in df_filtrado.columns else []
-            if lista_facturas:
-                factura_sel = st.selectbox("Seleccione una Orden de Venta para ver su información detallada:", lista_facturas, key="sel_fact_det_log")
+
+            # --- SECCIÓN OPERATIVA ÚNICA (SELECTOR MAESTRO) ---
+            opts_pedidos = {
+                f"Orden #{r.get('numero_factura')} - {r.get('cliente', r.get('entidad_nombre', 'N/A'))} ({r.get('ciudad', 'Guayaquil')})": r
+                for _, r in df_filtrado.iterrows()
+            }
+
+            if opts_pedidos:
+                st.markdown("#### 🎛️ Gestión y Detalle de Orden Seleccionada")
+                ped_sel_label = st.selectbox("Seleccione Orden de Venta", list(opts_pedidos.keys()), key="sel_pedido_act_log")
+                pedido_sel = opts_pedidos[ped_sel_label]
                 
-                fact_info = df_filtrado[df_filtrado["numero_factura"] == factura_sel].iloc[0]
-                monto_factura_tot = float(fact_info.get("total_norm", 0.0))
+                f_id_sel = pedido_sel.get("factura_id", pedido_sel.get("id"))
+                num_fact = pedido_sel.get("numero_factura")
+                monto_factura_tot = float(pedido_sel.get("total_norm", 0.0))
                 
-                with st.expander(f"📦 Ver información completa y productos de la Orden Nº {factura_sel}", expanded=True):
+                # --- DESPLIEGUE AUTOMÁTICO DE INFORMACIÓN E ÍTEMS DE LA ORDEN ---
+                with st.expander(f"📦 Ver información completa y productos de la Orden Nº {num_fact}", expanded=True):
                     c1, c2, c3 = st.columns(3)
                     with c1:
-                        st.write(f"**Cliente:** {fact_info.get('cliente', fact_info.get('entidad_nombre', 'N/A'))}")
-                        st.write(f"**RUC/Cédula:** {fact_info.get('ruc_cedula', fact_info.get('entidad_ruc', 'N/A'))}")
-                        st.write(f"**Fecha:** {fact_info.get('fecha', fact_info.get('fecha_factura', 'N/A'))}")
+                        st.write(f"**Cliente:** {pedido_sel.get('cliente', pedido_sel.get('entidad_nombre', 'N/A'))}")
+                        st.write(f"**RUC/Cédula:** {pedido_sel.get('ruc_cedula', pedido_sel.get('entidad_ruc', 'N/A'))}")
+                        st.write(f"**Fecha:** {pedido_sel.get('fecha', pedido_sel.get('fecha_factura', 'N/A'))}")
                     with c2:
-                        st.write(f"**Provincia / Ciudad:** {fact_info.get('provincia', 'Guayas')} / {fact_info.get('ciudad', 'Guayaquil')}")
-                        st.write(f"**Dirección:** {fact_info.get('direccion', fact_info.get('direccion_entrega', 'N/A'))}")
-                        st.write(f"**Referencia:** {fact_info.get('referencia', fact_info.get('referencia_direccion', 'Sin referencia'))}")
+                        st.write(f"**Provincia / Ciudad:** {pedido_sel.get('provincia', 'Guayas')} / {pedido_sel.get('ciudad', 'Guayaquil')}")
+                        st.write(f"**Dirección:** {pedido_sel.get('direccion', pedido_sel.get('direccion_entrega', 'N/A'))}")
+                        st.write(f"**Referencia:** {pedido_sel.get('referencia', pedido_sel.get('referencia_direccion', 'Sin referencia'))}")
                     with c3:
-                        st.write(f"**Courier / Repartidor:** {fact_info.get('courier', 'Servientrega')} ({fact_info.get('repartidor', 'N/D')})")
-                        st.write(f"**Nº Guía:** {fact_info.get('numero_guia', 'SIN GUÍA')}")
-                        st.write(f"**Nº Control:** {fact_info.get('numero_control', fact_info.get('codigo_control', 'SIN CONTROL'))}")
-                        st.write(f"**Estado Despacho:** `{fact_info.get('estado_despacho', 'PENDIENTE')}`")
+                        st.write(f"**Courier / Repartidor:** {pedido_sel.get('courier', 'Servientrega')} ({pedido_sel.get('repartidor', 'N/D')})")
+                        st.write(f"**Nº Guía:** {pedido_sel.get('numero_guia', 'SIN GUÍA')}")
+                        st.write(f"**Nº Control:** {pedido_sel.get('numero_control', pedido_sel.get('codigo_control', 'SIN CONTROL'))}")
+                        st.write(f"**Estado Despacho:** `{pedido_sel.get('estado_despacho', 'PENDIENTE')}`")
 
                     st.markdown("---")
                     st.markdown("##### 🛍️ Detalle de Ítems / Fajas Vendidas")
 
-                    items_factura = fact_info.get("items", [])
-                    num_fact_str = str(factura_sel).strip()
+                    items_factura = pedido_sel.get("items", [])
+                    num_fact_str = str(num_fact).strip()
 
                     if not items_factura:
                         try:
@@ -234,23 +241,10 @@ def render_despachos():
                         
                         st.dataframe(pd.DataFrame(tabla_items), use_container_width=True, hide_index=True)
                     else:
-                        st.info(f"⚠️ No se encontraron ítems desglosados para la Orden Nº {factura_sel}.")
+                        st.info(f"⚠️ No se encontraron ítems desglosados para la Orden Nº {num_fact}.")
 
-            st.divider()
+                st.markdown("---")
 
-            # --- SECCIÓN OPERATIVA: UNIFICADA (ACTUALIZACIÓN Y ETIQUETA) ---
-            opts_pedidos = {
-                f"Orden #{r.get('numero_factura')} - {r.get('cliente', r.get('entidad_nombre', 'N/A'))} ({r.get('ciudad', 'Guayaquil')})": r
-                for _, r in df_filtrado.iterrows()
-            }
-
-            if opts_pedidos:
-                ped_sel_label = st.selectbox("Seleccione Orden de Venta", list(opts_pedidos.keys()), key="sel_pedido_act_log")
-                pedido_sel = opts_pedidos[ped_sel_label]
-                
-                f_id_sel = pedido_sel.get("factura_id", pedido_sel.get("id"))
-                num_fact = pedido_sel.get("numero_factura")
-                
                 val_courier_def = pedido_sel.get("courier", pedido_sel.get("courier_nombre", "Servientrega"))
                 val_repartidor_def = pedido_sel.get("repartidor", pedido_sel.get("chofer", ""))
                 val_guia_def = pedido_sel.get("numero_guia", "")
