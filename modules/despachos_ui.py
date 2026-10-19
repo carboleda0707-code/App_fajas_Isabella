@@ -103,7 +103,11 @@ def render_despachos():
             data_tabla = []
             for _, r in df_filtrado.iterrows():
                 estado_bruto = r.get("estado_despacho", r.get("estado", "PENDIENTE"))
-                ctrl_val = r.get("numero_control") or r.get("control_numero") or "SIN CONTROL"
+                
+                # Extracción robusta directa garantizada
+                c_val = r.get("control_numero") or r.get("numero_control")
+                ctrl_val = str(c_val).strip() if (c_val is not None and str(c_val).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
+
                 data_tabla.append({
                     "Nº Orden Venta": r.get("numero_factura", "N/A"),
                     "Fecha": r.get("fecha", r.get("fecha_factura", "N/A")),
@@ -133,7 +137,10 @@ def render_despachos():
                 
                 f_id_sel = pedido_sel.get("factura_id", pedido_sel.get("id"))
                 num_fact = pedido_sel.get("numero_factura")
-                val_ctrl_final = pedido_sel.get("numero_control") or pedido_sel.get("control_numero") or "SIN CONTROL"
+                
+                # Extracción robusta para el detalle y formulario
+                raw_ctrl = pedido_sel.get("control_numero") or pedido_sel.get("numero_control")
+                val_ctrl_final = str(raw_ctrl).strip() if (raw_ctrl is not None and str(raw_ctrl).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
                 
                 with st.expander(f"📦 Ver información completa y productos de la Orden Nº {num_fact}", expanded=True):
                     c1, c2, c3 = st.columns(3)
@@ -178,6 +185,7 @@ def render_despachos():
                             guia_val = str(val_guia_def)
                             nueva_guia = st.text_input("Número de Guía", value="" if guia_val in ["SIN GUÍA", "None"] else guia_val).strip()
                         with g2:
+                            # Muestra el número de control real de forma estricta
                             st.text_input("Número de Control (Autogenerado)", value=str(val_ctrl_final), disabled=True)
 
                         opciones_estado = ["Automático (Según Guía y Control)", "ENTREGADO"]
