@@ -151,7 +151,7 @@ def render_despachos():
                     "Courier": r.get("courier", r.get("courier_nombre", "Servientrega")),
                     "Repartidor/Chofer": r.get("repartidor", r.get("chofer", "N/D")),
                     "Nº Guía": r.get("numero_guia", "SIN GUÍA"),
-                    "Nº Control": r.get("numero_control", r.get("codigo_control", "SIN CONTROL")),
+                    "Nº Control": r.get("numero_control", r.get("control_numero", r.get("codigo_control", "SIN CONTROL"))),
                     "Total ($)": f"${r.get('total_norm', 0.0):,.2f}",
                     "Estado Despacho": obtener_semaforo_estado(estado_bruto)
                 })
@@ -171,11 +171,14 @@ def render_despachos():
                 ped_sel_label = st.selectbox("Seleccione Orden de Venta", list(opts_pedidos.keys()), key="sel_pedido_act_log")
                 pedido_sel = opts_pedidos[ped_sel_label]
                 
+                # --- 🕵️‍♂️ AQUÍ ESTÁ EL CHIVATO ---
+                st.info(f"🕵️‍♂️ **CHIVATO DE DATOS DE LA ORDEN:** `{pedido_sel}`")
+                # --------------------------------
+
                 f_id_sel = pedido_sel.get("factura_id", pedido_sel.get("id"))
                 num_fact = pedido_sel.get("numero_factura")
                 monto_factura_tot = float(pedido_sel.get("total_norm", 0.0))
                 
-                # --- DESPLIEGUE AUTOMÁTICO DE INFORMACIÓN E ÍTEMS DE LA ORDEN ---
                 with st.expander(f"📦 Ver información completa y productos de la Orden Nº {num_fact}", expanded=True):
                     c1, c2, c3 = st.columns(3)
                     with c1:
@@ -189,7 +192,7 @@ def render_despachos():
                     with c3:
                         st.write(f"**Courier / Repartidor:** {pedido_sel.get('courier', 'Servientrega')} ({pedido_sel.get('repartidor', 'N/D')})")
                         st.write(f"**Nº Guía:** {pedido_sel.get('numero_guia', 'SIN GUÍA')}")
-                        st.write(f"**Nº Control:** {pedido_sel.get('numero_control', pedido_sel.get('codigo_control', 'SIN CONTROL'))}")
+                        st.write(f"**Nº Control:** {pedido_sel.get('numero_control', pedido_sel.get('control_numero', 'SIN CONTROL'))}")
                         st.write(f"**Estado Despacho:** `{pedido_sel.get('estado_despacho', 'PENDIENTE')}`")
 
                     st.markdown("---")
@@ -248,7 +251,7 @@ def render_despachos():
                 val_courier_def = pedido_sel.get("courier", pedido_sel.get("courier_nombre", "Servientrega"))
                 val_repartidor_def = pedido_sel.get("repartidor", pedido_sel.get("chofer", ""))
                 val_guia_def = pedido_sel.get("numero_guia", "")
-                val_control_def = pedido_sel.get("numero_control", pedido_sel.get("codigo_control", ""))
+                val_control_def = pedido_sel.get("numero_control", pedido_sel.get("control_numero", pedido_sel.get("codigo_control", "")))
 
                 col_a, col_b = st.columns(2)
 
@@ -272,12 +275,11 @@ def render_despachos():
                             nueva_guia = st.text_input("Número de Guía", value="" if guia_val == "SIN GUÍA" else guia_val).strip()
                         with g2:
                             ctrl_val = str(val_control_def)
-                            nuevo_control = st.text_input("Número de Control (En blanco autogenera)", value="" if ctrl_val in ["SIN CONTROL", "None"] else ctrl_val).strip()
+                            nuevo_control = st.text_input("Número de Control (En blanco autogenera)", value="" if ctrl_val in ["SIN CONTROL", "None", "nan", ""] else ctrl_val).strip()
 
-                        # LÓGICA AUTOMÁTICA DE ESTADO
                         if nueva_guia and nueva_guia != "SIN GUÍA":
                             auto_estado = "EN TRÁNSITO"
-                        elif (nuevo_control and nuevo_control != "SIN CONTROL") or (val_control_def and val_control_def != "SIN CONTROL"):
+                        elif (nuevo_control and nuevo_control != "SIN CONTROL") or (val_control_def and str(val_control_def) not in ["SIN CONTROL", "None", ""]):
                             auto_estado = "EMPACADO"
                         else:
                             auto_estado = "PENDIENTE"
@@ -294,7 +296,6 @@ def render_despachos():
                             ctrl_envio = nuevo_control if (nuevo_control and nuevo_control.strip() != "") else ""
                             guia_envio = nueva_guia if (nueva_guia and nueva_guia.strip() != "") else "SIN GUÍA"
 
-                            # Validación: No guardar guía con número de control en blanco
                             if (guia_envio != "SIN GUÍA") and (not ctrl_envio or ctrl_envio == "SIN CONTROL"):
                                 st.error("⚠️ No se puede registrar un Número de Guía ni cambiar a 'EN TRÁNSITO' si el Número de Control está en blanco. Asigne primero el Número de Control.")
                             else:
@@ -330,7 +331,7 @@ def render_despachos():
                     cour_etq = pedido_sel.get('courier', pedido_sel.get('courier_nombre', 'Servientrega'))
                     rep_etq = pedido_sel.get('repartidor', pedido_sel.get('chofer', 'N/D'))
                     guia_etq = pedido_sel.get('numero_guia', 'SIN GUÍA')
-                    ctrl_etq = pedido_sel.get('numero_control', pedido_sel.get('codigo_control', 'SIN CONTROL'))
+                    ctrl_etq = pedido_sel.get('numero_control', pedido_sel.get('control_numero', pedido_sel.get('codigo_control', 'SIN CONTROL')))
                     num_fact_etq = pedido_sel.get('numero_factura', 'N/A')
 
                     html_label = f"""
@@ -340,14 +341,12 @@ def render_despachos():
                             <span style="font-size: 0.85rem; font-weight: bold;">ENVÍO: {str(cour_etq).upper()}</span>
                         </div>
                         
-                        <!-- REMITENTE (DE) -->
                         <div style="background-color: #f1f5f9; padding: 8px; border-radius: 5px; margin-bottom: 12px; font-size: 0.85rem;">
                             <strong>DE (REMITENTE):</strong> FAJAS ISABELLA<br>
                             <strong>Ciudad:</strong> Guayaquil, Ecuador<br>
                             <strong>Atención al cliente:</strong> +593 99 999 9999
                         </div>
                         
-                        <!-- DESTINATARIO (PARA) -->
                         <div style="border: 1px solid #cbd5e1; padding: 12px; border-radius: 5px; font-size: 0.95rem;">
                             <span style="font-size: 1.1rem; font-weight: bold; color: #2563eb;">PARA (DESTINATARIO):</span><br>
                             <strong>Cliente:</strong> {nom_dest}<br>
