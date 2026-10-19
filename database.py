@@ -95,6 +95,12 @@ class Factura(Base):
     entidad_nombre = Column(String, nullable=False)
     total_factura = Column(Float, nullable=False, default=0.0)
     
+    # MAPEO EXACTO A LA COLUMNA DE POSTGRES:
+    numero_control = Column("control_numero", String, nullable=True)  # <--- Este mapeo es la clave
+    numero_guia = Column(String, nullable=True)
+    repartidor = Column(String, nullable=True)
+    estado_despacho = Column(String, nullable=True)
+    
     # Enlace opcional con cliente web logueado
     cliente_web_id = Column(Integer, ForeignKey("clientes_web.id"), nullable=True)
 
