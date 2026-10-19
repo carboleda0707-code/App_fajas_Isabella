@@ -96,7 +96,7 @@ def render_despachos():
                 df_filtrado["fecha_dt"] = pd.to_datetime(df_filtrado[col_fecha_name], errors="coerce").dt.date
                 df_filtrado = df_filtrado[(df_filtrado["fecha_dt"] >= fecha_inicio) & (df_filtrado["fecha_dt"] <= fecha_fin)]
 
-            # --- TARJETAS DE MÉTRICAS (KPIs) CORREGIDAS ---
+            # --- TARJETAS DE MÉTRICAS (KPIs) ---
             total_pedidos = len(df_filtrado)
             col_est = "estado_despacho" if "estado_despacho" in df_filtrado.columns else "estado"
             
@@ -138,7 +138,6 @@ def render_despachos():
                 except Exception as ex:
                     st.caption("⚠️ Instale openpyxl para exportar Excel")
 
-            # Tabla limpia con Repartidor, Orden de Venta y Semáforo Visual
             data_tabla = []
             for _, r in df_filtrado.iterrows():
                 estado_bruto = r.get("estado_despacho", r.get("estado", "PENDIENTE"))
@@ -239,33 +238,32 @@ def render_despachos():
 
             st.divider()
 
-            # --- SECCIÓN OPERATIVA: ACTUALIZACIÓN DE GUÍA, CONTROL Y REPARTIDOR ---
-            col_a, col_b = st.columns(2)
+            # --- SECCIÓN OPERATIVA: UNIFICADA (ACTUALIZACIÓN Y ETIQUETA) ---
+            opts_pedidos = {
+                f"Orden #{r.get('numero_factura')} - {r.get('cliente', r.get('entidad_nombre', 'N/A'))} ({r.get('ciudad', 'Guayaquil')})": r
+                for _, r in df_filtrado.iterrows()
+            }
 
-            with col_a:
-                st.markdown("#### 🚚 Actualizar Guía, Repartidor, Control y Estado")
+            if opts_pedidos:
+                ped_sel_label = st.selectbox("Seleccione Orden de Venta", list(opts_pedidos.keys()), key="sel_pedido_act_log")
+                pedido_sel = opts_pedidos[ped_sel_label]
                 
-                opts_pedidos = {
-                    f"Orden #{r.get('numero_factura')} - {r.get('cliente', r.get('entidad_nombre', 'N/A'))} ({r.get('ciudad', 'Guayaquil')})": r
-                    for _, r in df_filtrado.iterrows()
-                }
+                f_id_sel = pedido_sel.get("factura_id", pedido_sel.get("id"))
+                num_fact = pedido_sel.get("numero_factura")
+                
+                val_courier_def = pedido_sel.get("courier", pedido_sel.get("courier_nombre", "Servientrega"))
+                val_repartidor_def = pedido_sel.get("repartidor", pedido_sel.get("chofer", ""))
+                val_guia_def = pedido_sel.get("numero_guia", "")
+                val_control_def = pedido_sel.get("numero_control", pedido_sel.get("codigo_control", ""))
 
-                if opts_pedidos:
-                    ped_sel_label = st.selectbox("Seleccione Orden de Venta", list(opts_pedidos.keys()), key="sel_pedido_act_log")
-                    pedido_sel = opts_pedidos[ped_sel_label]
-                    
-                    f_id_sel = pedido_sel.get("factura_id", pedido_sel.get("id"))
-                    num_fact = pedido_sel.get("numero_factura")
-                    
-                    val_courier_def = pedido_sel.get("courier", pedido_sel.get("courier_nombre", "Servientrega"))
-                    val_repartidor_def = pedido_sel.get("repartidor", pedido_sel.get("chofer", ""))
-                    val_guia_def = pedido_sel.get("numero_guia", "")
-                    val_control_def = pedido_sel.get("numero_control", pedido_sel.get("codigo_control", ""))
+                col_a, col_b = st.columns(2)
 
+                with col_a:
+                    st.markdown("#### 🚚 Actualizar Guía, Repartidor, Control y Estado")
+                    
                     with st.form("form_actualizar_guia_control_auto"):
                         st.write(f"**Modificando:** Orden de Venta Nº `{num_fact}`")
                         
-                        # FILA 1: COURIER Y NOMBRE DEL REPARTIDOR AL LADO
                         c_col1, c_col2 = st.columns(2)
                         with c_col1:
                             couriers_opt = ["Servientrega", "Tame Cargo", "Cooperativa", "Uber/Moto", "Retiro en Local", "Otro"]
@@ -274,19 +272,18 @@ def render_despachos():
                         with c_col2:
                             nuevo_repartidor = st.text_input("Nombre Repartidor / Chofer", value=str(val_repartidor_def or ""), placeholder="Ej: Juan Pérez / Placa HJA-123").strip()
 
-                        # FILA 2: GUÍA Y NÚMERO DE CONTROL
                         g1, g2 = st.columns(2)
                         with g1:
                             guia_val = str(val_guia_def)
                             nueva_guia = st.text_input("Número de Guía", value="" if guia_val == "SIN GUÍA" else guia_val).strip()
                         with g2:
                             ctrl_val = str(val_control_def)
-                            nuevo_control = st.text_input("Número de Control", value="" if ctrl_val == "SIN CONTROL" else ctrl_val).strip()
+                            nuevo_control = st.text_input("Número de Control (En blanco autogenera)", value="" if ctrl_val in ["SIN CONTROL", "None"] else ctrl_val).strip()
 
                         # LÓGICA AUTOMÁTICA DE ESTADO
                         if nueva_guia and nueva_guia != "SIN GUÍA":
                             auto_estado = "EN TRÁNSITO"
-                        elif nuevo_control and nuevo_control != "SIN CONTROL":
+                        elif (nuevo_control and nuevo_control != "SIN CONTROL") or (val_control_def and val_control_def != "SIN CONTROL"):
                             auto_estado = "EMPACADO"
                         else:
                             auto_estado = "PENDIENTE"
@@ -300,11 +297,11 @@ def render_despachos():
                         submit_guia = st.form_submit_button("💾 Guardar Cambios de Despacho", type="primary", use_container_width=True)
 
                         if submit_guia:
-                            ctrl_envio = nuevo_control if (nuevo_control and nuevo_control.strip() != "") else "SIN CONTROL"
+                            ctrl_envio = nuevo_control if (nuevo_control and nuevo_control.strip() != "") else ""
                             guia_envio = nueva_guia if (nueva_guia and nueva_guia.strip() != "") else "SIN GUÍA"
 
                             # Validación: No guardar guía con número de control en blanco
-                            if (guia_envio != "SIN GUÍA") and (ctrl_envio == "SIN CONTROL"):
+                            if (guia_envio != "SIN GUÍA") and (not ctrl_envio or ctrl_envio == "SIN CONTROL"):
                                 st.error("⚠️ No se puede registrar un Número de Guía ni cambiar a 'EN TRÁNSITO' si el Número de Control está en blanco. Asigne primero el Número de Control.")
                             else:
                                 payload = {
@@ -320,31 +317,27 @@ def render_despachos():
                                     res_put = requests.post(f"{API_URL}/despachos/actualizar", json=payload, timeout=5)
                                     if res_put.status_code in [200, 201]:
                                         st.success(f"✅ Orden de Venta #{num_fact} actualizada con éxito.")
-                                        st.rerun() # Recarga para actualizar tablas y membretes visuales
+                                        st.rerun() 
                                     else:
                                         st.error(f"Error al actualizar el despacho: {res_put.text}")
                                 except Exception as ex:
                                     st.error(f"Error de conexión con el servidor: {str(ex)}")
 
-            with col_b:
-                st.markdown("#### 🏷️ Generar Membrete de Envío (De / Para)")
-                
-                if opts_pedidos:
-                    ped_label_etq = st.selectbox("Seleccione Orden para Etiqueta", list(opts_pedidos.keys()), key="sel_etiqueta_log_2")
-                    ped_lbl = opts_pedidos[ped_label_etq]
-
-                    nom_dest = ped_lbl.get('cliente', ped_lbl.get('entidad_nombre', 'Consumidor Final'))
-                    ruc_dest = ped_lbl.get('ruc_cedula', ped_lbl.get('entidad_ruc', 'N/D'))
-                    telf_dest = ped_lbl.get('telefono', 'N/D')
-                    prov_dest = ped_lbl.get('provincia', 'Guayas')
-                    ciud_dest = ped_lbl.get('ciudad', 'Guayaquil')
-                    dir_dest = ped_lbl.get('direccion_entrega', ped_lbl.get('direccion', 'Dirección no especificada'))
-                    ref_dest = ped_lbl.get('referencia_direccion', ped_lbl.get('referencia', 'Sin referencia'))
-                    cour_etq = ped_lbl.get('courier', ped_lbl.get('courier_nombre', 'Servientrega'))
-                    rep_etq = ped_lbl.get('repartidor', ped_lbl.get('chofer', 'N/D'))
-                    guia_etq = ped_lbl.get('numero_guia', 'SIN GUÍA')
-                    ctrl_etq = ped_lbl.get('numero_control', ped_lbl.get('codigo_control', 'SIN CONTROL'))
-                    num_fact_etq = ped_lbl.get('numero_factura', 'N/A')
+                with col_b:
+                    st.markdown("#### 🏷️ Generar Membrete de Envío (De / Para)")
+                    
+                    nom_dest = pedido_sel.get('cliente', pedido_sel.get('entidad_nombre', 'Consumidor Final'))
+                    ruc_dest = pedido_sel.get('ruc_cedula', pedido_sel.get('entidad_ruc', 'N/D'))
+                    telf_dest = pedido_sel.get('telefono', 'N/D')
+                    prov_dest = pedido_sel.get('provincia', 'Guayas')
+                    ciud_dest = pedido_sel.get('ciudad', 'Guayaquil')
+                    dir_dest = pedido_sel.get('direccion_entrega', pedido_sel.get('direccion', 'Dirección no especificada'))
+                    ref_dest = pedido_sel.get('referencia_direccion', pedido_sel.get('referencia', 'Sin referencia'))
+                    cour_etq = pedido_sel.get('courier', pedido_sel.get('courier_nombre', 'Servientrega'))
+                    rep_etq = pedido_sel.get('repartidor', pedido_sel.get('chofer', 'N/D'))
+                    guia_etq = pedido_sel.get('numero_guia', 'SIN GUÍA')
+                    ctrl_etq = pedido_sel.get('numero_control', pedido_sel.get('codigo_control', 'SIN CONTROL'))
+                    num_fact_etq = pedido_sel.get('numero_factura', 'N/A')
 
                     html_label = f"""
                     <div style="border: 2px dashed #1e293b; padding: 20px; border-radius: 10px; background-color: #ffffff; color: #000000; font-family: Arial, sans-serif; max-width: 480px; margin: auto;">

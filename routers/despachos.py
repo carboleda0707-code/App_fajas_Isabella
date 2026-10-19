@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db, Factura
+from datetime import date
 
 router = APIRouter(tags=["Despachos y Logística"])
 
@@ -63,18 +64,16 @@ def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
     courier = payload.get("courier", factura.courier_nombre)
     repartidor = payload.get("repartidor", "N/D")
     numero_guia = payload.get("numero_guia", "SIN GUÍA")
-    numero_control_payload = payload.get("numero_control", "")
-    estado_despacho = payload.get("estado_despacho", "PENDIENTE")
+    numero_control_payload = str(payload.get("numero_control", "")).strip()
+    estado_despacho = payload.get("estado_despacho", "PENDIENTE").upper().strip()
 
     # --- LÓGICA DE SECUENCIAL DIARIO AUTOMÁTICO (SOLO AL EMPACAR) ---
-    # Si la orden se marca como EMPACADO y aún no tiene número de control asignado,
-    # calculamos el siguiente número secuencial (1, 2, 3...) basado en las órdenes de su misma fecha.
-    if estado_despacho.upper() == "EMPACADO" and (not factura.numero_control or factura.numero_control in ["SIN CONTROL", ""]):
-        if not numero_control_payload or numero_control_payload in ["SIN CONTROL", ""]:
-            fecha_obj = factura.fecha_factura
-            ordenes_misma_fecha = db.query(Factura).filter(Factura.fecha_factura == fecha_obj).all()
+    if estado_despacho == "EMPACADO" and (not factura.numero_control or factura.numero_control in ["SIN CONTROL", "", "None"]):
+        if not numero_control_payload or numero_control_payload in ["SIN CONTROL", "", "None"]:
+            # Obtener el número de control más alto actual para asignar el siguiente consecutivo diario
+            ordenes_venta = db.query(Factura).filter(Factura.tipo_factura == "VENTA").all()
             max_num = 0
-            for ord_item in ordenes_misma_fecha:
+            for ord_item in ordenes_venta:
                 ctrl = str(ord_item.numero_control or "").strip()
                 if ctrl.isdigit():
                     val = int(ctrl)
@@ -82,11 +81,10 @@ def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
                         max_num = val
             numero_control = str(max_num + 1)
         else:
-            numero_control = str(numero_control_payload).strip()
+            numero_control = numero_control_payload
     else:
-        # Mantener el control existente o el enviado manualmente
-        if numero_control_payload and numero_control_payload not in ["SIN CONTROL", ""]:
-            numero_control = str(numero_control_payload).strip()
+        if numero_control_payload and numero_control_payload not in ["SIN CONTROL", "", "None"]:
+            numero_control = numero_control_payload
         else:
             numero_control = factura.numero_control or "SIN CONTROL"
 
@@ -95,7 +93,7 @@ def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
     factura.repartidor = repartidor.strip() if repartidor else "N/D"
     factura.numero_guia = numero_guia.strip() if numero_guia else "SIN GUÍA"
     factura.numero_control = numero_control
-    factura.estado_despacho = estado_despacho.upper().strip()
+    factura.estado_despacho = estado_despacho
     
     db.commit()
     db.refresh(factura)
