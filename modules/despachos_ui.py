@@ -140,13 +140,19 @@ def render_despachos():
                 st.session_state.ultima_orden_seleccionada = ped_sel_label
                 pedido_sel = opts_pedidos[ped_sel_label]
 
+                # ==========================================
+                # 🕵️‍♂️ EL CHIVATO (Depuración visual en pantalla)
+                # ==========================================
+                with st.expander("🕵️‍♂️ CHIVATO: Inspeccionar datos de la orden seleccionada", expanded=True):
+                    st.json(dict(pedido_sel))
+
                 f_id_sel = pedido_sel.get("factura_id", pedido_sel.get("id"))
                 num_fact = pedido_sel.get("numero_factura")
                 
-                ctrl_val_det = pedido_sel.get("numero_control", "SIN CONTROL")
-                val_ctrl_show = str(ctrl_val_det).strip() if (ctrl_val_det is not None and str(ctrl_val_det).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
+                raw_ctrl_sel = pedido_sel.get("numero_control", "SIN CONTROL")
+                val_ctrl_show = str(raw_ctrl_sel).strip() if (raw_ctrl_sel is not None and str(raw_ctrl_sel).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
                 
-                with st.expander(f"📦 Ver información completa y productos de la Orden Nº {num_fact}", expanded=True):
+                with st.expander(f"📦 Ver información completa y productos de la Orden Nº {num_fact}", expanded=False):
                     c1, c2, c3 = st.columns(3)
                     with c1:
                         st.write(f"**Cliente:** {pedido_sel.get('cliente', 'N/A')}")
@@ -159,7 +165,7 @@ def render_despachos():
                     with c3:
                         st.write(f"**Courier / Repartidor:** {pedido_sel.get('courier', 'Servientrega')} ({pedido_sel.get('repartidor', 'N/D')})")
                         st.write(f"**Nº Guía:** {pedido_sel.get('numero_guia', 'SIN GUÍA')}")
-                        st.write(f"**Nº Control:** {pedido_sel.get('numero_control', 'SIN Control')}")
+                        st.write(f"**Nº Control:** `{val_ctrl_show}`")
                         st.write(f"**Estado Despacho:** `{pedido_sel.get('estado_despacho', 'PENDIENTE')}`")
 
                 st.markdown("---")
@@ -191,7 +197,7 @@ def render_despachos():
                             nueva_guia = st.text_input("Número de Guía", value="" if guia_val in ["SIN GUÍA", "None"] else guia_val, placeholder="Ingresar Guía...").strip()
                         with g2:
                             ctrl_val = str(val_ctrl_def)
-                            nuevo_control = st.text_input("Número de Control", value="" if ctrl_val in ["SIN CONTROL", "None"] else ctrl_val, placeholder="Ingresar Control...").strip()
+                            nuevo_control = st.text_input("Número de Control", value="" if ctrl_val in ["SIN CONTROL", "None", "nan", "NaN"] else ctrl_val, placeholder="Ingresar Control...").strip()
 
                         opciones_estado = ["Automático (Según Guía y Control)", "ENTREGADO"]
                         estado_accion = st.selectbox("Acción de Estado", opciones_estado)
@@ -243,7 +249,10 @@ def render_despachos():
                     cour_etq = pedido_sel.get('courier', 'Servientrega')
                     rep_etq = pedido_sel.get('repartidor', 'N/D')
                     guia_etq = pedido_sel.get('numero_guia', 'SIN GUÍA')
-                    ctrl_etq = pedido_sel.get('numero_control', 'SIN CONTROL')                
+                    
+                    raw_ctrl_etq = pedido_sel.get('numero_control', 'SIN CONTROL')
+                    ctrl_etq = str(raw_ctrl_etq).strip() if (raw_ctrl_etq is not None and str(raw_ctrl_etq).strip() not in ["None", "null", "", "SIN CONTROL", "nan", "NaN"]) else "SIN CONTROL"
+                    
                     num_fact_etq = pedido_sel.get('numero_factura', 'N/A')
 
                     html_label = f"""
