@@ -74,8 +74,9 @@ def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
         if not numero_guia:
             numero_guia = "SIN GUÍA"
             
-        numero_control = payload.get("numero_control", "").strip()
-        if not numero_control:
+        numero_control = payload.get("numero_control") or payload.get("control_numero") or ""
+        numero_control = str(numero_control).strip()
+        if not numero_control or numero_control.upper() in ["SIN CONTROL", "NONE", "NULL", ""]:
             numero_control = None
 
         estado_solicitado = payload.get("estado_despacho", "").upper().strip()

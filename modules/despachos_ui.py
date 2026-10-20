@@ -166,7 +166,7 @@ def render_despachos():
                 with col_a:
                     st.markdown("#### 🚚 Actualizar Guía, Control, Repartidor y Estado")
                     
-                    with st.form("form_actualizar_guia_control_manual"):
+                    with st.form("form_actualizar_guia_control_manual_v4"):
                         st.write(f"**Modificando:** Orden de Venta Nº `{num_fact}`")
                         
                         c_col1, c_col2 = st.columns(2)
@@ -202,18 +202,24 @@ def render_despachos():
                                 "repartidor": nuevo_repartidor or "N/D",
                                 "numero_guia": guia_envio,
                                 "numero_control": control_envio,
+                                "control_numero": control_envio,
                                 "estado_despacho": estado_final
                             }
                             try:
-                                res_put = requests.post(f"{API_URL}/despachos/actualizar", json=payload, timeout=5)
+                                with st.spinner("Guardando en servidor..."):
+                                    res_put = requests.post(f"{API_URL}/despachos/actualizar", json=payload, timeout=8)
+                                
                                 if res_put.status_code in [200, 201]:
                                     st.success(f"✅ Orden de Venta #{num_fact} actualizada con éxito.")
                                     st.rerun() 
                                 else:
-                                    err_detail = res_put.json().get("detail", res_put.text)
-                                    st.error(f"Error: {err_detail}")
+                                    try:
+                                        err_detail = res_put.json().get("detail", res_put.text)
+                                    except:
+                                        err_detail = res_put.text
+                                    st.error(f"⚠️ Error del servidor: {err_detail}")
                             except Exception as ex:
-                                st.error(f"Error de conexión con el servidor: {str(ex)}")
+                                st.error(f"❌ Error de conexión al guardar: {str(ex)}")
 
                 with col_b:
                     st.markdown("#### 🏷️ Generar Membrete de Envío (De / Para)")
