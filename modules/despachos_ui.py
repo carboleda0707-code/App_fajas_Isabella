@@ -159,7 +159,7 @@ def render_despachos():
                     with c3:
                         st.write(f"**Courier / Repartidor:** {pedido_sel.get('courier', 'Servientrega')} ({pedido_sel.get('repartidor', 'N/D')})")
                         st.write(f"**Nº Guía:** {pedido_sel.get('numero_guia', 'SIN GUÍA')}")
-                        st.write(f"**Nº Control:** `{val_ctrl_show}`")
+                        st.write(f"**Nº Control:** {pedido_sel.get('numero_control', 'SIN Control')}")
                         st.write(f"**Estado Despacho:** `{pedido_sel.get('estado_despacho', 'PENDIENTE')}`")
 
                 st.markdown("---")
