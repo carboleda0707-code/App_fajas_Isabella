@@ -12,7 +12,6 @@ def obtener_reporte_despachos(
     db: Session = Depends(get_db)
 ):
     try:
-        # Usamos SELECT * para que nunca falle por columnas faltantes en producción
         sql = text("""
             SELECT *
             FROM facturas 
@@ -25,7 +24,7 @@ def obtener_reporte_despachos(
         for row in result:
             d = row._asdict() if hasattr(row, '_asdict') else dict(zip(row.keys(), row))
             
-            ctrl_val = d.get('control_numero')
+            ctrl_val = d.get('numero_control')
             ctrl_str = str(ctrl_val).strip() if (ctrl_val is not None and str(ctrl_val).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
 
             reporte.append({
@@ -41,7 +40,7 @@ def obtener_reporte_despachos(
                 "courier": d.get('courier_nombre') or d.get('courier') or "Servientrega",
                 "repartidor": d.get('repartidor') or "N/D",
                 "numero_guia": d.get('numero_guia') or "SIN GUÍA",
-                "control_numero": ctrl_str,
+                "numero_control": ctrl_str,
                 "estado_despacho": d.get('estado_despacho') or "PENDIENTE",
                 "total": float(d.get('total_factura') or d.get('total') or 0.0)
             })
@@ -70,30 +69,25 @@ def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
         
         courier = payload.get("courier", "Servientrega")
         repartidor = payload.get("repartidor", "N/D")
+        
         numero_guia = payload.get("numero_guia", "SIN GUÍA").strip()
         if not numero_guia:
             numero_guia = "SIN GUÍA"
             
+        numero_control = payload.get("numero_control", "").strip()
+        if not numero_control:
+            numero_control = None
+
         estado_solicitado = payload.get("estado_despacho", "").upper().strip()
-
-        # Leer control_numero actual de forma segura
-        res_ctrl = db.execute(text("SELECT control_numero FROM facturas WHERE id = :fid"), {"fid": factura.id}).fetchone()
-        ctrl_actual_str = str(res_ctrl[0]).strip() if (res_ctrl and res_ctrl[0] is not None and str(res_ctrl[0]).strip() not in ["None", "null", "", "SIN CONTROL"]) else ""
-
-        if (numero_guia != "SIN GUÍA") or estado_solicitado in ["EMPACADO", "EN TRÁNSITO", "ENTREGADO"]:
-            if not ctrl_actual_str:
-                res_max = db.execute(text("SELECT MAX(CAST(NULLIF(control_numero, '') AS INTEGER)) FROM facturas WHERE tipo_factura = 'VENTA' AND control_numero ~ '^[0-9]+$'")).fetchone()
-                max_num = res_max[0] if res_max and res_max[0] is not None else 0
-                ctrl_actual_str = str(max_num + 1)
 
         if estado_solicitado == "ENTREGADO":
             if numero_guia == "SIN GUÍA":
                 raise HTTPException(status_code=400, detail="⚠️ No se puede marcar como ENTREGADO sin un Número de Guía.")
-            if not ctrl_actual_str:
+            if not numero_control:
                 raise HTTPException(status_code=400, detail="⚠️ No se puede marcar como ENTREGADO sin un Número de Control.")
             estado_despacho = "ENTREGADO"
         else:
-            has_control = bool(ctrl_actual_str)
+            has_control = bool(numero_control)
             has_guia = bool(numero_guia != "SIN GUÍA")
 
             if has_control and has_guia:
@@ -105,14 +99,14 @@ def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
 
         db.execute(text("""
             UPDATE facturas 
-            SET control_numero = :ctrl, 
+            SET numero_control = :ctrl, 
                 courier_nombre = :courier, 
                 repartidor = :repartidor, 
                 numero_guia = :guia, 
                 estado_despacho = :estado 
             WHERE id = :fid
         """), {
-            "ctrl": ctrl_actual_str if ctrl_actual_str else None,
+            "ctrl": numero_control,
             "courier": courier,
             "repartidor": repartidor,
             "guia": numero_guia,
@@ -124,7 +118,7 @@ def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
         return {
             "status": "success",
             "message": f"Orden {factura.numero_factura} actualizada con éxito.",
-            "control_numero": ctrl_actual_str,
+            "numero_control": numero_control,
             "numero_guia": numero_guia,
             "repartidor": repartidor,
             "estado": estado_despacho
