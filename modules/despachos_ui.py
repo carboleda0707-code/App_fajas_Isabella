@@ -243,10 +243,7 @@ def render_despachos():
                     cour_etq = pedido_sel.get('courier', 'Servientrega')
                     rep_etq = pedido_sel.get('repartidor', 'N/D')
                     guia_etq = pedido_sel.get('numero_guia', 'SIN GUÍA')
-                    
-                    raw_ctrl_etq = pedido_sel.get('numero_control', 'SIN CONTROL')
-                    ctrl_etq = str(raw_ctrl_etq).strip() if (raw_ctrl_etq is not None and str(raw_ctrl_etq).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
-                    
+                    ctrl_etq = pedido_sel.get('numero_control', 'SIN CONTROL')                
                     num_fact_etq = pedido_sel.get('numero_factura', 'N/A')
 
                     html_label = f"""
