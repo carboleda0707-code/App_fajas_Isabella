@@ -12,8 +12,13 @@ def obtener_reporte_despachos(
     db: Session = Depends(get_db)
 ):
     try:
+        # Forzamos una consulta explícita asegurando el nombre de ambas columnas
         sql = text("""
-            SELECT *
+            SELECT id, numero_factura, fecha_factura, entidad_nombre, cliente, 
+                   entidad_ruc, ruc_cedula, provincia, ciudad, direccion_entrega, 
+                   direccion, referencia_direccion, referencia, courier_nombre, 
+                   courier, repartidor, numero_guia, numero_control, control_numero, 
+                   estado_despacho, total_factura, total, tipo_factura
             FROM facturas 
             WHERE tipo_factura = 'VENTA'
             ORDER BY id DESC
@@ -24,7 +29,11 @@ def obtener_reporte_despachos(
         for row in result:
             d = row._asdict() if hasattr(row, '_asdict') else dict(zip(row.keys(), row))
             
-            ctrl_val = d.get('numero_control') or d.get('control_numero')
+            # Chivato interno para asegurar captura de control desde la BD
+            val_nc = d.get('numero_control')
+            val_cn = d.get('control_numero')
+            
+            ctrl_val = val_nc if (val_nc is not None and str(val_nc).strip() not in ["None", "null", "", "SIN CONTROL"]) else val_cn
             ctrl_str = str(ctrl_val).strip() if (ctrl_val is not None and str(ctrl_val).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
 
             reporte.append({
