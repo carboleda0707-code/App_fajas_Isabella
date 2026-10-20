@@ -19,6 +19,19 @@ def obtener_semaforo_estado(estado):
         return "🔵 ENTREGADO"
     return f"⚪ {est}"
 
+def extraer_numero_control_limpio(registro):
+    """Extrae y limpia el número de control priorizando valores reales sobre marcas de texto."""
+    val1 = str(registro.get("numero_control") or "").strip()
+    val2 = str(registro.get("control_numero") or "").strip()
+    
+    ignorar = ["NONE", "NULL", "SIN CONTROL", "N/A", ""]
+    
+    if val1.upper() not in ignorar:
+        return val1
+    if val2.upper() not in ignorar:
+        return val2
+    return ""
+
 def render_despachos():
     st.subheader("📦 Control de Despachos y Envíos por Courier")
     st.markdown("Gestiona estados de paquetes, asigna guías, repartidores, números de control y genera etiquetas imprimibles 'De / Para'.")
@@ -100,10 +113,8 @@ def render_despachos():
             data_tabla = []
             for _, r in df_filtrado.iterrows():
                 estado_bruto = r.get("estado_despacho", "PENDIENTE")
-                
-                # Normalización robusta idéntica a la guía
-                raw_ctrl = r.get("numero_control") if (r.get("numero_control") is not None and str(r.get("numero_control")).strip() not in ["None", "null", "", "SIN CONTROL"]) else r.get("control_numero")
-                val_ctrl_final = str(raw_ctrl).strip() if (raw_ctrl is not None and str(raw_ctrl).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
+                ctrl_limpio = extraer_numero_control_limpio(r)
+                val_ctrl_tabla = ctrl_limpio if ctrl_limpio else "SIN CONTROL"
 
                 data_tabla.append({
                     "Nº Orden Venta": r.get("numero_factura", "N/A"),
@@ -114,7 +125,7 @@ def render_despachos():
                     "Courier": r.get("courier", "Servientrega"),
                     "Repartidor/Chofer": r.get("repartidor", "N/D"),
                     "Nº Guía": r.get("numero_guia", "SIN GUÍA"),
-                    "Nº Control": val_ctrl_final,
+                    "Nº Control": val_ctrl_tabla,
                     "Total ($)": f"${r.get('total_norm', 0.0):,.2f}",
                     "Estado Despacho": obtener_semaforo_estado(estado_bruto)
                 })
@@ -146,8 +157,8 @@ def render_despachos():
                 f_id_sel = pedido_sel.get("factura_id", pedido_sel.get("id"))
                 num_fact = pedido_sel.get("numero_factura")
                 
-                raw_ctrl_sel = pedido_sel.get("numero_control") if (pedido_sel.get("numero_control") is not None and str(pedido_sel.get("numero_control")).strip() not in ["None", "null", "", "SIN CONTROL"]) else pedido_sel.get("control_numero")
-                val_ctrl_final = str(raw_ctrl_sel).strip() if (raw_ctrl_sel is not None and str(raw_ctrl_sel).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
+                ctrl_limpio_sel = extraer_numero_control_limpio(pedido_sel)
+                val_ctrl_final = ctrl_limpio_sel if ctrl_limpio_sel else "SIN CONTROL"
                 
                 with st.expander(f"📦 Ver información completa y productos de la Orden Nº {num_fact}", expanded=True):
                     c1, c2, c3 = st.columns(3)
@@ -170,7 +181,7 @@ def render_despachos():
                 val_courier_def = pedido_sel.get("courier", "Servientrega")
                 val_repartidor_def = pedido_sel.get("repartidor", "")
                 val_guia_def = pedido_sel.get("numero_guia", "")
-                val_ctrl_def = pedido_sel.get("numero_control") or pedido_sel.get("control_numero", "")
+                val_ctrl_def = ctrl_limpio_sel
 
                 col_a, col_b = st.columns(2)
 
@@ -193,8 +204,7 @@ def render_despachos():
                             guia_val = str(val_guia_def)
                             nueva_guia = st.text_input("Número de Guía", value="" if guia_val in ["SIN GUÍA", "None"] else guia_val, placeholder="Ingresar Guía...").strip()
                         with g2:
-                            ctrl_val_inp = str(val_ctrl_def)
-                            nuevo_control = st.text_input("Número de Control", value="" if ctrl_val_inp in ["SIN CONTROL", "None"] else ctrl_val_inp, placeholder="Ingresar Control...").strip()
+                            nuevo_control = st.text_input("Número de Control", value=val_ctrl_def, placeholder="Ingresar Control...").strip()
 
                         opciones_estado = ["Automático (Según Guía y Control)", "ENTREGADO"]
                         estado_accion = st.selectbox("Acción de Estado", opciones_estado)
@@ -222,6 +232,9 @@ def render_despachos():
                                 
                                 if res_put.status_code in [200, 201]:
                                     st.success(f"✅ Orden de Venta #{num_fact} actualizada con éxito.")
+                                    # Evita la desautenticación inesperada al guardar
+                                    if "usuario" not in st.session_state and "usuario_autenticado" not in st.session_state:
+                                        st.session_state.logged_in = True
                                     st.rerun() 
                                 else:
                                     try:
