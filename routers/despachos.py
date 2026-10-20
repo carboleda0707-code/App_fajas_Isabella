@@ -29,7 +29,7 @@ def obtener_reporte_despachos(
             d = row._asdict() if hasattr(row, '_asdict') else dict(zip(row.keys(), row))
             
             val_nc = d.get('numero_control')
-            ctrl_str = str(val_nc).strip() if (val_nc is not None and str(val_nc).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
+            ctrl_str = str(val_nc).strip() if (val_nc is not None and str(val_nc).strip() not in ["None", "null", "", "SIN CONTROL", "nan", "NaN"]) else "SIN CONTROL"
 
             reporte.append({
                 "factura_id": d.get('id'),
@@ -45,11 +45,12 @@ def obtener_reporte_despachos(
                 "courier": d.get('courier_nombre') or d.get('courier') or "Servientrega",
                 "repartidor": d.get('repartidor') or "N/D",
                 "numero_guia": d.get('numero_guia') or "SIN GUÍA",
-                "numero_control": d.get('numero_control') or "SIN CONTROL",  
+                "numero_control": ctrl_str,  # <--- ¡Aquí usamos la variable limpia y segura!
                 "estado_despacho": d.get('estado_despacho') or "PENDIENTE",
                 "total": float(d.get('total_factura') or d.get('total') or 0.0)
             })
         return reporte
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener reporte: {str(e)}")
 
