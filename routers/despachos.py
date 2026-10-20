@@ -45,12 +45,12 @@ def obtener_reporte_despachos(
                 "courier": d.get('courier_nombre') or d.get('courier') or "Servientrega",
                 "repartidor": d.get('repartidor') or "N/D",
                 "numero_guia": d.get('numero_guia') or "SIN GUÍA",
-                "numero_control": ctrl_str,  # <--- ¡Aquí usamos la variable limpia y segura!
+                "numero_control": ctrl_str,  
                 "estado_despacho": d.get('estado_despacho') or "PENDIENTE",
-                "total": float(d.get('total_factura') or d.get('total') or 0.0)
+                "total": float(d.get('total_factura') or d.get('total') or 0.0),
+                "CHIVATO_KEYS": list(d.keys())  # <--- Esto mostrará todas las columnas reales que llegan de la BD y el backend
             })
         return reporte
-        
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener reporte: {str(e)}")
 
