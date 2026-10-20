@@ -1,216 +1,123 @@
-import os
-from datetime import datetime, date
-from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, DateTime, Date, Boolean, text
-from sqlalchemy.orm import declarative_base, sessionmaker, relationship
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from database import get_db
+from sqlalchemy import text
 
-# 1. Obtener la URL de la base de datos desde las variables de entorno (Railway / Producción)
-DATABASE_URL = os.getenv("DATABASE_URL")
+router = APIRouter()
 
-if not DATABASE_URL:
-    # Fallback para entorno de desarrollo local
-    DATABASE_URL = "postgresql+psycopg2://postgres:Litos0707@localhost:5432/fajas_isabella_db"
-
-# 2. Corrección automática de prefijos para compatibilidad con SQLAlchemy en la nube
-if DATABASE_URL:
-    if DATABASE_URL.startswith("postgres://"):
-        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
-    elif DATABASE_URL.startswith("postgresql://") and "psycopg2" not in DATABASE_URL:
-        DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
-
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
-
-# --- MODELOS SQLALCHEMY ---
-
-class Cliente(Base):
-    __tablename__ = "clientes"
-    id = Column(Integer, primary_key=True, index=True)
-    ruc_cedula = Column(String, unique=True, index=True, nullable=False)
-    nombre = Column(String, nullable=False)
-    direccion = Column(String)
-    ciudad = Column(String(100), nullable=True)
-    telefono = Column(String)
-    correo = Column(String, nullable=True)
-    tipo_precio = Column(String(50), default='REGULAR')
-    descuento_porcentaje = Column(Float, default=0.0)
-
-# --- NUEVO: CLIENTES WEB (TIENDA ONLINE) ---
-class ClienteWeb(Base):
-    __tablename__ = "clientes_web"
-    id = Column(Integer, primary_key=True, index=True)
-    nombre = Column(String(150), nullable=False)
-    correo = Column(String(150), unique=True, index=True, nullable=False)
-    password_hash = Column(String(255), nullable=False)
-    telefono = Column(String(50), nullable=True)
-    direccion = Column(String(255), nullable=True)
-    fecha_registro = Column(DateTime, default=datetime.now)
-
-    facturas = relationship("Factura", back_populates="cliente_web")
-
-class Proveedor(Base):
-    __tablename__ = "proveedores"
-
-    id = Column(Integer, primary_key=True, index=True)
-    ruc_cedula = Column(String, unique=True, index=True)
-    nombre_empresa = Column(String)
-    contacto = Column(String, nullable=True)
-    telefono = Column(String, nullable=True)
-    direccion = Column(String, nullable=True)
-    ciudad = Column(String, nullable=True)  # <-- Añadir esta línea si falta
-    correo = Column(String, nullable=True)
-
-class Producto(Base):
-    __tablename__ = "productos"
-
-    id = Column(Integer, primary_key=True, index=True)
-    nombre = Column(String, unique=True, index=True)
-    modelo = Column(String, nullable=True)
-    categoria = Column(String, index=True)
-    imagen_url = Column(String, nullable=True)
-    en_liquidacion = Column(Boolean, default=False)
-    
-    variantes = relationship("VarianteProducto", back_populates="producto", cascade="all, delete-orphan")
-
-class VarianteProducto(Base):
-    __tablename__ = "variantes_producto"
-    id = Column(Integer, primary_key=True, index=True)
-    sku = Column(String, unique=True, index=True, nullable=False)
-    producto_id = Column(Integer, ForeignKey("productos.id"))
-    talla = Column(String, nullable=False) 
-    color = Column(String, nullable=False)
-    stock_actual = Column(Integer, default=0)
-    precio = Column(Float, nullable=False)
-    
-    producto = relationship("Producto", back_populates="variantes")
-
-class Factura(Base):
-    __tablename__ = "facturas"
-    id = Column(Integer, primary_key=True, index=True)
-    tipo_factura = Column(String, nullable=False)
-    numero_factura = Column(String, unique=True, index=True, nullable=False)
-    numero_autorizacion = Column(String, nullable=True)
-    fecha_factura = Column(Date, default=date.today)
-    entidad_ruc = Column(String, nullable=False)
-    entidad_nombre = Column(String, nullable=False)
-    total_factura = Column(Float, nullable=False, default=0.0)
-    
-    # MAPEO EXACTO A LA COLUMNA DE POSTGRES:
-    numero_control = Column("control_numero", String, nullable=True)  # <--- Este mapeo es la clave
-    numero_guia = Column(String, nullable=True)
-    repartidor = Column(String, nullable=True)
-    estado_despacho = Column(String, nullable=True)
-    
-    # Enlace opcional con cliente web logueado
-    cliente_web_id = Column(Integer, ForeignKey("clientes_web.id"), nullable=True)
-
-    provincia = Column(String(100), nullable=True)
-    ciudad = Column(String(100), nullable=True)
-    direccion_entrega = Column(String, nullable=True)
-    referencia_direccion = Column(String, nullable=True)
-    courier_nombre = Column(String(50), nullable=True)
-    repartidor = Column(String(100), nullable=True)         # <--- NUEVO: Nombre del chofer/repartidor
-    numero_guia = Column(String(100), nullable=True)
-    numero_control = Column(String(100), nullable=True)    # <--- NUEVO: Número de control asociado
-    estado_despacho = Column(String(30), default='PENDIENTE')
-
-    cliente_web = relationship("ClienteWeb", back_populates="facturas")
-    pagos = relationship("Pago", back_populates="factura", cascade="all, delete-orphan")
-
-class Pago(Base):
-    __tablename__ = "pagos"
-    id = Column(Integer, primary_key=True, index=True)
-    factura_id = Column(Integer, ForeignKey("facturas.id"))
-    metodo_pago = Column(String, nullable=False)
-    codigo_transferencia = Column(String, nullable=True)
-    monto = Column(Float, nullable=False)
-    fecha_pago = Column(DateTime, default=datetime.now)
-    
-    factura = relationship("Factura", back_populates="pagos")
-
-class Categoria(Base):
-    __tablename__ = "categorias"
-    id = Column(Integer, primary_key=True, index=True)
-    nombre = Column(String, unique=True, index=True)
-    imagen_url = Column(String)
-
-class MovimientoInventario(Base):
-    __tablename__ = "movimientos_inventario"
-    id = Column(Integer, primary_key=True, index=True)
-    sku = Column(String, nullable=False)
-    tipo_movimiento = Column(String, nullable=False) 
-    cantidad = Column(Integer, nullable=False)
-    referencia_factura = Column(String) 
-    valor_neto = Column(Float, nullable=True)
-    entidad_asociada = Column(String) 
-    fecha_hora = Column(DateTime, default=datetime.now)
-
-# MODELO DE USUARIOS PARA EL PANEL ADMINISTRATIVO
-class Usuario(Base):
-    __tablename__ = "usuarios"
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String(50), unique=True, index=True, nullable=False)
-    email = Column(String(100), unique=True, index=True, nullable=False)
-    password = Column(String(255), nullable=False)
-    rol = Column(String(20), nullable=False, default="Ventas")
-    activo = Column(Boolean, default=True)
-    fecha_creacion = Column(DateTime, default=datetime.now)
-
-def get_db():
-    db = SessionLocal()
+@router.get("/despachos/reporte")
+def obtener_reporte_despachos(db: Session = Depends(get_db)):
     try:
-        yield db
-    finally:
-        db.close()
+        query = text("""
+            SELECT 
+                f.id,
+                f.numero_factura,
+                f.fecha_factura,
+                f.entidad_nombre,
+                f.cliente,
+                f.entidad_ruc,
+                f.ruc_cedula,
+                f.provincia,
+                f.ciudad,
+                f.direccion_entrega,
+                f.direccion,
+                f.referencia_direccion,
+                f.referencia,
+                f.courier_nombre,
+                f.courier,
+                f.repartidor,
+                f.numero_guia,
+                f.numero_guia_2,
+                f.numero_control,
+                f.estado_despacho,
+                f.total_factura,
+                f.total
+            FROM facturas f
+            ORDER BY f.id DESC
+        """)
+        
+        result = db.execute(query).fetchall()
+        reporte = []
 
-# --- CREACIÓN Y AUTO-MIGRACIÓN EN CALIENTE AL INICIAR ---
-Base.metadata.create_all(bind=engine)
+        for row in result:
+            d = row._asdict() if hasattr(row, '_asdict') else dict(zip(row.keys(), row))
+            
+            val_nc = d.get('numero_control')
+            ctrl_str = str(val_nc).strip() if (val_nc is not None and str(val_nc).strip() not in ["None", "null", "", "SIN CONTROL", "nan", "NaN"]) else "SIN CONTROL"
 
-def asegurar_columnas_logistica():
-    with engine.begin() as conn:
-        conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS provincia VARCHAR(100);"))
-        conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS ciudad VARCHAR(100);"))
-        conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS direccion_entrega TEXT;"))
-        conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS referencia_direccion TEXT;"))
-        conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS courier_nombre VARCHAR(50);"))
-        conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS repartidor VARCHAR(100);"))        # <--- NUEVO
-        conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS numero_guia VARCHAR(100);"))
-        conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS numero_control VARCHAR(100);"))    # <--- NUEVO
-        conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS estado_despacho VARCHAR(30) DEFAULT 'PENDIENTE';"))
-        conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS cliente_web_id INTEGER;"))
-        conn.execute(text("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ciudad VARCHAR(100);"))
-        conn.execute(text("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS correo VARCHAR;"))
-        conn.execute(text("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS tipo_precio VARCHAR(50) DEFAULT 'REGULAR';"))
-        conn.execute(text("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS descuento_porcentaje FLOAT DEFAULT 0.0;"))
-        conn.execute(text("ALTER TABLE movimientos_inventario ADD COLUMN IF NOT EXISTS valor_neto FLOAT;"))
+            val_g2 = d.get('numero_guia_2')
+            g2_str = str(val_g2).strip() if (val_g2 is not None and str(val_g2).strip() not in ["None", "null", "", "SIN GUÍA 2"]) else "SIN GUÍA 2"
 
-try:
-    asegurar_columnas_logistica()
-except Exception as e:
-    print(f"Nota sobre migración automática en caliente: {e}")
+            reporte.append({
+                "factura_id": d.get('id'),
+                "id": d.get('id'),
+                "numero_factura": str(d.get('numero_factura')),
+                "fecha": str(d.get('fecha_factura')) if d.get('fecha_factura') else "N/A",
+                "cliente": d.get('entidad_nombre') or d.get('cliente') or "Consumidor Final",
+                "ruc_cedula": d.get('entidad_ruc') or d.get('ruc_cedula') or "N/D",
+                "provincia": d.get('provincia') or "Guayas",
+                "ciudad": d.get('ciudad') or "Guayaquil",
+                "direccion": d.get('direccion_entrega') or d.get('direccion') or "N/A",
+                "referencia": d.get('referencia_direccion') or d.get('referencia') or "",
+                "courier": d.get('courier_nombre') or d.get('courier') or "Servientrega",
+                "repartidor": d.get('repartidor') or "N/D",
+                "numero_guia": d.get('numero_guia') or "SIN GUÍA",
+                "numero_guia_2": g2_str,
+                "numero_control": ctrl_str,
+                "estado_despacho": d.get('estado_despacho') or "PENDIENTE",
+                "total": float(d.get('total_factura') or d.get('total') or 0.0)
+            })
 
-def crear_usuario_inicial():
-    db = SessionLocal()
-    try:
-        admin_existente = db.query(Usuario).filter(Usuario.username == "admin").first()
-        if not admin_existente:
-            admin_default = Usuario(
-                username="admin",
-                email="admin@fajasisabella.com",
-                password="FajasIsabella2026*",
-                rol="Administrador",
-                activo=True
-            )
-            db.add(admin_default)
-            db.commit()
-            print("🟢 Usuario Administrador inicial creado correctamente.")
+        return reporte
+
     except Exception as e:
-        print(f"⚠️ Error al crear usuario inicial: {e}")
         db.rollback()
-    finally:
-        db.close()
+        raise HTTPException(status_code=500, detail=f"Error al obtener reporte: {str(e)}")
 
-try:
-    crear_usuario_inicial()
-except Exception as e:
-    print(f"Nota sobre usuario inicial: {e}")
+
+@router.post("/despachos/actualizar")
+def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
+    try:
+        factura_id = payload.get("factura_id") or payload.get("id")
+        numero_guia = payload.get("numero_guia")
+        numero_guia_2 = payload.get("numero_guia_2")
+        numero_control = payload.get("numero_control")
+        repartidor = payload.get("repartidor")
+        estado_despacho = payload.get("estado_despacho")
+
+        if not factura_id:
+            raise HTTPException(status_code=400, detail="ID de orden/factura es requerido.")
+
+        query = text("""
+            UPDATE facturas 
+            SET numero_guia = :numero_guia,
+                numero_guia_2 = :numero_guia_2,
+                numero_control = :numero_control,
+                repartidor = :repartidor,
+                estado_despacho = :estado_despacho
+            WHERE id = :factura_id
+        """)
+
+        db.execute(query, {
+            "numero_guia": numero_guia,
+            "numero_guia_2": numero_guia_2,
+            "numero_control": numero_control,
+            "repartidor": repartidor,
+            "estado_despacho": estado_despacho,
+            "factura_id": factura_id
+        })
+        db.commit()
+
+        return {
+            "status": "success",
+            "message": f"Orden {factura_id} actualizada con éxito.",
+            "numero_guia": numero_guia,
+            "numero_guia_2": numero_guia_2,
+            "numero_control": numero_control,
+            "repartidor": repartidor,
+            "estado_despacho": estado_despacho
+        }
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error interno al actualizar despacho: {str(e)}")

@@ -89,14 +89,22 @@ def obtener_historial_pedidos(cliente_id: int, db: Session = Depends(get_db)):
     
     resultado = []
     for f in facturas:
+        val_nc = f.numero_control
+        ctrl_str = str(val_nc).strip() if (val_nc is not None and str(val_nc).strip() not in ["None", "null", "", "SIN CONTROL", "nan", "NaN"]) else "SIN CONTROL"
+
+        val_g2 = f.numero_guia_2
+        g2_str = str(val_g2).strip() if (val_g2 is not None and str(val_g2).strip() not in ["None", "null", "", "SIN GUÍA 2"]) else "SIN GUÍA 2"
+
         resultado.append({
             "factura_id": f.id,
             "numero_factura": f.numero_factura,
             "fecha": str(f.fecha_factura),
             "total": f.total_factura,
-            "estado_despacho": f.estado_despacho,
+            "estado_despacho": f.estado_despacho or "PENDIENTE",
             "courier": f.courier_nombre or "Pendiente",
-            "numero_guia": f.numero_guia or "SIN GUÍA"
+            "numero_guia": f.numero_guia or "SIN GUÍA",
+            "numero_guia_2": g2_str,      # <--- Guía del motorizado independiente
+            "numero_control": ctrl_str    # <--- Número de control independiente
         })
         
     return resultado
