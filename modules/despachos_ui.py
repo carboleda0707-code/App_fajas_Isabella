@@ -130,7 +130,19 @@ def render_despachos():
 
             if opts_pedidos:
                 st.markdown("#### 🎛️ Gestión y Detalle de Orden Seleccionada")
-                ped_sel_label = st.selectbox("Seleccione Orden de Venta", list(opts_pedidos.keys()), key="sel_pedido_act_log")
+                
+                # Memoria de sesión para evitar que la página salte al inicio al recargar
+                keys_pedidos = list(opts_pedidos.keys())
+                if "ultima_orden_seleccionada" not in st.session_state or st.session_state.ultima_orden_seleccionada not in keys_pedidos:
+                    st.session_state.ultima_orden_seleccionada = keys_pedidos[0]
+
+                ped_sel_label = st.selectbox(
+                    "Seleccione Orden de Venta", 
+                    keys_pedidos, 
+                    index=keys_pedidos.index(st.session_state.ultima_orden_seleccionada),
+                    key="sel_pedido_act_log"
+                )
+                st.session_state.ultima_orden_seleccionada = ped_sel_label
                 pedido_sel = opts_pedidos[ped_sel_label]
                 
                 f_id_sel = pedido_sel.get("factura_id", pedido_sel.get("id"))
@@ -167,7 +179,7 @@ def render_despachos():
                 with col_a:
                     st.markdown("#### 🚚 Actualizar Guía, Control, Repartidor y Estado")
                     
-                    with st.form("form_actualizar_guia_control_manual_v5"):
+                    with st.form("form_actualizar_guia_control_manual_v6"):
                         st.write(f"**Modificando:** Orden de Venta Nº `{num_fact}`")
                         
                         c_col1, c_col2 = st.columns(2)
@@ -223,7 +235,7 @@ def render_despachos():
                                 st.error(f"❌ Error de conexión al guardar: {str(ex)}")
 
                 with col_b:
-                    st.markdown("#### 🏷️ Generre Membrete de Envío (De / Para)")
+                    st.markdown("#### 🏷️ Generar Membrete de Envío (De / Para)")
                     
                     nom_dest = pedido_sel.get('cliente', pedido_sel.get('entidad_nombre', 'Consumidor Final'))
                     ruc_dest = pedido_sel.get('ruc_cedula', pedido_sel.get('entidad_ruc', 'N/D'))
@@ -236,7 +248,6 @@ def render_despachos():
                     rep_etq = pedido_sel.get('repartidor', pedido_sel.get('chofer', 'N/D'))
                     guia_etq = pedido_sel.get('numero_guia', 'SIN GUÍA')
                     
-                    # AQUÍ ESTABA EL DETALLE: Tomamos el control actualizado directamente de la selección
                     ctrl_raw_etq = pedido_sel.get('numero_control') or pedido_sel.get('control_numero', 'SIN CONTROL')
                     ctrl_etq = str(ctrl_raw_etq).strip() if (ctrl_raw_etq and str(ctrl_raw_etq).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
                     

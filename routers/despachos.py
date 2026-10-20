@@ -24,7 +24,6 @@ def obtener_reporte_despachos(
         for row in result:
             d = row._asdict() if hasattr(row, '_asdict') else dict(zip(row.keys(), row))
             
-            # Buscar en cualquiera de las dos columnas posibles en BD por seguridad
             ctrl_val = d.get('numero_control') or d.get('control_numero')
             ctrl_str = str(ctrl_val).strip() if (ctrl_val is not None and str(ctrl_val).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
 
@@ -100,7 +99,6 @@ def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
             else:
                 estado_despacho = "PENDIENTE"
 
-        # Actualizamos AMBAS columnas para evitar cualquier conflicto de nombres en BD
         db.execute(text("""
             UPDATE facturas 
             SET numero_control = :ctrl, 
