@@ -99,6 +99,11 @@ def render_despachos():
             data_tabla = []
             for _, r in df_filtrado.iterrows():
                 estado_bruto = r.get("estado_despacho", "PENDIENTE")
+                
+                # Mapeo idéntico para Guía y Control
+                val_guia = r.get("numero_guia")
+                val_guia_tabla = str(val_guia).strip() if (val_guia is not None and str(val_guia).strip() not in ["None", "null", "", "SIN GUÍA"]) else "SIN GUÍA"
+
                 val_ctrl = r.get("numero_control")
                 val_ctrl_tabla = str(val_ctrl).strip() if (val_ctrl is not None and str(val_ctrl).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
 
@@ -110,7 +115,7 @@ def render_despachos():
                     "Ciudad": r.get("ciudad", "Guayaquil"),
                     "Courier": r.get("courier", "Servientrega"),
                     "Repartidor/Chofer": r.get("repartidor", "N/D"),
-                    "Nº Guía": r.get("numero_guia", "SIN GUÍA"),
+                    "Nº Guía": val_guia_tabla,
                     "Nº Control": val_ctrl_tabla,
                     "Total ($)": f"${r.get('total_norm', 0.0):,.2f}",
                     "Estado Despacho": obtener_semaforo_estado(estado_bruto)
@@ -146,6 +151,9 @@ def render_despachos():
                 f_id_sel = pedido_sel.get("factura_id", pedido_sel.get("id"))
                 num_fact = pedido_sel.get("numero_factura")
                 
+                raw_guia_sel = pedido_sel.get("numero_guia", "SIN GUÍA")
+                val_guia_show = str(raw_guia_sel).strip() if (raw_guia_sel is not None and str(raw_guia_sel).strip() not in ["None", "null", "", "SIN GUÍA"]) else "SIN GUÍA"
+
                 raw_ctrl_sel = pedido_sel.get("numero_control", "SIN CONTROL")
                 val_ctrl_show = str(raw_ctrl_sel).strip() if (raw_ctrl_sel is not None and str(raw_ctrl_sel).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
                 
@@ -161,7 +169,7 @@ def render_despachos():
                         st.write(f"**Referencia:** {pedido_sel.get('referencia', 'Sin referencia')}")
                     with c3:
                         st.write(f"**Courier / Repartidor:** {pedido_sel.get('courier', 'Servientrega')} ({pedido_sel.get('repartidor', 'N/D')})")
-                        st.write(f"**Nº Guía:** {pedido_sel.get('numero_guia', 'SIN GUÍA')}")
+                        st.write(f"**Nº Guía:** `{val_guia_show}`")
                         st.write(f"**Nº Control:** `{val_ctrl_show}`")
                         st.write(f"**Estado Despacho:** `{pedido_sel.get('estado_despacho', 'PENDIENTE')}`")
 
@@ -191,7 +199,7 @@ def render_despachos():
                         g1, g2 = st.columns(2)
                         with g1:
                             guia_val = str(val_guia_def)
-                            nueva_guia = st.text_input("Número de Guía", value="" if guia_val in ["SIN GUÍA", "None"] else guia_val, placeholder="Ingresar Guía...").strip()
+                            nueva_guia = st.text_input("Número de Guía", value="" if guia_val in ["SIN GUÍA", "None", "nan", "NaN"] else guia_val, placeholder="Ingresar Guía...").strip()
                         with g2:
                             ctrl_val = str(val_ctrl_def)
                             nuevo_control = st.text_input("Número de Control", value="" if ctrl_val in ["SIN CONTROL", "None", "nan", "NaN"] else ctrl_val, placeholder="Ingresar Control...").strip()
@@ -202,18 +210,14 @@ def render_despachos():
                         submit_guia = st.form_submit_button("💾 Guardar Cambios de Despacho", type="primary", use_container_width=True)
 
                         if submit_guia:
-                            guia_envio = nueva_guia if (nueva_guia and nueva_guia.strip() != "") else "SIN GUÍA"
-                            control_envio = nuevo_control if (nuevo_control and nuevo_control.strip() != "") else ""
-                            estado_final = "ENTREGADO" if estado_accion == "ENTREGADO" else ""
-
                             payload = {
                                 "factura_id": f_id_sel,
                                 "numero_factura": str(num_fact),
                                 "courier": nuevo_courier,
                                 "repartidor": nuevo_repartidor or "N/D",
-                                "numero_guia": guia_envio,
-                                "numero_control": control_envio,
-                                "estado_despacho": estado_final
+                                "numero_guia": nueva_guia if nueva_guia != "" else "SIN GUÍA",
+                                "numero_control": nuevo_control if nuevo_control != "" else "SIN CONTROL",
+                                "estado_despacho": "ENTREGADO" if estado_accion == "ENTREGADO" else ""
                             }
                             try:
                                 with st.spinner("Guardando en servidor..."):
@@ -245,8 +249,10 @@ def render_despachos():
                     ref_dest = pedido_sel.get('referencia', 'Sin referencia')
                     cour_etq = pedido_sel.get('courier', 'Servientrega')
                     rep_etq = pedido_sel.get('repartidor', 'N/D')
-                    guia_etq = pedido_sel.get('numero_guia', 'SIN GUÍA')
                     
+                    raw_guia_etq = pedido_sel.get('numero_guia', 'SIN GUÍA')
+                    guia_etq = str(raw_guia_etq).strip() if (raw_guia_etq is not None and str(raw_guia_etq).strip() not in ["None", "null", "", "SIN GUÍA", "nan", "NaN"]) else "SIN GUÍA"
+
                     raw_ctrl_etq = pedido_sel.get('numero_control', 'SIN CONTROL')
                     ctrl_etq = str(raw_ctrl_etq).strip() if (raw_ctrl_etq is not None and str(raw_ctrl_etq).strip() not in ["None", "null", "", "SIN CONTROL", "nan", "NaN"]) else "SIN CONTROL"
                     
