@@ -45,7 +45,7 @@ def obtener_reporte_despachos(
                 "courier": d.get('courier_nombre') or d.get('courier') or "Servientrega",
                 "repartidor": d.get('repartidor') or "N/D",
                 "numero_guia": d.get('numero_guia') or "SIN GUÍA",
-                "numero_control": ctrl_str,
+                "numero_control": d.get('numero_control') or "SIN CONTROL",  # <--- ¡Esta línea faltaba en el JSON de la API!
                 "estado_despacho": d.get('estado_despacho') or "PENDIENTE",
                 "total": float(d.get('total_factura') or d.get('total') or 0.0)
             })
