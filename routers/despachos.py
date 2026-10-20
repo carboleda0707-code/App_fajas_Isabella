@@ -49,82 +49,86 @@ def obtener_reporte_despachos(
 
 @router.post("/despachos/actualizar")
 def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
-    factura_id = payload.get("factura_id")
-    numero_factura = payload.get("numero_factura")
-    
-    factura = None
-    if factura_id:
-        factura = db.query(Factura).filter(Factura.id == factura_id).first()
-    if not factura and numero_factura:
-        num_str = str(numero_factura).strip()
-        factura = db.query(Factura).filter(
-            (Factura.numero_factura == num_str) | 
-            (Factura.id == int(num_str) if num_str.isdigit() else False)
-        ).first()
+    try:
+        factura_id = payload.get("factura_id")
+        numero_factura = payload.get("numero_factura")
         
-    if not factura:
-        raise HTTPException(status_code=404, detail="Orden de Venta no encontrada en el sistema.")
-    
-    courier = payload.get("courier", "Servientrega")
-    repartidor = payload.get("repartidor", "N/D")
-    numero_guia = payload.get("numero_guia", "SIN GUÍA").strip()
-    if not numero_guia:
-        numero_guia = "SIN GUÍA"
+        factura = None
+        if factura_id:
+            factura = db.query(Factura).filter(Factura.id == factura_id).first()
+        if not factura and numero_factura:
+            num_str = str(numero_factura).strip()
+            factura = db.query(Factura).filter(
+                (Factura.numero_factura == num_str) | 
+                (Factura.id == int(num_str) if num_str.isdigit() else False)
+            ).first()
+            
+        if not factura:
+            raise HTTPException(status_code=404, detail="Orden de Venta no encontrada en el sistema.")
         
-    estado_solicitado = payload.get("estado_despacho", "").upper().strip()
+        courier = payload.get("courier", "Servientrega")
+        repartidor = payload.get("repartidor", "N/D")
+        numero_guia = payload.get("numero_guia", "SIN GUÍA").strip()
+        if not numero_guia:
+            numero_guia = "SIN GUÍA"
+            
+        estado_solicitado = payload.get("estado_despacho", "").upper().strip()
 
-    # Leer control_numero directamente de la BD
-    res_ctrl = db.execute(text("SELECT control_numero FROM facturas WHERE id = :fid"), {"fid": factura.id}).fetchone()
-    ctrl_actual_str = str(res_ctrl[0]).strip() if (res_ctrl and res_ctrl[0] is not None and str(res_ctrl[0]).strip() not in ["None", "null", "", "SIN CONTROL"]) else ""
+        # Leer control_numero actual
+        res_ctrl = db.execute(text("SELECT control_numero FROM facturas WHERE id = :fid"), {"fid": factura.id}).fetchone()
+        ctrl_actual_str = str(res_ctrl[0]).strip() if (res_ctrl and res_ctrl[0] is not None and str(res_ctrl[0]).strip() not in ["None", "null", "", "SIN CONTROL"]) else ""
 
-    # Autogenerar si hay guía o estado avanzado y no tiene control
-    if (numero_guia != "SIN GUÍA") or estado_solicitado in ["EMPACADO", "EN TRÁNSITO", "ENTREGADO"]:
-        if not ctrl_actual_str:
-            res_max = db.execute(text("SELECT MAX(CAST(NULLIF(control_numero, '') AS INTEGER)) FROM facturas WHERE tipo_factura = 'VENTA' AND control_numero ~ '^[0-9]+$'")).fetchone()
-            max_num = res_max[0] if res_max and res_max[0] is not None else 0
-            ctrl_actual_str = str(max_num + 1)
+        # Autogenerar si hay guía o estado avanzado y no tiene control
+        if (numero_guia != "SIN GUÍA") or estado_solicitado in ["EMPACADO", "EN TRÁNSITO", "ENTREGADO"]:
+            if not ctrl_actual_str:
+                res_max = db.execute(text("SELECT MAX(CAST(NULLIF(control_numero, '') AS INTEGER)) FROM facturas WHERE tipo_factura = 'VENTA' AND control_numero ~ '^[0-9]+$'")).fetchone()
+                max_num = res_max[0] if res_max and res_max[0] is not None else 0
+                ctrl_actual_str = str(max_num + 1)
 
-    if estado_solicitado == "ENTREGADO":
-        if numero_guia == "SIN GUÍA":
-            raise HTTPException(status_code=400, detail="⚠️ No se puede marcar como ENTREGADO sin un Número de Guía.")
-        if not ctrl_actual_str:
-            raise HTTPException(status_code=400, detail="⚠️ No se puede marcar como ENTREGADO sin un Número de Control.")
-        estado_despacho = "ENTREGADO"
-    else:
-        has_control = bool(ctrl_actual_str)
-        has_guia = bool(numero_guia != "SIN GUÍA")
-
-        if has_control and has_guia:
-            estado_despacho = "EN TRÁNSITO"
-        elif has_control:
-            estado_despacho = "EMPACADO"
+        if estado_solicitado == "ENTREGADO":
+            if numero_guia == "SIN GUÍA":
+                raise HTTPException(status_code=400, detail="⚠️ No se puede marcar como ENTREGADO sin un Número de Guía.")
+            if not ctrl_actual_str:
+                raise HTTPException(status_code=400, detail="⚠️ No se puede marcar como ENTREGADO sin un Número de Control.")
+            estado_despacho = "ENTREGADO"
         else:
-            estado_despacho = "PENDIENTE"
+            has_control = bool(ctrl_actual_str)
+            has_guia = bool(numero_guia != "SIN GUÍA")
 
-    # Actualizar control_numero en la BD
-    db.execute(text("""
-        UPDATE facturas 
-        SET control_numero = :ctrl, 
-            courier_nombre = :courier, 
-            repartidor = :repartidor, 
-            numero_guia = :guia, 
-            estado_despacho = :estado 
-        WHERE id = :fid
-    """), {
-        "ctrl": ctrl_actual_str if ctrl_actual_str else None,
-        "courier": courier,
-        "repartidor": repartidor,
-        "guia": numero_guia,
-        "estado": estado_despacho,
-        "fid": factura.id
-    })
-    db.commit()
-    
-    return {
-        "status": "success",
-        "message": f"Orden {factura.numero_factura} actualizada con éxito.",
-        "control_numero": ctrl_actual_str,
-        "numero_guia": numero_guia,
-        "repartidor": repartidor,
-        "estado": estado_despacho
-    }
+            if has_control and has_guia:
+                estado_despacho = "EN TRÁNSITO"
+            elif has_control:
+                estado_despacho = "EMPACADO"
+            else:
+                estado_despacho = "PENDIENTE"
+
+        # Actualizar base de datos
+        db.execute(text("""
+            UPDATE facturas 
+            SET control_numero = :ctrl, 
+                courier_nombre = :courier, 
+                repartidor = :repartidor, 
+                numero_guia = :guia, 
+                estado_despacho = :estado 
+            WHERE id = :fid
+        """), {
+            "ctrl": ctrl_actual_str if ctrl_actual_str else None,
+            "courier": courier,
+            "repartidor": repartidor,
+            "guia": numero_guia,
+            "estado": estado_despacho,
+            "fid": factura.id
+        })
+        db.commit()
+        
+        return {
+            "status": "success",
+            "message": f"Orden {factura.numero_factura} actualizada con éxito.",
+            "control_numero": ctrl_actual_str,
+            "numero_guia": numero_guia,
+            "repartidor": repartidor,
+            "estado": estado_despacho
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error interno al actualizar despacho: {str(e)}")
