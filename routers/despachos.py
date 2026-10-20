@@ -16,7 +16,7 @@ def obtener_reporte_despachos(
             SELECT id, numero_factura, fecha_factura, entidad_nombre, cliente, 
                    entidad_ruc, ruc_cedula, provincia, ciudad, direccion_entrega, 
                    direccion, referencia_direccion, referencia, courier_nombre, 
-                   courier, repartidor, numero_guia, numero_control, control_numero, 
+                   courier, repartidor, numero_guia, numero_control, 
                    estado_despacho, total_factura, total, tipo_factura
             FROM facturas 
             WHERE tipo_factura = 'VENTA' OR tipo_factura IS NULL
@@ -29,10 +29,7 @@ def obtener_reporte_despachos(
             d = row._asdict() if hasattr(row, '_asdict') else dict(zip(row.keys(), row))
             
             val_nc = d.get('numero_control')
-            val_cn = d.get('control_numero')
-            
-            ctrl_val = val_nc if (val_nc is not None and str(val_nc).strip() not in ["None", "null", "", "SIN CONTROL"]) else val_cn
-            ctrl_str = str(ctrl_val).strip() if (ctrl_val is not None and str(ctrl_val).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
+            ctrl_str = str(val_nc).strip() if (val_nc is not None and str(val_nc).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
 
             reporte.append({
                 "factura_id": d.get('id'),
@@ -49,7 +46,6 @@ def obtener_reporte_despachos(
                 "repartidor": d.get('repartidor') or "N/D",
                 "numero_guia": d.get('numero_guia') or "SIN GUÍA",
                 "numero_control": ctrl_str,
-                "control_numero": ctrl_str,
                 "estado_despacho": d.get('estado_despacho') or "PENDIENTE",
                 "total": float(d.get('total_factura') or d.get('total') or 0.0)
             })
@@ -83,8 +79,7 @@ def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
         if not numero_guia:
             numero_guia = "SIN GUÍA"
             
-        numero_control = payload.get("numero_control") or payload.get("control_numero") or ""
-        numero_control = str(numero_control).strip()
+        numero_control = payload.get("numero_control", "").strip()
         if not numero_control or numero_control.upper() in ["SIN CONTROL", "NONE", "NULL", ""]:
             numero_control = None
 
@@ -110,7 +105,6 @@ def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
         db.execute(text("""
             UPDATE facturas 
             SET numero_control = :ctrl, 
-                control_numero = :ctrl,
                 courier_nombre = :courier, 
                 repartidor = :repartidor, 
                 numero_guia = :guia, 
@@ -130,7 +124,6 @@ def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
             "status": "success",
             "message": f"Orden {factura.numero_factura} actualizada con éxito.",
             "numero_control": numero_control,
-            "control_numero": numero_control,
             "numero_guia": numero_guia,
             "repartidor": repartidor,
             "estado": estado_despacho
