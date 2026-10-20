@@ -12,7 +12,6 @@ def obtener_reporte_despachos(
     db: Session = Depends(get_db)
 ):
     try:
-        # Forzamos consulta explícita mapeando todas las columnas reales de facturas
         sql = text("""
             SELECT id, numero_factura, fecha_factura, entidad_nombre, cliente, 
                    entidad_ruc, ruc_cedula, provincia, ciudad, direccion_entrega, 
@@ -29,7 +28,6 @@ def obtener_reporte_despachos(
         for row in result:
             d = row._asdict() if hasattr(row, '_asdict') else dict(zip(row.keys(), row))
             
-            # Evaluación limpia del número de control leyendo ambos campos posibles en BD
             val_nc = d.get('numero_control')
             val_cn = d.get('control_numero')
             
@@ -109,7 +107,6 @@ def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
             else:
                 estado_despacho = "PENDIENTE"
 
-        # Escribimos explícitamente en ambas columnas físicas de la base de datos
         db.execute(text("""
             UPDATE facturas 
             SET numero_control = :ctrl, 

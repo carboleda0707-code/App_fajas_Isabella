@@ -29,18 +29,13 @@ def render_despachos():
             st.rerun()
 
     try:
-        response = requests.get(f"{API_URL}/despachos/reporte", timeout=5)
-        if response.status_code != 200:
-            response = requests.get(f"{API_URL}/facturas", timeout=5)
+        response = requests.get(f"{API_URL}/despachos/reporte", timeout=8)
 
         if response.status_code == 200:
             data_despachos = response.json()
             if not data_despachos:
                 st.info("No se encontraron despachos registrados en el sistema.")
                 return
-
-            if isinstance(data_despachos, list) and len(data_despachos) > 0 and "tipo_factura" in data_despachos[0]:
-                data_despachos = [f for f in data_despachos if f.get('tipo_factura') == 'VENTA']
 
             df_raw = pd.DataFrame(data_despachos)
             col_total_key = "total" if "total" in df_raw.columns else ("total_factura" if "total_factura" in df_raw.columns else None)
@@ -53,7 +48,7 @@ def render_despachos():
             with col_f2:
                 filtro_estado = st.selectbox("Estado Despacho:", ["TODOS", "PENDIENTE", "EMPACADO", "EN TRÁNSITO", "ENTREGADO"])
             with col_f3:
-                fecha_inicio = st.date_input("Fecha Desde:", value=date(2026, 1, 1))
+                fecha_inicio = st.date_input("Fecha Desde:", value=date(2025, 1, 1))
             with col_f4:
                 fecha_fin = st.date_input("Fecha Hasta:", value=date.today())
 
@@ -63,8 +58,8 @@ def render_despachos():
             if busqueda:
                 mask = (
                     df_filtrado.get("numero_factura", "").astype(str).str.contains(busqueda, case=False, na=False) |
-                    df_filtrado.get("cliente", df_filtrado.get("entidad_nombre", "")).astype(str).str.contains(busqueda, case=False, na=False) |
-                    df_filtrado.get("repartidor", df_filtrado.get("chofer", "")).astype(str).str.contains(busqueda, case=False, na=False) |
+                    df_filtrado.get("cliente", "").astype(str).str.contains(busqueda, case=False, na=False) |
+                    df_filtrado.get("repartidor", "").astype(str).str.contains(busqueda, case=False, na=False) |
                     df_filtrado.get("numero_guia", "").astype(str).str.contains(busqueda, case=False, na=False) |
                     df_filtrado.get("numero_control", "").astype(str).str.contains(busqueda, case=False, na=False) |
                     df_filtrado.get("control_numero", "").astype(str).str.contains(busqueda, case=False, na=False)
@@ -76,10 +71,12 @@ def render_despachos():
                 if col_est in df_filtrado.columns:
                     df_filtrado = df_filtrado[df_filtrado[col_est].astype(str).str.upper() == filtro_estado]
 
-            col_fecha_name = "fecha" if "fecha" in df_filtrado.columns else ("fecha_factura" if "fecha_factura" in df_filtrado.columns else None)
-            if col_fecha_name:
-                df_filtrado["fecha_dt"] = pd.to_datetime(df_filtrado[col_fecha_name], errors="coerce").dt.date
-                df_filtrado = df_filtrado[(df_filtrado["fecha_dt"] >= fecha_inicio) & (df_filtrado["fecha_dt"] <= fecha_fin)]
+            if "fecha" in df_filtrado.columns:
+                df_filtrado["fecha_dt"] = pd.to_datetime(df_filtrado["fecha"], errors="coerce").dt.date
+                df_filtrado = df_filtrado[
+                    (df_filtrado["fecha_dt"].isna()) | 
+                    ((df_filtrado["fecha_dt"] >= fecha_inicio) & (df_filtrado["fecha_dt"] <= fecha_fin))
+                ]
 
             total_pedidos = len(df_filtrado)
             col_est = "estado_despacho" if "estado_despacho" in df_filtrado.columns else "estado"
@@ -102,20 +99,20 @@ def render_despachos():
 
             data_tabla = []
             for _, r in df_filtrado.iterrows():
-                estado_bruto = r.get("estado_despacho", r.get("estado", "PENDIENTE"))
+                estado_bruto = r.get("estado_despacho", "PENDIENTE")
                 
-                # Búsqueda exhaustiva en la fila de datos
-                ctrl_val = r.get("numero_control") if (r.get("numero_control") is not None and str(r.get("numero_control")).strip() not in ["None", "null", "", "SIN CONTROL"]) else r.get("control_numero")
-                val_ctrl_final = str(ctrl_val).strip() if (ctrl_val is not None and str(ctrl_val).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
+                # Normalización robusta idéntica a la guía
+                raw_ctrl = r.get("numero_control") if (r.get("numero_control") is not None and str(r.get("numero_control")).strip() not in ["None", "null", "", "SIN CONTROL"]) else r.get("control_numero")
+                val_ctrl_final = str(raw_ctrl).strip() if (raw_ctrl is not None and str(raw_ctrl).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
 
                 data_tabla.append({
                     "Nº Orden Venta": r.get("numero_factura", "N/A"),
-                    "Fecha": r.get("fecha", r.get("fecha_factura", "N/A")),
-                    "Cliente": r.get("cliente", r.get("entidad_nombre", "Consumidor Final")),
+                    "Fecha": r.get("fecha", "N/A"),
+                    "Cliente": r.get("cliente", "Consumidor Final"),
                     "Provincia": r.get("provincia", "Guayas"),
                     "Ciudad": r.get("ciudad", "Guayaquil"),
-                    "Courier": r.get("courier", r.get("courier_nombre", "Servientrega")),
-                    "Repartidor/Chofer": r.get("repartidor", r.get("chofer", "N/D")),
+                    "Courier": r.get("courier", "Servientrega"),
+                    "Repartidor/Chofer": r.get("repartidor", "N/D"),
                     "Nº Guía": r.get("numero_guia", "SIN GUÍA"),
                     "Nº Control": val_ctrl_final,
                     "Total ($)": f"${r.get('total_norm', 0.0):,.2f}",
@@ -126,7 +123,7 @@ def render_despachos():
             st.divider()
 
             opts_pedidos = {
-                f"Orden #{r.get('numero_factura')} - {r.get('cliente', r.get('entidad_nombre', 'N/A'))} ({r.get('ciudad', 'Guayaquil')})": r
+                f"Orden #{r.get('numero_factura')} - {r.get('cliente', 'N/A')} ({r.get('ciudad', 'Guayaquil')})": r
                 for _, r in df_filtrado.iterrows()
             }
 
@@ -145,30 +142,23 @@ def render_despachos():
                 )
                 st.session_state.ultima_orden_seleccionada = ped_sel_label
                 pedido_sel = opts_pedidos[ped_sel_label]
-                
-                # --- CHIVATO DE DEPURACIÓN (Muestra los datos crudos en pantalla) ---
-                with st.expander("🛠️ CHIVATO DE DATOS (Servidor/API)", expanded=True):
-                    val_nc = pedido_sel.get("numero_control")
-                    val_cn = pedido_sel.get("control_numero")
-                    st.warning(f"**Chivato Control:** `numero_control`={repr(val_nc)} | `control_numero`={repr(val_cn)}")
-                # -------------------------------------------------------------------
 
                 f_id_sel = pedido_sel.get("factura_id", pedido_sel.get("id"))
                 num_fact = pedido_sel.get("numero_factura")
                 
-                raw_ctrl = pedido_sel.get("numero_control") if (pedido_sel.get("numero_control") is not None and str(pedido_sel.get("numero_control")).strip() not in ["None", "null", "", "SIN CONTROL"]) else pedido_sel.get("control_numero")
-                val_ctrl_final = str(raw_ctrl).strip() if (raw_ctrl is not None and str(raw_ctrl).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
+                raw_ctrl_sel = pedido_sel.get("numero_control") if (pedido_sel.get("numero_control") is not None and str(pedido_sel.get("numero_control")).strip() not in ["None", "null", "", "SIN CONTROL"]) else pedido_sel.get("control_numero")
+                val_ctrl_final = str(raw_ctrl_sel).strip() if (raw_ctrl_sel is not None and str(raw_ctrl_sel).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
                 
                 with st.expander(f"📦 Ver información completa y productos de la Orden Nº {num_fact}", expanded=True):
                     c1, c2, c3 = st.columns(3)
                     with c1:
-                        st.write(f"**Cliente:** {pedido_sel.get('cliente', pedido_sel.get('entidad_nombre', 'N/A'))}")
-                        st.write(f"**RUC/Cédula:** {pedido_sel.get('ruc_cedula', pedido_sel.get('entidad_ruc', 'N/A'))}")
-                        st.write(f"**Fecha:** {pedido_sel.get('fecha', pedido_sel.get('fecha_factura', 'N/A'))}")
+                        st.write(f"**Cliente:** {pedido_sel.get('cliente', 'N/A')}")
+                        st.write(f"**RUC/Cédula:** {pedido_sel.get('ruc_cedula', 'N/A')}")
+                        st.write(f"**Fecha:** {pedido_sel.get('fecha', 'N/A')}")
                     with c2:
                         st.write(f"**Provincia / Ciudad:** {pedido_sel.get('provincia', 'Guayas')} / {pedido_sel.get('ciudad', 'Guayaquil')}")
-                        st.write(f"**Dirección:** {pedido_sel.get('direccion', pedido_sel.get('direccion_entrega', 'N/A'))}")
-                        st.write(f"**Referencia:** {pedido_sel.get('referencia', pedido_sel.get('referencia_direccion', 'Sin referencia'))}")
+                        st.write(f"**Dirección:** {pedido_sel.get('direccion', 'N/A')}")
+                        st.write(f"**Referencia:** {pedido_sel.get('referencia', 'Sin referencia')}")
                     with c3:
                         st.write(f"**Courier / Repartidor:** {pedido_sel.get('courier', 'Servientrega')} ({pedido_sel.get('repartidor', 'N/D')})")
                         st.write(f"**Nº Guía:** {pedido_sel.get('numero_guia', 'SIN GUÍA')}")
@@ -177,8 +167,8 @@ def render_despachos():
 
                 st.markdown("---")
 
-                val_courier_def = pedido_sel.get("courier", pedido_sel.get("courier_nombre", "Servientrega"))
-                val_repartidor_def = pedido_sel.get("repartidor", pedido_sel.get("chofer", ""))
+                val_courier_def = pedido_sel.get("courier", "Servientrega")
+                val_repartidor_def = pedido_sel.get("repartidor", "")
                 val_guia_def = pedido_sel.get("numero_guia", "")
                 val_ctrl_def = "" if val_ctrl_final == "SIN CONTROL" else val_ctrl_final
 
@@ -187,7 +177,7 @@ def render_despachos():
                 with col_a:
                     st.markdown("#### 🚚 Actualizar Guía, Control, Repartidor y Estado")
                     
-                    with st.form("form_actualizar_guia_control_chivato"):
+                    with st.form("form_actualizar_despacho_final"):
                         st.write(f"**Modificando:** Orden de Venta Nº `{num_fact}`")
                         
                         c_col1, c_col2 = st.columns(2)
@@ -204,7 +194,7 @@ def render_despachos():
                             nueva_guia = st.text_input("Número de Guía", value="" if guia_val in ["SIN GUÍA", "None"] else guia_val, placeholder="Ingresar Guía...").strip()
                         with g2:
                             ctrl_val_inp = str(val_ctrl_def)
-                            nuevo_control = st.text_input("Número de Control", value=ctrl_val_inp, placeholder="Ingresar Control...").strip()
+                            nuevo_control = st.text_input("Número de Control", value="" if ctrl_val_inp in ["SIN CONTROL", "None"] else ctrl_val_inp, placeholder="Ingresar Control...").strip()
 
                         opciones_estado = ["Automático (Según Guía y Control)", "ENTREGADO"]
                         estado_accion = st.selectbox("Acción de Estado", opciones_estado)
@@ -245,15 +235,15 @@ def render_despachos():
                 with col_b:
                     st.markdown("#### 🏷️ Generar Membrete de Envío (De / Para)")
                     
-                    nom_dest = pedido_sel.get('cliente', pedido_sel.get('entidad_nombre', 'Consumidor Final'))
-                    ruc_dest = pedido_sel.get('ruc_cedula', pedido_sel.get('entidad_ruc', 'N/D'))
+                    nom_dest = pedido_sel.get('cliente', 'Consumidor Final')
+                    ruc_dest = pedido_sel.get('ruc_cedula', 'N/D')
                     telf_dest = pedido_sel.get('telefono', 'N/D')
                     prov_dest = pedido_sel.get('provincia', 'Guayas')
                     ciud_dest = pedido_sel.get('ciudad', 'Guayaquil')
-                    dir_dest = pedido_sel.get('direccion_entrega', pedido_sel.get('direccion', 'Dirección no especificada'))
-                    ref_dest = pedido_sel.get('referencia_direccion', pedido_sel.get('referencia', 'Sin referencia'))
-                    cour_etq = pedido_sel.get('courier', pedido_sel.get('courier_nombre', 'Servientrega'))
-                    rep_etq = pedido_sel.get('repartidor', pedido_sel.get('chofer', 'N/D'))
+                    dir_dest = pedido_sel.get('direccion', 'Dirección no especificada')
+                    ref_dest = pedido_sel.get('referencia', 'Sin referencia')
+                    cour_etq = pedido_sel.get('courier', 'Servientrega')
+                    rep_etq = pedido_sel.get('repartidor', 'N/D')
                     guia_etq = pedido_sel.get('numero_guia', 'SIN GUÍA')
                     ctrl_etq = val_ctrl_final
                     num_fact_etq = pedido_sel.get('numero_factura', 'N/A')
