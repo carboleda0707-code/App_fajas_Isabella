@@ -95,7 +95,6 @@ class Factura(Base):
     courier_nombre = Column(String(50), nullable=True)
     repartidor = Column(String(100), nullable=True)
     numero_guia = Column(String(100), nullable=True)
-    numero_guia_2 = Column(String(100), nullable=True)
     numero_control = Column(String(100), nullable=True)
     estado_despacho = Column(String(30), default='PENDIENTE')
 
@@ -158,7 +157,6 @@ def asegurar_columnas_logistica():
         conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS courier_nombre VARCHAR(50);"))
         conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS repartidor VARCHAR(100);"))
         conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS numero_guia VARCHAR(100);"))
-        conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS numero_guia_2 VARCHAR(100);"))
         conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS numero_control VARCHAR(100);"))
         conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS estado_despacho VARCHAR(30) DEFAULT 'PENDIENTE';"))
         conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS cliente_web_id INTEGER;"))
