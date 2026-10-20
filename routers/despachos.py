@@ -12,7 +12,7 @@ def obtener_reporte_despachos(
     db: Session = Depends(get_db)
 ):
     try:
-        # Forzamos una consulta explícita asegurando el nombre de ambas columnas
+        # Forzamos consulta explícita mapeando todas las columnas reales de facturas
         sql = text("""
             SELECT id, numero_factura, fecha_factura, entidad_nombre, cliente, 
                    entidad_ruc, ruc_cedula, provincia, ciudad, direccion_entrega, 
@@ -20,7 +20,7 @@ def obtener_reporte_despachos(
                    courier, repartidor, numero_guia, numero_control, control_numero, 
                    estado_despacho, total_factura, total, tipo_factura
             FROM facturas 
-            WHERE tipo_factura = 'VENTA'
+            WHERE tipo_factura = 'VENTA' OR tipo_factura IS NULL
             ORDER BY id DESC
         """)
         result = db.execute(sql).fetchall()
@@ -29,7 +29,7 @@ def obtener_reporte_despachos(
         for row in result:
             d = row._asdict() if hasattr(row, '_asdict') else dict(zip(row.keys(), row))
             
-            # Chivato interno para asegurar captura de control desde la BD
+            # Evaluación limpia del número de control leyendo ambos campos posibles en BD
             val_nc = d.get('numero_control')
             val_cn = d.get('control_numero')
             
@@ -38,7 +38,8 @@ def obtener_reporte_despachos(
 
             reporte.append({
                 "factura_id": d.get('id'),
-                "numero_factura": d.get('numero_factura'),
+                "id": d.get('id'),
+                "numero_factura": str(d.get('numero_factura')),
                 "fecha": str(d.get('fecha_factura')) if d.get('fecha_factura') else "N/A",
                 "cliente": d.get('entidad_nombre') or d.get('cliente') or "Consumidor Final",
                 "ruc_cedula": d.get('entidad_ruc') or d.get('ruc_cedula') or "N/D",
@@ -108,6 +109,7 @@ def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
             else:
                 estado_despacho = "PENDIENTE"
 
+        # Escribimos explícitamente en ambas columnas físicas de la base de datos
         db.execute(text("""
             UPDATE facturas 
             SET numero_control = :ctrl, 
@@ -131,6 +133,7 @@ def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
             "status": "success",
             "message": f"Orden {factura.numero_factura} actualizada con éxito.",
             "numero_control": numero_control,
+            "control_numero": numero_control,
             "numero_guia": numero_guia,
             "repartidor": repartidor,
             "estado": estado_despacho
