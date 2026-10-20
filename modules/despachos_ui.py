@@ -170,7 +170,7 @@ def render_despachos():
                 val_courier_def = pedido_sel.get("courier", "Servientrega")
                 val_repartidor_def = pedido_sel.get("repartidor", "")
                 val_guia_def = pedido_sel.get("numero_guia", "")
-                val_ctrl_def = "" if val_ctrl_final == "SIN CONTROL" else val_ctrl_final
+                val_ctrl_def = pedido_sel.get("numero_control") or pedido_sel.get("control_numero", "")
 
                 col_a, col_b = st.columns(2)
 
