@@ -243,7 +243,7 @@ def render_despachos():
                     cour_etq = pedido_sel.get('courier', 'Servientrega')
                     rep_etq = pedido_sel.get('repartidor', 'N/D')
                     guia_etq = pedido_sel.get('numero_guia', 'SIN GUÍA')
-                    ctrl_etq = val_ctrl_final
+                    ctrl_etq = pedido_sel.get('numero_control', 'SIN GUÍA')
                     num_fact_etq = pedido_sel.get('numero_factura', 'N/A')
 
                     html_label = f"""
