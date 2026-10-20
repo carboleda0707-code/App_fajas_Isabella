@@ -11,41 +11,43 @@ def obtener_reporte_despachos(
     provincia: str = None,
     db: Session = Depends(get_db)
 ):
-    sql = text("""
-        SELECT id, numero_factura, tipo_factura, fecha_factura, entidad_nombre, entidad_ruc, 
-               provincia, ciudad, direccion_entrega, referencia_direccion, courier_nombre, 
-               repartidor, numero_guia, control_numero, estado_despacho, total_factura
-        FROM facturas 
-        WHERE tipo_factura = 'VENTA'
-        ORDER BY id DESC
-    """)
-    result = db.execute(sql).fetchall()
-    
-    reporte = []
-    for row in result:
-        d = row._asdict() if hasattr(row, '_asdict') else dict(zip(row.keys(), row))
+    try:
+        # Usamos SELECT * para que nunca falle por columnas faltantes en producción
+        sql = text("""
+            SELECT *
+            FROM facturas 
+            WHERE tipo_factura = 'VENTA'
+            ORDER BY id DESC
+        """)
+        result = db.execute(sql).fetchall()
         
-        ctrl_val = d.get('control_numero')
-        ctrl_str = str(ctrl_val).strip() if (ctrl_val is not None and str(ctrl_val).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
+        reporte = []
+        for row in result:
+            d = row._asdict() if hasattr(row, '_asdict') else dict(zip(row.keys(), row))
+            
+            ctrl_val = d.get('control_numero')
+            ctrl_str = str(ctrl_val).strip() if (ctrl_val is not None and str(ctrl_val).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
 
-        reporte.append({
-            "factura_id": d.get('id'),
-            "numero_factura": d.get('numero_factura'),
-            "fecha": str(d.get('fecha_factura')) if d.get('fecha_factura') else "N/A",
-            "cliente": d.get('entidad_nombre') or "Consumidor Final",
-            "ruc_cedula": d.get('entidad_ruc') or "N/D",
-            "provincia": d.get('provincia') or "Guayas",
-            "ciudad": d.get('ciudad') or "Guayaquil",
-            "direccion": d.get('direccion_entrega') or "N/A",
-            "referencia": d.get('referencia_direccion') or "",
-            "courier": d.get('courier_nombre') or "Servientrega",
-            "repartidor": d.get('repartidor') or "N/D",
-            "numero_guia": d.get('numero_guia') or "SIN GUÍA",
-            "control_numero": ctrl_str,
-            "estado_despacho": d.get('estado_despacho') or "PENDIENTE",
-            "total": float(d.get('total_factura') or 0.0)
-        })
-    return reporte
+            reporte.append({
+                "factura_id": d.get('id'),
+                "numero_factura": d.get('numero_factura'),
+                "fecha": str(d.get('fecha_factura')) if d.get('fecha_factura') else "N/A",
+                "cliente": d.get('entidad_nombre') or d.get('cliente') or "Consumidor Final",
+                "ruc_cedula": d.get('entidad_ruc') or d.get('ruc_cedula') or "N/D",
+                "provincia": d.get('provincia') or "Guayas",
+                "ciudad": d.get('ciudad') or "Guayaquil",
+                "direccion": d.get('direccion_entrega') or d.get('direccion') or "N/A",
+                "referencia": d.get('referencia_direccion') or d.get('referencia') or "",
+                "courier": d.get('courier_nombre') or d.get('courier') or "Servientrega",
+                "repartidor": d.get('repartidor') or "N/D",
+                "numero_guia": d.get('numero_guia') or "SIN GUÍA",
+                "control_numero": ctrl_str,
+                "estado_despacho": d.get('estado_despacho') or "PENDIENTE",
+                "total": float(d.get('total_factura') or d.get('total') or 0.0)
+            })
+        return reporte
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener reporte: {str(e)}")
 
 @router.post("/despachos/actualizar")
 def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
@@ -74,11 +76,10 @@ def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
             
         estado_solicitado = payload.get("estado_despacho", "").upper().strip()
 
-        # Leer control_numero actual
+        # Leer control_numero actual de forma segura
         res_ctrl = db.execute(text("SELECT control_numero FROM facturas WHERE id = :fid"), {"fid": factura.id}).fetchone()
         ctrl_actual_str = str(res_ctrl[0]).strip() if (res_ctrl and res_ctrl[0] is not None and str(res_ctrl[0]).strip() not in ["None", "null", "", "SIN CONTROL"]) else ""
 
-        # Autogenerar si hay guía o estado avanzado y no tiene control
         if (numero_guia != "SIN GUÍA") or estado_solicitado in ["EMPACADO", "EN TRÁNSITO", "ENTREGADO"]:
             if not ctrl_actual_str:
                 res_max = db.execute(text("SELECT MAX(CAST(NULLIF(control_numero, '') AS INTEGER)) FROM facturas WHERE tipo_factura = 'VENTA' AND control_numero ~ '^[0-9]+$'")).fetchone()
@@ -102,7 +103,6 @@ def actualizar_despacho(payload: dict, db: Session = Depends(get_db)):
             else:
                 estado_despacho = "PENDIENTE"
 
-        # Actualizar base de datos
         db.execute(text("""
             UPDATE facturas 
             SET control_numero = :ctrl, 
