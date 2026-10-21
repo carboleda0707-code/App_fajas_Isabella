@@ -397,7 +397,7 @@ def render_despachos():
 
                 with col_b:
                     st.markdown("#### 🏷️ Membrete Individual de Vista Previa")
-                    
+    
                     nom_dest = pedido_sel.get('cliente', 'Consumidor Final')
                     ruc_dest = pedido_sel.get('ruc_cedula', 'N/D')
                     telf_dest = pedido_sel.get('telefono', 'N/D')
@@ -405,11 +405,21 @@ def render_despachos():
                     ciud_dest = pedido_sel.get('ciudad', 'Guayaquil')
                     dir_dest = pedido_sel.get('direccion', 'Dirección no especificada')
                     ref_dest = pedido_sel.get('referencia', 'Sin referencia')
-                    cour_etq = courier_show
                     
-                    rep_etq = repartidor_show
-                    guia_etq = guia_show
-                    control_etq = control_show
+                    # Leemos del input si el usuario está escribiendo en el formulario, de lo contrario usamos la base de datos
+                    cour_etq = nuevo_courier if 'nuevo_courier' in locals() else pedido_sel.get('courier', 'Servientrega')
+                    
+                    rep_etq = nuevo_repartidor if ('nuevo_repartidor' in locals() and nuevo_repartidor) else repartidor_show
+                    guia_etq = nueva_guia if ('nueva_guia' in locals() and nueva_guia) else guia_show
+                    control_etq = nuevo_control if ('nuevo_control' in locals() and nuevo_control) else control_show
+
+                    if not rep_etq or str(rep_etq).strip() in ["None", "null", "", "nan", "NaN"]:
+                        rep_etq = "N/D"
+                    if not guia_etq or str(guia_etq).strip() in ["None", "null", "", "SIN GUÍA", "nan", "NaN"]:
+                        guia_etq = "SIN GUÍA"
+                    if not control_etq or str(control_etq).strip() in ["None", "null", "", "SIN CONTROL", "nan", "NaN"]:
+                        control_etq = "SIN CONTROL"
+
                     num_fact_etq = str(num_fact)
 
                     html_label = f"""
