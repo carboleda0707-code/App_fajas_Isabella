@@ -105,7 +105,10 @@ def render_despachos():
                 val_guia_tabla = str(val_guia).strip() if (val_guia is not None and str(val_guia).strip() not in ["None", "null", "", "SIN GUÍA"]) else "SIN GUÍA"
 
                 val_ctrl = r.get("numero_control")
-                val_ctrl_tabla = str(val_ctrl).strip() if (val_ctrl is not None and str(val_ctrl).strip() not in ["None", "null", "", "9 CONTROL"]) else "10 CONTROL"
+                if val_ctrl is not None and str(val_ctrl).strip() not in ["None", "null", "", "nan", "NaN"]:
+                    val_ctrl_tabla = str(val_ctrl).strip()
+                else:
+                    val_ctrl_tabla = "10 CONTROL"
 
                 data_tabla.append({
                     "Nº Orden Venta": r.get("numero_factura", "N/A"),
@@ -253,8 +256,11 @@ def render_despachos():
                     raw_guia_etq = pedido_sel.get('numero_guia', 'SIN GUÍA')
                     guia_etq = str(raw_guia_etq).strip() if (raw_guia_etq is not None and str(raw_guia_etq).strip() not in ["None", "null", "", "SIN GUÍA", "nan", "NaN"]) else "SIN GUÍA"
 
-                    raw_ctrl_etq = pedido_sel.get('numero_control', '6 CONTROL')
-                    ctrl_etq = str(raw_ctrl_etq).strip() if (raw_ctrl_etq is not None and str(raw_ctrl_etq).strip() not in ["None", "null", "", "7 CONTROL", "nan", "NaN"]) else "8 CONTROL"
+                    raw_ctrl_etq = pedido_sel.get('numero_control')
+                    if raw_ctrl_etq is not None and str(raw_ctrl_etq).strip() not in ["None", "null", "", "nan", "NaN"]:
+                        ctrl_etq = str(raw_ctrl_etq).strip()
+                    else:
+                        ctrl_etq = "6 CONTROL"
                     
                     num_fact_etq = pedido_sel.get('numero_factura', 'N/A')
 
