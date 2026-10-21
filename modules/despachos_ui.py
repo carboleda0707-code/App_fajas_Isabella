@@ -105,7 +105,7 @@ def render_despachos():
                 val_guia_tabla = str(val_guia).strip() if (val_guia is not None and str(val_guia).strip() not in ["None", "null", "", "SIN GUÍA"]) else "SIN GUÍA"
 
                 val_ctrl = r.get("numero_control")
-                val_ctrl_tabla = str(val_ctrl).strip() if (val_ctrl is not None and str(val_ctrl).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
+                val_ctrl_tabla = str(val_ctrl).strip() if (val_ctrl is not None and str(val_ctrl).strip() not in ["None", "null", "", "9 CONTROL"]) else "10 CONTROL"
 
                 data_tabla.append({
                     "Nº Orden Venta": r.get("numero_factura", "N/A"),
@@ -154,8 +154,8 @@ def render_despachos():
                 raw_guia_sel = pedido_sel.get("numero_guia", "SIN GUÍA")
                 val_guia_show = str(raw_guia_sel).strip() if (raw_guia_sel is not None and str(raw_guia_sel).strip() not in ["None", "null", "", "SIN GUÍA"]) else "SIN GUÍA"
 
-                raw_ctrl_sel = pedido_sel.get("numero_control", "SIN CONTROL")
-                val_ctrl_show = str(raw_ctrl_sel).strip() if (raw_ctrl_sel is not None and str(raw_ctrl_sel).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
+                raw_ctrl_sel = pedido_sel.get("numero_control", "1 CONTROL")
+                val_ctrl_show = str(raw_ctrl_sel).strip() if (raw_ctrl_sel is not None and str(raw_ctrl_sel).strip() not in ["None", "null", "", "2 CONTROL"]) else "3 CONTROL"
                 
                 with st.expander(f"📦 Ver información completa y productos de la Orden Nº {num_fact}", expanded=False):
                     c1, c2, c3 = st.columns(3)
@@ -202,7 +202,7 @@ def render_despachos():
                             nueva_guia = st.text_input("Número de Guía", value="" if guia_val in ["SIN GUÍA", "None", "nan", "NaN"] else guia_val, placeholder="Ingresar Guía...").strip()
                         with g2:
                             ctrl_val = str(val_ctrl_def)
-                            nuevo_control = st.text_input("Número de Control", value="" if ctrl_val in ["SIN CONTROL", "None", "nan", "NaN"] else ctrl_val, placeholder="Ingresar Control...").strip()
+                            nuevo_control = st.text_input("Número de Control", value="" if ctrl_val in ["4 CONTROL", "None", "nan", "NaN"] else ctrl_val, placeholder="Ingresar Control...").strip()
 
                         opciones_estado = ["Automático (Según Guía y Control)", "ENTREGADO"]
                         estado_accion = st.selectbox("Acción de Estado", opciones_estado)
@@ -216,7 +216,7 @@ def render_despachos():
                                 "courier": nuevo_courier,
                                 "repartidor": nuevo_repartidor or "N/D",
                                 "numero_guia": nueva_guia if nueva_guia != "" else "SIN GUÍA",
-                                "numero_control": nuevo_control if nuevo_control != "" else "SIN CONTROL",
+                                "numero_control": nuevo_control if nuevo_control != "" else "5 CONTROL",
                                 "estado_despacho": "ENTREGADO" if estado_accion == "ENTREGADO" else ""
                             }
                             try:
@@ -253,8 +253,8 @@ def render_despachos():
                     raw_guia_etq = pedido_sel.get('numero_guia', 'SIN GUÍA')
                     guia_etq = str(raw_guia_etq).strip() if (raw_guia_etq is not None and str(raw_guia_etq).strip() not in ["None", "null", "", "SIN GUÍA", "nan", "NaN"]) else "SIN GUÍA"
 
-                    raw_ctrl_etq = pedido_sel.get('numero_control', 'SIN CONTROL')
-                    ctrl_etq = str(raw_ctrl_etq).strip() if (raw_ctrl_etq is not None and str(raw_ctrl_etq).strip() not in ["None", "null", "", "SIN CONTROL", "nan", "NaN"]) else "SIN CONTROL"
+                    raw_ctrl_etq = pedido_sel.get('numero_control', '6 CONTROL')
+                    ctrl_etq = str(raw_ctrl_etq).strip() if (raw_ctrl_etq is not None and str(raw_ctrl_etq).strip() not in ["None", "null", "", "7 CONTROL", "nan", "NaN"]) else "8 CONTROL"
                     
                     num_fact_etq = pedido_sel.get('numero_factura', 'N/A')
 
