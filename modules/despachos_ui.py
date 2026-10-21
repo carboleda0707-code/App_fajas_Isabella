@@ -123,13 +123,14 @@ def render_despachos():
             st.dataframe(pd.DataFrame(data_tabla), use_container_width=True, hide_index=True)
             st.divider()
 
+            # --- GESTIÓN Y DETALLE DE ORDEN SELECCIONADA ---
             opts_pedidos = {
                 f"Orden #{r.get('numero_factura')} - {r.get('cliente', 'N/A')} ({r.get('ciudad', 'Guayaquil')})": r
                 for _, r in df_filtrado.iterrows()
             }
 
             if opts_pedidos:
-                st.markdown("#### 🎛️ Gestión y Detalle de Orden Seleccionada")
+                st.markdown("#### 🎛️ Gestión, Regla de Oro y Detalle de Orden Seleccionada")
                 
                 keys_pedidos = list(opts_pedidos.keys())
                 if "ultima_orden_seleccionada" not in st.session_state or st.session_state.ultima_orden_seleccionada not in keys_pedidos:
@@ -144,19 +145,20 @@ def render_despachos():
                 st.session_state.ultima_orden_seleccionada = ped_sel_label
                 pedido_sel = opts_pedidos[ped_sel_label]
 
-                with st.expander("🕵️‍♂️ CHIVATO: Inspeccionar datos de la orden seleccionada", expanded=True):
-                    st.json(dict(pedido_sel))
-
                 f_id_sel = pedido_sel.get("factura_id", pedido_sel.get("id"))
                 num_fact = pedido_sel.get("numero_factura")
                 
-                guia_show = str(pedido_sel.get("numero_guia", "SIN GUÍA")).strip()
-                if guia_show in ["None", "null", "", "nan", "NaN"]:
-                    guia_show = "SIN GUÍA"
+                # Extracción directa del backend garantizando valores si existen
+                raw_g_sel = pedido_sel.get("numero_guia")
+                guia_show = str(raw_g_sel).strip() if (raw_g_sel is not None and str(raw_g_sel).strip() not in ["None", "null", "", "SIN GUÍA", "nan", "NaN"]) else ""
 
-                control_show = str(pedido_sel.get("numero_control", "SIN CONTROL")).strip()
-                if control_show in ["None", "null", "", "nan", "NaN"]:
-                    control_show = "SIN CONTROL"
+                raw_c_sel = pedido_sel.get("numero_control")
+                control_show = str(raw_c_sel).strip() if (raw_c_sel is not None and str(raw_c_sel).strip() not in ["None", "null", "", "SIN CONTROL", "nan", "NaN"]) else ""
+
+                raw_r_sel = pedido_sel.get("repartidor")
+                repartidor_show = str(raw_r_sel).strip() if (raw_r_sel is not None and str(raw_r_sel).strip() not in ["None", "null", "", "N/D", "nan", "NaN"]) else ""
+
+                courier_show = pedido_sel.get("courier", "Servientrega")
                 
                 with st.expander(f"📦 Ver información completa y productos de la Orden Nº {num_fact}", expanded=False):
                     c1, c2, c3 = st.columns(3)
@@ -169,54 +171,56 @@ def render_despachos():
                         st.write(f"**Dirección:** {pedido_sel.get('direccion', 'N/A')}")
                         st.write(f"**Referencia:** {pedido_sel.get('referencia', 'Sin referencia')}")
                     with c3:
-                        st.write(f"**Courier / Repartidor:** {pedido_sel.get('courier', 'Servientrega')} ({pedido_sel.get('repartidor', 'N/D')})")
-                        st.write(f"**Nº Guía:** `{guia_show}`")
-                        st.write(f"**Nº Control:** `{control_show}`")
+                        st.write(f"**Courier / Repartidor:** {courier_show} ({repartidor_show or 'N/D'})")
+                        st.write(f"**Nº Guía:** `{guia_show or 'SIN GUÍA'}`")
+                        st.write(f"**Nº Control:** `{control_show or 'SIN CONTROL'}`")
                         st.write(f"**Estado Despacho:** `{pedido_sel.get('estado_despacho', 'PENDIENTE')}`")
 
                 st.markdown("---")
-
-                val_courier_def = pedido_sel.get("courier", "Servientrega")
-                val_repartidor_def = pedido_sel.get("repartidor", "")
-                val_guia_def = "" if guia_show == "SIN GUÍA" else guia_show
-                val_ctrl_def = "" if control_show == "SIN CONTROL" else control_show
 
                 col_a, col_b = st.columns(2)
 
                 with col_a:
                     st.markdown("#### 🚚 Actualizar Guía, Control, Repartidor y Estado")
+                    st.write(f"**Modificando:** Orden de Venta Nº `{num_fact}`")
                     
-                    with st.form("form_actualizar_despacho_final"):
-                        st.write(f"**Modificando:** Orden de Venta Nº `{num_fact}`")
-                        
-                        c_col1, c_col2 = st.columns(2)
-                        with c_col1:
-                            couriers_opt = ["Servientrega", "Tame Cargo", "Cooperativa", "Uber/Moto", "Retiro en Local", "Otro"]
-                            c_idx = couriers_opt.index(val_courier_def) if val_courier_def in couriers_opt else 0
-                            nuevo_courier = st.selectbox("Courier / Transporte", couriers_opt, index=c_idx)
-                        with c_col2:
-                            nuevo_repartidor = st.text_input("Nombre Repartidor / Chofer", value=str(val_repartidor_def or ""), placeholder="Ej: Juan Pérez / Placa HJA-123").strip()
+                    c_col1, c_col2 = st.columns(2)
+                    with c_col1:
+                        couriers_opt = ["Servientrega", "Tame Cargo", "Cooperativa", "Uber/Moto", "Retiro en Local", "Otro"]
+                        c_idx = couriers_opt.index(courier_show) if courier_show in couriers_opt else 0
+                        nuevo_courier = st.selectbox("Courier / Transporte", couriers_opt, index=c_idx, key=f"sel_courier_{num_fact}")
+                    with c_col2:
+                        # CARGA OBLIGATORIA DEL REPARTIDOR GUARDADO
+                        nuevo_repartidor = st.text_input("Nombre Repartidor / Chofer", value=repartidor_show, placeholder="Ej: Moto Hermano 15", key=f"inp_rep_{num_fact}").strip()
 
-                        g1, g2 = st.columns(2)
-                        with g1:
-                            nueva_guia = st.text_input("Número de Guía", value=val_guia_def, placeholder="Ingresar Guía...").strip()
-                        with g2:
-                            nuevo_control = st.text_input("Número de Control", value=val_ctrl_def, placeholder="Ingresar Control...").strip()
+                    g1, g2 = st.columns(2)
+                    with g1:
+                        # CARGA OBLIGATORIA DE LA GUÍA GUARDADA
+                        nueva_guia = st.text_input("Número de Guía", value=guia_show, placeholder="Ingresar Guía...", key=f"inp_guia_{num_fact}").strip()
+                    with g2:
+                        # CARGA OBLIGATORIA DEL NÚMERO DE CONTROL GUARDADO
+                        nuevo_control = st.text_input("Número de Control", value=control_show, placeholder="Ingresar Control...", key=f"inp_ctrl_{num_fact}").strip()
 
-                        opciones_estado = ["Automático (Según Guía y Control)", "ENTREGADO"]
-                        estado_accion = st.selectbox("Acción de Estado", opciones_estado)
+                    st.markdown("---")
+                    st.info("ℹ️ **Regla de Oro:** Si ingresas Número de Guía, es obligatorio tener un Número de Control guardado. Al tener ambos valores, el estado cambia automáticamente a **EN TRÁNSITO**.")
 
-                        submit_guia = st.form_submit_button("💾 Guardar Cambios de Despacho", type="primary", use_container_width=True)
+                    if st.button("💾 Guardar Cambios de Despacho", type="primary", use_container_width=True, key=f"btn_save_{num_fact}"):
+                        nc_temp = nuevo_control if nuevo_control != "" else "SIN CONTROL"
+                        ng_temp = nueva_guia if nueva_guia != "" else "SIN GUÍA"
 
-                        if submit_guia:
+                        if ng_temp != "SIN GUÍA" and nc_temp == "SIN CONTROL":
+                            st.error("⚠️ Regla de Oro Violada: ¡No puedes guardar un Número de Guía sin haber ingresado y guardado primero el Número de Control!")
+                        else:
+                            est_calculado = "EN TRÁNSITO" if (ng_temp != "SIN GUÍA" and nc_temp != "SIN CONTROL") else ""
+
                             payload = {
                                 "factura_id": f_id_sel,
                                 "numero_factura": str(num_fact),
                                 "courier": nuevo_courier,
                                 "repartidor": nuevo_repartidor or "N/D",
-                                "numero_guia": nueva_guia if nueva_guia != "" else "SIN GUÍA",
-                                "numero_control": nuevo_control if nuevo_control != "" else "SIN CONTROL",
-                                "estado_despacho": "ENTREGADO" if estado_accion == "ENTREGADO" else ""
+                                "numero_guia": ng_temp,
+                                "numero_control": nc_temp,
+                                "estado_despacho": est_calculado
                             }
                             try:
                                 with st.spinner("Guardando en servidor..."):
@@ -224,8 +228,6 @@ def render_despachos():
                                 
                                 if res_put.status_code in [200, 201]:
                                     st.success(f"✅ Orden de Venta #{num_fact} actualizada con éxito.")
-                                    if "logged_in" not in st.session_state:
-                                        st.session_state.logged_in = True
                                     st.rerun() 
                                 else:
                                     try:
@@ -237,7 +239,7 @@ def render_despachos():
                                 st.error(f"❌ Error de conexión al guardar: {str(ex)}")
 
                 with col_b:
-                    st.markdown("#### 🏷️ Generar Membrete de Envío (De / Para)")
+                    st.markdown("#### 🏷️ Membrete Individual de Vista Previa")
                     
                     nom_dest = pedido_sel.get('cliente', 'Consumidor Final')
                     ruc_dest = pedido_sel.get('ruc_cedula', 'N/D')
@@ -246,19 +248,12 @@ def render_despachos():
                     ciud_dest = pedido_sel.get('ciudad', 'Guayaquil')
                     dir_dest = pedido_sel.get('direccion', 'Dirección no especificada')
                     ref_dest = pedido_sel.get('referencia', 'Sin referencia')
-                    cour_etq = nuevo_courier if 'nuevo_courier' in locals() else pedido_sel.get('courier', 'Servientrega')
                     
-                    # Leemos directamente de los inputs del formulario o del pedido seleccionado con respaldo seguro
-                    rep_etq = nuevo_repartidor if ('nuevo_repartidor' in locals() and nuevo_repartidor) else (pedido_sel.get('repartidor') or "N/D")
-                    guia_etq = nueva_guia if ('nueva_guia' in locals() and nueva_guia) else guia_show
-                    control_etq = nuevo_control if ('nuevo_control' in locals() and nuevo_control) else control_show
-                    
-                    if not rep_etq or str(rep_etq).strip() in ["None", "null", "", "nan", "NaN"]:
-                        rep_etq = "N/D"
-                    if not guia_etq or str(guia_etq).strip() in ["None", "null", "", "SIN GUÍA", "nan", "NaN"]:
-                        guia_etq = "SIN GUÍA"
-                    if not control_etq or str(control_etq).strip() in ["None", "null", "", "SIN CONTROL", "nan", "NaN"]:
-                        control_etq = "SIN CONTROL"
+                    # Sincronización estricta en tiempo real con los inputs o con la base de datos
+                    cour_etq = nuevo_courier
+                    rep_etq = nuevo_repartidor if nuevo_repartidor != "" else (repartidor_show or "N/D")
+                    guia_etq = nueva_guia if nueva_guia != "" else (guia_show or "SIN GUÍA")
+                    control_etq = nuevo_control if nuevo_control != "" else (control_show or "SIN CONTROL")
 
                     num_fact_etq = str(num_fact)
 
@@ -298,7 +293,7 @@ def render_despachos():
                     st.components.v1.html(html_label, height=350, scrolling=True)
 
                     st.download_button(
-                        label="💾 Guardar Membrete (HTML)",
+                        label="💾 Guardar Membrete Individual (HTML)",
                         data=html_label,
                         file_name=f"Membrete_Orden_{num_fact_etq}.html",
                         mime="text/html",
