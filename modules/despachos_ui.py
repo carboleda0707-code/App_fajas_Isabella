@@ -246,11 +246,20 @@ def render_despachos():
                     ciud_dest = pedido_sel.get('ciudad', 'Guayaquil')
                     dir_dest = pedido_sel.get('direccion', 'Dirección no especificada')
                     ref_dest = pedido_sel.get('referencia', 'Sin referencia')
-                    cour_etq = pedido_sel.get('courier', 'Servientrega')
-                    rep_etq = pedido_sel.get('repartidor', 'N/D')
+                    cour_etq = nuevo_courier if 'nuevo_courier' in locals() else pedido_sel.get('courier', 'Servientrega')
                     
-                    guia_etq = guia_show
-                    control_etq = control_show
+                    # Leemos directamente de los inputs del formulario o del pedido seleccionado con respaldo seguro
+                    rep_etq = nuevo_repartidor if ('nuevo_repartidor' in locals() and nuevo_repartidor) else (pedido_sel.get('repartidor') or "N/D")
+                    guia_etq = nueva_guia if ('nueva_guia' in locals() and nueva_guia) else guia_show
+                    control_etq = nuevo_control if ('nuevo_control' in locals() and nuevo_control) else control_show
+                    
+                    if not rep_etq or str(rep_etq).strip() in ["None", "null", "", "nan", "NaN"]:
+                        rep_etq = "N/D"
+                    if not guia_etq or str(guia_etq).strip() in ["None", "null", "", "SIN GUÍA", "nan", "NaN"]:
+                        guia_etq = "SIN GUÍA"
+                    if not control_etq or str(control_etq).strip() in ["None", "null", "", "SIN CONTROL", "nan", "NaN"]:
+                        control_etq = "SIN CONTROL"
+
                     num_fact_etq = str(num_fact)
 
                     html_label = f"""
