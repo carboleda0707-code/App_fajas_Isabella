@@ -396,7 +396,7 @@ def render_despachos():
                                     st.error(f"❌ Error de conexión al guardar: {str(ex)}")
 
                 with col_b:
-                    st.markdown("#### 🏷️ Membrete Individual de Vista Previa")
+                    st.markdown("##### 🏷️ Membrete Individual de Vista Previa")
     
                     nom_dest = pedido_sel.get('cliente', 'Consumidor Final')
                     ruc_dest = pedido_sel.get('ruc_cedula', 'N/D')
