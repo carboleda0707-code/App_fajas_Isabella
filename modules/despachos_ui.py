@@ -96,7 +96,6 @@ def render_despachos():
             # --- TABLA CON SELECCIÓN MÚLTIPLE (CHECKBOX) ---
             st.markdown("#### 📋 Listado de Pedidos y Selección para Impresión Múltiple (3 por A4)")
             
-            # Preparar dataframe interactivo con columna de selección
             df_tabla_ui = []
             for idx, r in df_filtrado.iterrows():
                 estado_bruto = r.get("estado_despacho", "PENDIENTE")
@@ -105,7 +104,7 @@ def render_despachos():
                 guia_tabla = guia_val if guia_val not in ["None", "null", "", "nan", "NaN"] else "SIN GUÍA"
 
                 control_val = str(r.get("numero_control", "SIN CONTROL")).strip()
-                control_tabla = control_val if control_val not in ["None", "null", "", "nan", "NaN"] else "SIN CONTROL"
+                control_tabla = control_val if control_val not in ["None", "null", "", "SIN CONTROL", "nan", "NaN"] else "SIN CONTROL"
 
                 df_tabla_ui.append({
                     "Seleccionar": False,
@@ -124,10 +123,9 @@ def render_despachos():
             df_edit_table = pd.DataFrame(df_tabla_ui)
             
             if not df_edit_table.empty:
-                # Mostrar data_editor para permitir marcar los checkboxes
                 columns_config = {
                     "Seleccionar": st.column_config.CheckboxColumn("🖨️ Imprimir", default=False),
-                    "_raw": None # Ocultar columna técnica
+                    "_raw": None
                 }
                 
                 df_resultado_editado = st.data_editor(
@@ -138,15 +136,12 @@ def render_despachos():
                     key="editor_tabla_despachos"
                 )
 
-                # Identificar filas seleccionadas
                 seleccionados_indices = df_resultado_editado[df_resultado_editado["Seleccionar"] == True].index.tolist()
                 pedidos_seleccionados_lote = [df_tabla_ui[i]["_raw"] for i in seleccionados_indices]
 
-                # Botón para generar hoja A4 múltiple si hay seleccionados
                 if pedidos_seleccionados_lote:
                     st.markdown(f"**{len(pedidos_seleccionados_lote)} pedido(s) marcado(s) para impresión múltiple.**")
                     
-                    # Generar HTML en bloque de 3 por A4
                     html_lote = """
                     <!DOCTYPE html>
                     <html lang="es">
@@ -216,7 +211,6 @@ def render_despachos():
                         </div>
                     """
                     
-                    # Agrupar de 3 en 3
                     for i in range(0, len(pedidos_seleccionados_lote), 3):
                         grupo = pedidos_seleccionados_lote[i:i+3]
                         html_lote += '<div class="hoja-a4">'
@@ -230,9 +224,15 @@ def render_despachos():
                             d_dir = ped.get('direccion', 'N/A')
                             r_ref = ped.get('referencia', 'Sin referencia')
                             co_cur = str(ped.get('courier', 'Servientrega')).upper()
-                            re_rep = ped.get('repartidor', 'N/D')
-                            gu_g = str(ped.get('numero_guia', 'SIN GUÍA'))
-                            co_c = str(ped.get('numero_control', 'SIN CONTROL'))
+                            
+                            raw_rep = ped.get('repartidor')
+                            re_rep = str(raw_rep).strip() if (raw_rep is not None and str(raw_rep).strip() not in ["None", "null", "", "N/D", "nan", "NaN"]) else "N/D"
+
+                            raw_guia = ped.get('numero_guia')
+                            gu_g = str(raw_guia).strip() if (raw_guia is not None and str(raw_guia).strip() not in ["None", "null", "", "SIN GUÍA", "nan", "NaN"]) else "SIN GUÍA"
+
+                            raw_ctrl = ped.get('numero_control')
+                            co_c = str(raw_ctrl).strip() if (raw_ctrl is not None and str(raw_ctrl).strip() not in ["None", "null", "", "SIN CONTROL", "nan", "NaN"]) else "SIN CONTROL"
                             
                             html_lote += f"""
                             <div class="membrete-card">
@@ -257,7 +257,6 @@ def render_despachos():
                                 </div>
                             </div>
                             """
-                        # Si el grupo tiene menos de 3, rellenar con espacios vacíos para mantener formato vertical
                         for _ in range(3 - len(grupo)):
                             html_lote += '<div style="height: 87mm;"></div>'
                             
@@ -300,13 +299,17 @@ def render_despachos():
                 f_id_sel = pedido_sel.get("factura_id", pedido_sel.get("id"))
                 num_fact = pedido_sel.get("numero_factura")
                 
-                guia_show = str(pedido_sel.get("numero_guia", "SIN GUÍA")).strip()
-                if guia_show in ["None", "null", "", "nan", "NaN"]:
-                    guia_show = "SIN GUÍA"
+                # Saneamiento robusto para el detalle seleccionado
+                raw_g_sel = pedido_sel.get("numero_guia")
+                guia_show = str(raw_g_sel).strip() if (raw_g_sel is not None and str(raw_g_sel).strip() not in ["None", "null", "", "SIN GUÍA", "nan", "NaN"]) else "SIN GUÍA"
 
-                control_show = str(pedido_sel.get("numero_control", "SIN CONTROL")).strip()
-                if control_show in ["None", "null", "", "SIN CONTROL", "nan", "NaN"]:
-                    control_show = "SIN CONTROL"
+                raw_c_sel = pedido_sel.get("numero_control")
+                control_show = str(raw_c_sel).strip() if (raw_c_sel is not None and str(raw_c_sel).strip() not in ["None", "null", "", "SIN CONTROL", "nan", "NaN"]) else "SIN CONTROL"
+
+                raw_r_sel = pedido_sel.get("repartidor")
+                repartidor_show = str(raw_r_sel).strip() if (raw_r_sel is not None and str(raw_r_sel).strip() not in ["None", "null", "", "N/D", "nan", "NaN"]) else "N/D"
+
+                courier_show = pedido_sel.get("courier", "Servientrega")
                 
                 with st.expander(f"📦 Ver información completa y productos de la Orden Nº {num_fact}", expanded=False):
                     c1, c2, c3 = st.columns(3)
@@ -319,15 +322,15 @@ def render_despachos():
                         st.write(f"**Dirección:** {pedido_sel.get('direccion', 'N/A')}")
                         st.write(f"**Referencia:** {pedido_sel.get('referencia', 'Sin referencia')}")
                     with c3:
-                        st.write(f"**Courier / Repartidor:** {pedido_sel.get('courier', 'Servientrega')} ({pedido_sel.get('repartidor', 'N/D')})")
+                        st.write(f"**Courier / Repartidor:** {courier_show} ({repartidor_show})")
                         st.write(f"**Nº Guía:** `{guia_show}`")
                         st.write(f"**Nº Control:** `{control_show}`")
                         st.write(f"**Estado Despacho:** `{pedido_sel.get('estado_despacho', 'PENDIENTE')}`")
 
                 st.markdown("---")
 
-                val_courier_def = pedido_sel.get("courier", "Servientrega")
-                val_repartidor_def = pedido_sel.get("repartidor", "")
+                val_courier_def = courier_show
+                val_repartidor_def = "" if repartidor_show == "N/D" else repartidor_show
                 val_guia_def = "" if guia_show == "SIN GUÍA" else guia_show
                 val_ctrl_def = "" if control_show == "SIN CONTROL" else control_show
 
@@ -359,14 +362,12 @@ def render_despachos():
                         submit_guia = st.form_submit_button("💾 Guardar Cambios de Despacho", type="primary", use_container_width=True)
 
                         if submit_guia:
-                            # Validación de Oro: No puede poner guía si no hay control
                             nc_temp = nuevo_control if nuevo_control != "" else "SIN CONTROL"
                             ng_temp = nueva_guia if nueva_guia != "" else "SIN GUÍA"
 
                             if ng_temp != "SIN GUÍA" and nc_temp == "SIN CONTROL":
                                 st.error("⚠️ Regla de Oro Violada: ¡No puedes guardar un Número de Guía sin haber ingresado y guardado primero el Número de Control!")
                             else:
-                                # Lógica automática de estado: Si tiene Guía y Control válidos, pasa a EN TRÁNSITO
                                 est_calculado = "EN TRÁNSITO" if (ng_temp != "SIN GUÍA" and nc_temp != "SIN CONTROL") else ""
 
                                 payload = {
@@ -404,9 +405,9 @@ def render_despachos():
                     ciud_dest = pedido_sel.get('ciudad', 'Guayaquil')
                     dir_dest = pedido_sel.get('direccion', 'Dirección no especificada')
                     ref_dest = pedido_sel.get('referencia', 'Sin referencia')
-                    cour_etq = pedido_sel.get('courier', 'Servientrega')
+                    cour_etq = courier_show
                     
-                    rep_etq = pedido_sel.get('repartidor', 'N/D')
+                    rep_etq = repartidor_show
                     guia_etq = guia_show
                     control_etq = control_show
                     num_fact_etq = str(num_fact)
