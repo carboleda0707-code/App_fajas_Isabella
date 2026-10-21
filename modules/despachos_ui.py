@@ -21,7 +21,7 @@ def obtener_semaforo_estado(estado):
 
 def render_despachos():
     st.subheader("📦 Control de Despachos y Envíos por Courier")
-    st.markdown("Gestiona estados, guías, números de control y genera etiquetas múltiples (3 por hoja A4).")
+    st.markdown("Gestiona estados de paquetes, asigna guías, números de control y genera etiquetas imprimibles 'De / Para'.")
 
     col_btn1, _ = st.columns([0.15, 0.85])
     with col_btn1:
@@ -38,13 +38,15 @@ def render_despachos():
                 return
 
             df_raw = pd.DataFrame(data_despachos)
+            col_total_key = "total" if "total" in df_raw.columns else ("total_factura" if "total_factura" in df_raw.columns else None)
+            df_raw["total_norm"] = pd.to_numeric(df_raw[col_total_key], errors="coerce").fillna(0.0) if col_total_key else 0.0
 
-            st.markdown("##### 🔍 Filtros de Búsqueda")
+            st.markdown("##### 🔍 Filtros de Búsqueda y Rango")
             col_f1, col_f2, col_f3, col_f4 = st.columns([2, 1.5, 1.5, 1.5])
             with col_f1:
-                busqueda = st.text_input("Buscador Rápido:", placeholder="Buscar por Nº Orden, Cliente, Guía o Control...").strip()
+                busqueda = st.text_input("Buscador Rápido:", placeholder="Buscar por Nº Orden, Cliente, Repartidor, Guía o Nº Control...").strip()
             with col_f2:
-                filtro_estado = st.selectbox("Estado Despacho:", ["TODOS", "EN TRÁNSITO", "PENDIENTE", "EMPACADO", "ENTREGADO"])
+                filtro_estado = st.selectbox("Estado Despacho:", ["TODOS", "PENDIENTE", "EMPACADO", "EN TRÁNSITO", "ENTREGADO"])
             with col_f3:
                 fecha_inicio = st.date_input("Fecha Desde:", value=date(2025, 1, 1))
             with col_f4:
@@ -57,6 +59,7 @@ def render_despachos():
                 mask = (
                     df_filtrado.get("numero_factura", "").astype(str).str.contains(busqueda, case=False, na=False) |
                     df_filtrado.get("cliente", "").astype(str).str.contains(busqueda, case=False, na=False) |
+                    df_filtrado.get("repartidor", "").astype(str).str.contains(busqueda, case=False, na=False) |
                     df_filtrado.get("numero_guia", "").astype(str).str.contains(busqueda, case=False, na=False) |
                     df_filtrado.get("numero_control", "").astype(str).str.contains(busqueda, case=False, na=False)
                 )
@@ -93,195 +96,40 @@ def render_despachos():
 
             st.divider()
 
-            # --- TABLA CON SELECCIÓN MÚLTIPLE (CHECKBOX) ---
-            st.markdown("#### 📋 Listado de Pedidos y Selección para Impresión Múltiple (3 por A4)")
-            
-            df_tabla_ui = []
-            for idx, r in df_filtrado.iterrows():
+            data_tabla = []
+            for _, r in df_filtrado.iterrows():
                 estado_bruto = r.get("estado_despacho", "PENDIENTE")
                 
                 guia_val = str(r.get("numero_guia", "SIN GUÍA")).strip()
                 guia_tabla = guia_val if guia_val not in ["None", "null", "", "nan", "NaN"] else "SIN GUÍA"
 
                 control_val = str(r.get("numero_control", "SIN CONTROL")).strip()
-                control_tabla = control_val if control_val not in ["None", "null", "", "SIN CONTROL", "nan", "NaN"] else "SIN CONTROL"
+                control_tabla = control_val if control_val not in ["None", "null", "", "nan", "NaN"] else "SIN CONTROL"
 
-                df_tabla_ui.append({
-                    "Seleccionar": False,
+                data_tabla.append({
                     "Nº Orden Venta": r.get("numero_factura", "N/A"),
                     "Fecha": r.get("fecha", "N/A"),
                     "Cliente": r.get("cliente", "Consumidor Final"),
                     "Provincia": r.get("provincia", "Guayas"),
                     "Ciudad": r.get("ciudad", "Guayaquil"),
                     "Courier": r.get("courier", "Servientrega"),
+                    "Repartidor/Chofer": r.get("repartidor", "N/D"),
                     "Nº Guía": guia_tabla,
                     "Nº Control": control_tabla,
-                    "Estado": obtener_semaforo_estado(estado_bruto),
-                    "_raw": r
+                    "Total ($)": f"${r.get('total_norm', 0.0):,.2f}",
+                    "Estado Despacho": obtener_semaforo_estado(estado_bruto)
                 })
 
-            df_edit_table = pd.DataFrame(df_tabla_ui)
-            
-            if not df_edit_table.empty:
-                columns_config = {
-                    "Seleccionar": st.column_config.CheckboxColumn("🖨️ Imprimir", default=False),
-                    "_raw": None
-                }
-                
-                df_resultado_editado = st.data_editor(
-                    df_edit_table.drop(columns=["_raw"]),
-                    column_config=columns_config,
-                    use_container_width=True,
-                    hide_index=True,
-                    key="editor_tabla_despachos"
-                )
-
-                seleccionados_indices = df_resultado_editado[df_resultado_editado["Seleccionar"] == True].index.tolist()
-                pedidos_seleccionados_lote = [df_tabla_ui[i]["_raw"] for i in seleccionados_indices]
-
-                if pedidos_seleccionados_lote:
-                    st.markdown(f"**{len(pedidos_seleccionados_lote)} pedido(s) marcado(s) para impresión múltiple.**")
-                    
-                    html_lote = """
-                    <!DOCTYPE html>
-                    <html lang="es">
-                    <head>
-                        <meta charset="UTF-8">
-                        <title>Membretes Múltiples (3 por A4)</title>
-                        <style>
-                            @page { size: A4 portrait; margin: 10mm; }
-                            body { font-family: Arial, sans-serif; margin: 0; background: #fff; }
-                            .hoja-a4 {
-                                height: 275mm;
-                                display: flex;
-                                flex-direction: column;
-                                justify-content: space-between;
-                                page-break-after: always;
-                                box-sizing: border-box;
-                                margin-bottom: 20px;
-                            }
-                            .membrete-card {
-                                border: 2px dashed #1e293b;
-                                padding: 12px 18px;
-                                border-radius: 8px;
-                                background-color: #ffffff;
-                                color: #000000;
-                                box-sizing: border-box;
-                                height: 87mm;
-                                display: flex;
-                                flex-direction: column;
-                                justify-content: space-between;
-                            }
-                            .header {
-                                display: flex;
-                                justify-content: space-between;
-                                align-items: center;
-                                border-bottom: 2px solid #000;
-                                padding-bottom: 4px;
-                            }
-                            .remitente-box {
-                                background-color: #f1f5f9;
-                                padding: 6px;
-                                border-radius: 4px;
-                                font-size: 0.8rem;
-                            }
-                            .destinatario-box {
-                                border: 1px solid #cbd5e1;
-                                padding: 8px;
-                                border-radius: 4px;
-                                font-size: 0.85rem;
-                            }
-                            .footer-info {
-                                font-size: 0.8rem;
-                                display: flex;
-                                justify-content: space-between;
-                                font-weight: bold;
-                            }
-                            @media print {
-                                .no-print { display: none; }
-                                .hoja-a4 { margin-bottom: 0; page-break-after: always; }
-                            }
-                        </style>
-                    </head>
-                    <body>
-                        <div class="no-print" style="text-align: center; margin: 15px;">
-                            <button onclick="window.print()" style="padding: 10px 25px; font-size: 16px; background: #2563eb; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                                🖨️ Imprimir Membretes (3 por Hoja A4)
-                            </button>
-                        </div>
-                    """
-                    
-                    for i in range(0, len(pedidos_seleccionados_lote), 3):
-                        grupo = pedidos_seleccionados_lote[i:i+3]
-                        html_lote += '<div class="hoja-a4">'
-                        for ped in grupo:
-                            n_ord = ped.get('numero_factura')
-                            c_cli = ped.get('cliente', 'Consumidor Final')
-                            r_ruc = ped.get('ruc_cedula', 'N/D')
-                            t_tel = ped.get('telefono', 'N/D')
-                            p_pro = ped.get('provincia', 'Guayas')
-                            c_ciu = ped.get('ciudad', 'Guayaquil')
-                            d_dir = ped.get('direccion', 'N/A')
-                            r_ref = ped.get('referencia', 'Sin referencia')
-                            co_cur = str(ped.get('courier', 'Servientrega')).upper()
-                            
-                            raw_rep = ped.get('repartidor')
-                            re_rep = str(raw_rep).strip() if (raw_rep is not None and str(raw_rep).strip() not in ["None", "null", "", "N/D", "nan", "NaN"]) else "N/D"
-
-                            raw_guia = ped.get('numero_guia')
-                            gu_g = str(raw_guia).strip() if (raw_guia is not None and str(raw_guia).strip() not in ["None", "null", "", "SIN GUÍA", "nan", "NaN"]) else "SIN GUÍA"
-
-                            raw_ctrl = ped.get('numero_control')
-                            co_c = str(raw_ctrl).strip() if (raw_ctrl is not None and str(raw_ctrl).strip() not in ["None", "null", "", "SIN CONTROL", "nan", "NaN"]) else "SIN CONTROL"
-                            
-                            html_lote += f"""
-                            <div class="membrete-card">
-                                <div class="header">
-                                    <span style="font-weight: bold; font-size: 1.1rem;">🛍️ FAJAS ISABELLA</span>
-                                    <span style="font-size: 0.85rem; font-weight: bold;">ENVÍO: {co_cur}</span>
-                                </div>
-                                <div class="remitente-box">
-                                    <strong>DE (REMITENTE):</strong> FAJAS ISABELLA | Guayaquil, Ecuador | Tel: +593 99 999 9999
-                                </div>
-                                <div class="destinatario-box">
-                                    <strong style="color: #2563eb;">PARA (DESTINATARIO):</strong> {c_cli}<br>
-                                    <strong>CI/RUC:</strong> {r_ruc} | <strong>Teléfono:</strong> {t_tel}<br>
-                                    <strong>Destino:</strong> {p_pro} - {c_ciu}<br>
-                                    <strong>Dirección:</strong> {d_dir} | <strong>Ref:</strong> {r_ref}
-                                </div>
-                                <div class="footer-info">
-                                    <span>Orden #: {n_ord}</span>
-                                    <span>Guía #: {gu_g}</span>
-                                    <span>Control #: {co_c}</span>
-                                    <span>Chofer: {re_rep}</span>
-                                </div>
-                            </div>
-                            """
-                        for _ in range(3 - len(grupo)):
-                            html_lote += '<div style="height: 87mm;"></div>'
-                            
-                        html_lote += '</div>'
-
-                    html_lote += "</body></html>"
-
-                    st.download_button(
-                        label="📥 Descargar HTML Lote Membretes (3 por A4)",
-                        data=html_lote,
-                        file_name=f"Membretes_Lote_{date.today()}.html",
-                        mime="text/html",
-                        use_container_width=True
-                    )
-
+            st.dataframe(pd.DataFrame(data_tabla), use_container_width=True, hide_index=True)
             st.divider()
 
-            # --- GESTIÓN Y DETALLE DE ORDEN SELECCIONADA ---
             opts_pedidos = {
                 f"Orden #{r.get('numero_factura')} - {r.get('cliente', 'N/A')} ({r.get('ciudad', 'Guayaquil')})": r
                 for _, r in df_filtrado.iterrows()
             }
 
             if opts_pedidos:
-                st.markdown("#### 🎛️ Gestión, Regla de Oro y Detalle de Orden Seleccionada")
+                st.markdown("#### 🎛️ Gestión y Detalle de Orden Seleccionada")
                 
                 keys_pedidos = list(opts_pedidos.keys())
                 if "ultima_orden_seleccionada" not in st.session_state or st.session_state.ultima_orden_seleccionada not in keys_pedidos:
@@ -296,20 +144,19 @@ def render_despachos():
                 st.session_state.ultima_orden_seleccionada = ped_sel_label
                 pedido_sel = opts_pedidos[ped_sel_label]
 
+                with st.expander("🕵️‍♂️ CHIVATO: Inspeccionar datos de la orden seleccionada", expanded=True):
+                    st.json(dict(pedido_sel))
+
                 f_id_sel = pedido_sel.get("factura_id", pedido_sel.get("id"))
                 num_fact = pedido_sel.get("numero_factura")
                 
-                # Saneamiento robusto para el detalle seleccionado
-                raw_g_sel = pedido_sel.get("numero_guia")
-                guia_show = str(raw_g_sel).strip() if (raw_g_sel is not None and str(raw_g_sel).strip() not in ["None", "null", "", "SIN GUÍA", "nan", "NaN"]) else "SIN GUÍA"
+                guia_show = str(pedido_sel.get("numero_guia", "SIN GUÍA")).strip()
+                if guia_show in ["None", "null", "", "nan", "NaN"]:
+                    guia_show = "SIN GUÍA"
 
-                raw_c_sel = pedido_sel.get("numero_control")
-                control_show = str(raw_c_sel).strip() if (raw_c_sel is not None and str(raw_c_sel).strip() not in ["None", "null", "", "SIN CONTROL", "nan", "NaN"]) else "SIN CONTROL"
-
-                raw_r_sel = pedido_sel.get("repartidor")
-                repartidor_show = str(raw_r_sel).strip() if (raw_r_sel is not None and str(raw_r_sel).strip() not in ["None", "null", "", "N/D", "nan", "NaN"]) else "N/D"
-
-                courier_show = pedido_sel.get("courier", "Servientrega")
+                control_show = str(pedido_sel.get("numero_control", "SIN CONTROL")).strip()
+                if control_show in ["None", "null", "", "nan", "NaN"]:
+                    control_show = "SIN CONTROL"
                 
                 with st.expander(f"📦 Ver información completa y productos de la Orden Nº {num_fact}", expanded=False):
                     c1, c2, c3 = st.columns(3)
@@ -322,15 +169,15 @@ def render_despachos():
                         st.write(f"**Dirección:** {pedido_sel.get('direccion', 'N/A')}")
                         st.write(f"**Referencia:** {pedido_sel.get('referencia', 'Sin referencia')}")
                     with c3:
-                        st.write(f"**Courier / Repartidor:** {courier_show} ({repartidor_show})")
+                        st.write(f"**Courier / Repartidor:** {pedido_sel.get('courier', 'Servientrega')} ({pedido_sel.get('repartidor', 'N/D')})")
                         st.write(f"**Nº Guía:** `{guia_show}`")
                         st.write(f"**Nº Control:** `{control_show}`")
                         st.write(f"**Estado Despacho:** `{pedido_sel.get('estado_despacho', 'PENDIENTE')}`")
 
                 st.markdown("---")
 
-                val_courier_def = courier_show
-                val_repartidor_def = "" if repartidor_show == "N/D" else repartidor_show
+                val_courier_def = pedido_sel.get("courier", "Servientrega")
+                val_repartidor_def = pedido_sel.get("repartidor", "")
                 val_guia_def = "" if guia_show == "SIN GUÍA" else guia_show
                 val_ctrl_def = "" if control_show == "SIN CONTROL" else control_show
 
@@ -348,7 +195,7 @@ def render_despachos():
                             c_idx = couriers_opt.index(val_courier_def) if val_courier_def in couriers_opt else 0
                             nuevo_courier = st.selectbox("Courier / Transporte", couriers_opt, index=c_idx)
                         with c_col2:
-                            nuevo_repartidor = st.text_input("Nombre Repartidor / Chofer", value=str(val_repartidor_def or ""), placeholder="Ej: Moto Hermano 15").strip()
+                            nuevo_repartidor = st.text_input("Nombre Repartidor / Chofer", value=str(val_repartidor_def or ""), placeholder="Ej: Juan Pérez / Placa HJA-123").strip()
 
                         g1, g2 = st.columns(2)
                         with g1:
@@ -356,48 +203,42 @@ def render_despachos():
                         with g2:
                             nuevo_control = st.text_input("Número de Control", value=val_ctrl_def, placeholder="Ingresar Control...").strip()
 
-                        st.markdown("---")
-                        st.info("ℹ️ **Regla de Oro:** Si ingresas Número de Guía, es obligatorio tener un Número de Control guardado. Al tener ambos valores, el estado cambia automáticamente a **EN TRÁNSITO**.")
+                        opciones_estado = ["Automático (Según Guía y Control)", "ENTREGADO"]
+                        estado_accion = st.selectbox("Acción de Estado", opciones_estado)
 
                         submit_guia = st.form_submit_button("💾 Guardar Cambios de Despacho", type="primary", use_container_width=True)
 
                         if submit_guia:
-                            nc_temp = nuevo_control if nuevo_control != "" else "SIN CONTROL"
-                            ng_temp = nueva_guia if nueva_guia != "" else "SIN GUÍA"
-
-                            if ng_temp != "SIN GUÍA" and nc_temp == "SIN CONTROL":
-                                st.error("⚠️ Regla de Oro Violada: ¡No puedes guardar un Número de Guía sin haber ingresado y guardado primero el Número de Control!")
-                            else:
-                                est_calculado = "EN TRÁNSITO" if (ng_temp != "SIN GUÍA" and nc_temp != "SIN CONTROL") else ""
-
-                                payload = {
-                                    "factura_id": f_id_sel,
-                                    "numero_factura": str(num_fact),
-                                    "courier": nuevo_courier,
-                                    "repartidor": nuevo_repartidor or "N/D",
-                                    "numero_guia": ng_temp,
-                                    "numero_control": nc_temp,
-                                    "estado_despacho": est_calculado
-                                }
-                                try:
-                                    with st.spinner("Guardando en servidor..."):
-                                        res_put = requests.post(f"{API_URL}/despachos/actualizar", json=payload, timeout=8)
-                                    
-                                    if res_put.status_code in [200, 201]:
-                                        st.success(f"✅ Orden de Venta #{num_fact} actualizada con éxito y puesta en Tránsito.")
-                                        st.rerun() 
-                                    else:
-                                        try:
-                                            err_detail = res_put.json().get("detail", res_put.text)
-                                        except:
-                                            err_detail = res_put.text
-                                        st.error(f"⚠️ Error del servidor: {err_detail}")
-                                except Exception as ex:
-                                    st.error(f"❌ Error de conexión al guardar: {str(ex)}")
+                            payload = {
+                                "factura_id": f_id_sel,
+                                "numero_factura": str(num_fact),
+                                "courier": nuevo_courier,
+                                "repartidor": nuevo_repartidor or "N/D",
+                                "numero_guia": nueva_guia if nueva_guia != "" else "SIN GUÍA",
+                                "numero_control": nuevo_control if nuevo_control != "" else "SIN CONTROL",
+                                "estado_despacho": "ENTREGADO" if estado_accion == "ENTREGADO" else ""
+                            }
+                            try:
+                                with st.spinner("Guardando en servidor..."):
+                                    res_put = requests.post(f"{API_URL}/despachos/actualizar", json=payload, timeout=8)
+                                
+                                if res_put.status_code in [200, 201]:
+                                    st.success(f"✅ Orden de Venta #{num_fact} actualizada con éxito.")
+                                    if "logged_in" not in st.session_state:
+                                        st.session_state.logged_in = True
+                                    st.rerun() 
+                                else:
+                                    try:
+                                        err_detail = res_put.json().get("detail", res_put.text)
+                                    except:
+                                        err_detail = res_put.text
+                                    st.error(f"⚠️ Error del servidor: {err_detail}")
+                            except Exception as ex:
+                                st.error(f"❌ Error de conexión al guardar: {str(ex)}")
 
                 with col_b:
-                    st.markdown("##### 🏷️ Membrete Individual de Vista Previa")
-    
+                    st.markdown("#### 🏷️ Generar Membrete de Envío (De / Para)")
+                    
                     nom_dest = pedido_sel.get('cliente', 'Consumidor Final')
                     ruc_dest = pedido_sel.get('ruc_cedula', 'N/D')
                     telf_dest = pedido_sel.get('telefono', 'N/D')
@@ -405,14 +246,13 @@ def render_despachos():
                     ciud_dest = pedido_sel.get('ciudad', 'Guayaquil')
                     dir_dest = pedido_sel.get('direccion', 'Dirección no especificada')
                     ref_dest = pedido_sel.get('referencia', 'Sin referencia')
-                    
-                    # Leemos del input si el usuario está escribiendo en el formulario, de lo contrario usamos la base de datos
                     cour_etq = nuevo_courier if 'nuevo_courier' in locals() else pedido_sel.get('courier', 'Servientrega')
                     
-                    rep_etq = nuevo_repartidor if ('nuevo_repartidor' in locals() and nuevo_repartidor) else repartidor_show
+                    # Leemos directamente de los inputs del formulario o del pedido seleccionado con respaldo seguro
+                    rep_etq = nuevo_repartidor if ('nuevo_repartidor' in locals() and nuevo_repartidor) else (pedido_sel.get('repartidor') or "N/D")
                     guia_etq = nueva_guia if ('nueva_guia' in locals() and nueva_guia) else guia_show
                     control_etq = nuevo_control if ('nuevo_control' in locals() and nuevo_control) else control_show
-
+                    
                     if not rep_etq or str(rep_etq).strip() in ["None", "null", "", "nan", "NaN"]:
                         rep_etq = "N/D"
                     if not guia_etq or str(guia_etq).strip() in ["None", "null", "", "SIN GUÍA", "nan", "NaN"]:
@@ -458,7 +298,7 @@ def render_despachos():
                     st.components.v1.html(html_label, height=350, scrolling=True)
 
                     st.download_button(
-                        label="💾 Guardar Membrete Individual (HTML)",
+                        label="💾 Guardar Membrete (HTML)",
                         data=html_label,
                         file_name=f"Membrete_Orden_{num_fact_etq}.html",
                         mime="text/html",
