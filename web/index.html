@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fajas Isabella | Tienda Online</title>
 
-    <!-- FAVICON OFICIAL EN LA PESTAÑA DEL NAVEGADOR -->
+    <!-- FAVICON OFICIAL -->
     <link rel="icon" type="image/png" href="/img/logo.png">
 
     <!-- Tailwind CSS & FontAwesome -->
@@ -17,122 +17,178 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
-
 </head>
-<body class="bg-slate-50 text-slate-800 antialiased min-h-screen font-sans">
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen font-sans flex flex-col justify-between">
 
-    <!-- 1. BARRA SUPERIOR PROMOCIONAL -->
-    <div class="bg-black text-white text-[11px] py-1.5 px-4 text-center font-semibold tracking-wide flex justify-center items-center gap-2">
-        <span>✨ PAGOS 100% SEGUROS Y ENVÍOS A TODO EL ECUADOR</span>
+    <div>
+        <!-- 1. BARRA SUPERIOR PROMOCIONAL -->
+        <div class="bg-black text-white text-[11px] py-1.5 px-4 text-center font-semibold tracking-wide flex justify-center items-center gap-2">
+            <span>✨ PAGOS 100% SEGUROS Y ENVÍOS A TODO EL ECUADOR</span>
+        </div>
+
+        <!-- 2. ENCABEZADO PRINCIPAL -->
+        <header class="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-xs">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-20">
+                    <div class="flex items-center">
+                        <a href="#" onclick="filtrarCategoria('TODAS')" class="flex items-center py-2">
+                            <img src="/img/logo.png" onerror="this.onerror=null; this.src='../img/logo.png';" alt="Fajas Isabella Logo" class="h-12 sm:h-16 w-auto object-contain transition-transform hover:scale-105">
+                        </a>
+                    </div>
+
+                    <nav class="hidden md:flex items-center space-x-6 text-sm font-semibold text-slate-700">
+                        <a href="#" onclick="filtrarCategoria('TODAS')" class="hover:text-rose-600 transition">INICIO</a>
+                        
+                        <div class="relative dropdown py-5 cursor-pointer">
+                            <div class="flex items-center gap-1 hover:text-rose-600 transition">
+                                <span>TIENDA / CATEGORÍAS</span>
+                                <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                            </div>
+                            <div class="dropdown-menu hidden absolute top-14 left-0 w-64 bg-white border border-slate-200 rounded-xl shadow-xl py-2 z-50">
+                                <div id="dropdown-categorias-dinamico"></div>
+                            </div>
+                        </div>
+
+                        <a href="#" onclick="filtrarCategoria('LIQUIDACION')" class="text-rose-600 font-bold hover:text-rose-700 transition flex items-center gap-1">
+                            <span>🔥 LIQUIDACIÓN</span>
+                        </a>
+                        <a href="#" onclick="filtrarCategoria('OFERTAS')" class="text-amber-600 font-bold hover:text-amber-700 transition flex items-center gap-1">
+                            <span>🏷️ OFERTAS</span>
+                        </a>
+                        <a href="#" onclick="filtrarCategoria('NEW')" class="text-blue-600 font-bold hover:text-blue-700 transition flex items-center gap-1">
+                            <span>✨ NEW</span>
+                        </a>
+                    </nav>
+
+                    <div class="flex items-center gap-3">
+                        <div class="relative hidden sm:block">
+                            <input type="text" id="input-busqueda" onkeyup="buscarProducto()" placeholder="Buscar faja, SKU..." 
+                                class="bg-slate-100 text-xs text-slate-800 rounded-full pl-8 pr-4 py-2 w-44 focus:w-60 focus:bg-white focus:ring-2 focus:ring-rose-500 border border-transparent focus:border-rose-500 transition-all outline-none">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-400"></i>
+                        </div>
+
+                        <button onclick="gestionarClicCuenta()" id="btn-cuenta-nav" class="relative p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full transition flex items-center justify-center gap-1.5 px-3">
+                            <i class="fa-solid fa-user text-sm"></i>
+                            <span id="nombre-usuario-nav" class="text-xs font-bold hidden sm:inline">Mi Cuenta</span>
+                        </button>
+
+                        <button onclick="toggleCarrito()" class="relative p-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-full transition flex items-center justify-center">
+                            <i class="fa-solid fa-bag-shopping text-xl"></i>
+                            <span id="cart-count" class="absolute -top-1 -right-1 bg-rose-600 text-white text-[10px] font-extrabold rounded-full w-5 h-5 flex items-center justify-center shadow-xs">0</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- 3. BARRA SECUNDARIA DE CATEGORÍAS -->
+        <div class="bg-white border-b border-slate-200 py-3 shadow-2xs relative">
+            <div class="max-w-7xl mx-auto px-2 relative flex items-center">
+                <button onclick="scrollCategorias(-180)" class="absolute left-1 z-20 w-7 h-7 rounded-full bg-white shadow-md border border-slate-200 flex items-center justify-center text-slate-700 hover:text-rose-600 hover:scale-110 transition shrink-0">
+                    <i class="fa-solid fa-chevron-left text-[11px]"></i>
+                </button>
+                <div id="categorias-scroll" class="overflow-x-auto no-scrollbar scroll-smooth flex items-center space-x-4 py-1 px-8 w-full select-none">
+                    <div class="text-xs text-slate-400 py-2">Cargando categorías oficiales...</div>
+                </div>
+                <button onclick="scrollCategorias(180)" class="absolute right-1 z-20 w-7 h-7 rounded-full bg-white shadow-md border border-slate-200 flex items-center justify-center text-slate-700 hover:text-rose-600 hover:scale-110 transition shrink-0">
+                    <i class="fa-solid fa-chevron-right text-[11px]"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- 4. CONTENIDO PRINCIPAL (CATÁLOGO) -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="flex items-center justify-between mb-6">
+                <h2 id="titulo-categoria" class="text-lg font-bold text-slate-900 tracking-tight">Todas las Prendas Disponibles</h2>
+                <span id="total-productos" class="text-xs bg-slate-200 text-slate-700 px-2.5 py-1 rounded-full font-semibold">Cargando...</span>
+            </div>
+
+            <!-- Contenedor del Catálogo de la Categoría Seleccionada -->
+            <div id="catalog-container" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                <div class="col-span-full text-center py-12 text-slate-400">
+                    <i class="fa-solid fa-circle-notch fa-spin text-2xl text-rose-500 mb-2"></i>
+                    <p class="text-xs">Cargando catálogo en tiempo real...</p>
+                </div>
+            </div>
+            <!-- Contenedor dinámico en renglón seguido para "Lo Nuevo" y "Ofertas" cuando se selecciona categoría -->
+            <div id="secciones-secundarias-container"></div>
+        </main>
     </div>
 
-    <!-- 2. ENCABEZADO PRINCIPAL FIJO CON LOGO OFICIAL EN LA IZQUIERDA -->
-    <header class="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-xs">
+    <!-- 5. PIE DE PÁGINA (FOOTER) -->
+    <footer class="bg-slate-900 text-slate-300 mt-16 border-t border-slate-800 pt-12 pb-6">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-20">
-                
-                <!-- Logo Oficial en Encabezado Izquierdo -->
-                <div class="flex items-center">
-                    <a href="#" onclick="filtrarCategoria('TODAS')" class="flex items-center py-2">
-                        <img src="/img/logo.png" 
-                             onerror="this.onerror=null; this.src='../img/logo.png';" 
-                             alt="Fajas Isabella Logo" 
-                             class="h-12 sm:h-16 w-auto object-contain transition-transform hover:scale-105">
-                    </a>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
+                <div class="space-y-3">
+                    <div class="flex items-center gap-2">
+                        <img src="/img/logo.png" onerror="this.onerror=null; this.src='../img/logo.png';" alt="Fajas Isabella" class="h-10 w-auto bg-white p-1 rounded-lg">
+                        <span class="text-white font-extrabold text-lg">FAJAS ISABELLA</span>
+                    </div>
+                    <p class="text-xs text-slate-400 leading-relaxed">
+                        Especialistas en prendas reductoras, moldeadoras y de uso posquirúrgico con estándares de alta calidad. Resalta tu belleza con total comodidad.
+                    </p>
+                    <div class="flex items-center gap-3 pt-2">
+                        <a href="https://instagram.com" target="_blank" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-rose-600 text-white flex items-center justify-center transition"><i class="fa-brands fa-instagram text-sm"></i></a>
+                        <a href="https://facebook.com" target="_blank" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-blue-600 text-white flex items-center justify-center transition"><i class="fa-brands fa-facebook-f text-sm"></i></a>
+                        <a href="https://tiktok.com" target="_blank" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-black text-white flex items-center justify-center transition"><i class="fa-brands fa-tiktok text-sm"></i></a>
+                        <a href="https://wa.me/593983870398" target="_blank" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-emerald-600 text-white flex items-center justify-center transition"><i class="fa-brands fa-whatsapp text-sm"></i></a>
+                    </div>
                 </div>
 
-                <!-- Menú Principal Desktop -->
-                <nav class="hidden md:flex items-center space-x-8 text-sm font-semibold text-slate-700">
-                    <a href="#" onclick="filtrarCategoria('TODAS')" class="hover:text-rose-600 transition">INICIO</a>
-                    
-                    <div class="relative dropdown py-5 cursor-pointer">
-                        <div class="flex items-center gap-1 hover:text-rose-600 transition">
-                            <span>TIENDA / CATEGORÍAS</span>
-                            <i class="fa-solid fa-chevron-down text-[10px]"></i>
-                        </div>
-                        <div class="dropdown-menu hidden absolute top-14 left-0 w-64 bg-white border border-slate-200 rounded-xl shadow-xl py-2 z-50">
-                            <div id="dropdown-categorias-dinamico"></div>
+                <div>
+                    <h4 class="text-white font-bold text-xs uppercase tracking-wider mb-4 border-l-2 border-rose-500 pl-2">Secciones Destacadas</h4>
+                    <ul class="space-y-2 text-xs">
+                        <li><a href="#" onclick="filtrarCategoria('TODAS')" class="hover:text-white transition">🛍️ Ver Todo el Catálogo</a></li>
+                        <li><a href="#" onclick="filtrarCategoria('LIQUIDACION')" class="hover:text-rose-400 transition">🔥 Productos en Liquidación</a></li>
+                        <li><a href="#" onclick="filtrarCategoria('OFERTAS')" class="hover:text-amber-400 transition">🏷️ Ofertas Especiales</a></li>
+                        <li><a href="#" onclick="filtrarCategoria('NEW')" class="hover:text-blue-400 transition">✨ Nuevas Colecciones</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h4 class="text-white font-bold text-xs uppercase tracking-wider mb-4 border-l-2 border-rose-500 pl-2">Información Legal</h4>
+                    <ul class="space-y-2 text-xs">
+                        <li><a href="#" class="hover:text-white transition">Términos y Condiciones</a></li>
+                        <li><a href="#" class="hover:text-white transition">Políticas de Privacidad</a></li>
+                        <li><a href="#" class="hover:text-white transition">Envíos y Devoluciones</a></li>
+                        <li><a href="#" class="hover:text-white transition">Preguntas Frecuentes (FAQ)</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h4 class="text-white font-bold text-xs uppercase tracking-wider mb-4 border-l-2 border-rose-500 pl-2">Contacto y Envíos</h4>
+                    <ul class="space-y-2 text-xs text-slate-400">
+                        <li class="flex items-center gap-2"><i class="fa-solid fa-location-dot text-rose-500"></i> Guayaquil, Ecuador</li>
+                        <li class="flex items-center gap-2"><i class="fa-solid fa-phone text-emerald-500"></i> +593 98 387 0398</li>
+                        <li class="flex items-center gap-2"><i class="fa-solid fa-envelope text-blue-500"></i> ventas@fajasisabella.com</li>
+                    </ul>
+                    <div class="mt-4 pt-3 border-t border-slate-800">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase block mb-1.5">Aceptamos:</span>
+                        <div class="flex items-center gap-2 text-lg text-slate-400">
+                            <i class="fa-brands fa-cc-visa hover:text-white transition"></i>
+                            <i class="fa-brands fa-cc-mastercard hover:text-white transition"></i>
+                            <i class="fa-brands fa-cc-diners-club hover:text-white transition"></i>
+                            <i class="fa-solid fa-money-bill-transfer hover:text-white transition text-sm"></i>
                         </div>
                     </div>
-
-                    <a href="#" onclick="filtrarCategoria('LIQUIDACION')" class="text-rose-600 font-bold hover:text-rose-700 transition flex items-center gap-1">
-                        <span>🔥 LIQUIDACIÓN</span>
-                    </a>
-                    <a href="#" class="hover:text-rose-600 transition">NOSOTROS</a>
-                </nav>
-
-                <!-- Buscador, Botón de Cuenta + Carrito Flotante -->
-                <div class="flex items-center gap-3">
-                    <div class="relative hidden sm:block">
-                        <input type="text" id="input-busqueda" onkeyup="buscarProducto()" placeholder="Buscar faja, SKU..." 
-                            class="bg-slate-100 text-xs text-slate-800 rounded-full pl-8 pr-4 py-2 w-44 focus:w-60 focus:bg-white focus:ring-2 focus:ring-rose-500 border border-transparent focus:border-rose-500 transition-all outline-none">
-                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-400"></i>
-                    </div>
-
-                    <!-- Botón de Mi Cuenta / Login -->
-                    <button onclick="gestionarClicCuenta()" id="btn-cuenta-nav" class="relative p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full transition flex items-center justify-center gap-1.5 px-3">
-                        <i class="fa-solid fa-user text-sm"></i>
-                        <span id="nombre-usuario-nav" class="text-xs font-bold hidden sm:inline">Mi Cuenta</span>
-                    </button>
-
-                    <button onclick="toggleCarrito()" class="relative p-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-full transition flex items-center justify-center">
-                        <i class="fa-solid fa-bag-shopping text-xl"></i>
-                        <span id="cart-count" class="absolute -top-1 -right-1 bg-rose-600 text-white text-[10px] font-extrabold rounded-full w-5 h-5 flex items-center justify-center shadow-xs">0</span>
-                    </button>
                 </div>
             </div>
-        </div>
-    </header>
 
-    <!-- 3. BARRA SECUNDARIA DE CATEGORÍAS -->
-    <div class="bg-white border-b border-slate-200 py-3 shadow-2xs relative">
-        <div class="max-w-7xl mx-auto px-2 relative flex items-center">
-            
-            <button onclick="scrollCategorias(-180)" 
-                class="absolute left-1 z-20 w-7 h-7 rounded-full bg-white shadow-md border border-slate-200 flex items-center justify-center text-slate-700 hover:text-rose-600 hover:scale-110 transition shrink-0">
-                <i class="fa-solid fa-chevron-left text-[11px]"></i>
-            </button>
-
-            <div id="categorias-scroll" 
-                class="overflow-x-auto no-scrollbar scroll-smooth flex items-center space-x-4 py-1 px-8 w-full select-none">
-                <div class="text-xs text-slate-400 py-2">Cargando categorías oficiales...</div>
-            </div>
-
-            <button onclick="scrollCategorias(180)" 
-                class="absolute right-1 z-20 w-7 h-7 rounded-full bg-white shadow-md border border-slate-200 flex items-center justify-center text-slate-700 hover:text-rose-600 hover:scale-110 transition shrink-0">
-                <i class="fa-solid fa-chevron-right text-[11px]"></i>
-            </button>
-
-        </div>
-    </div>
-
-    <!-- 4. CONTENIDO PRINCIPAL (CATÁLOGO) -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div class="flex items-center justify-between mb-6">
-            <h2 id="titulo-categoria" class="text-lg font-bold text-slate-900 tracking-tight">Todas las Prendas Disponibles</h2>
-            <span id="total-productos" class="text-xs bg-slate-200 text-slate-700 px-2.5 py-1 rounded-full font-semibold">Cargando...</span>
-        </div>
-
-        <div id="catalog-container" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            <div class="col-span-full text-center py-12 text-slate-400">
-                <i class="fa-solid fa-circle-notch fa-spin text-2xl text-rose-500 mb-2"></i>
-                <p class="text-xs">Cargando catálogo en tiempo real...</p>
+            <div class="border-t border-slate-800 pt-6 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500">
+                <p>© 2026 Fajas Isabella. Todos los derechos reservados.</p>
+                <p class="mt-2 sm:mt-0">Diseñado con dedicación para el confort y elegancia femenina.</p>
             </div>
         </div>
-    </main>
+    </footer>
 
-    <!-- 5. MODAL DE SELECCIÓN DE VARIANTE Y CANTIDAD -->
+    <!-- 6. MODALES -->
     <div id="modal-producto" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl p-5 relative">
-            <button onclick="cerrarModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
+            <button onclick="cerrarModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg"><i class="fa-solid fa-xmark"></i></button>
             <div id="modal-contenido"></div>
         </div>
     </div>
 
-    <!-- 6. DRAWER LATERAL: CARRITO DE COMPRAS CON DOBLE OPCIÓN DE PAGO -->
     <div id="drawer-carrito" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs hidden transition-opacity">
         <div class="fixed top-0 right-0 h-full max-w-md w-full bg-white shadow-2xl flex flex-col justify-between p-5 transform transition-transform">
             <div>
@@ -141,53 +197,37 @@
                         <i class="fa-solid fa-bag-shopping text-rose-600 text-xl"></i>
                         <h3 class="text-base font-extrabold text-slate-900">Tu Carrito de Compras</h3>
                     </div>
-                    <button onclick="toggleCarrito()" class="text-slate-400 hover:text-slate-700 text-lg">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
+                    <button onclick="toggleCarrito()" class="text-slate-400 hover:text-slate-700 text-lg"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-
                 <div id="carrito-items" class="py-4 space-y-3 max-h-[50vh] overflow-y-auto no-scrollbar"></div>
             </div>
-
             <div class="border-t border-slate-200 pt-4 space-y-3">
                 <div class="flex justify-between items-center text-base font-black text-slate-900">
                     <span>Total Estimado:</span>
                     <span id="carrito-total" class="text-rose-600 text-xl">$0.00</span>
                 </div>
-
                 <div class="grid grid-cols-1 gap-2">
                     <button onclick="enviarPedidoFinalWhatsApp()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition">
-                        <i class="fa-brands fa-whatsapp text-xl"></i>
-                        <span>Pedido y Pago por WhatsApp</span>
+                        <i class="fa-brands fa-whatsapp text-xl"></i><span>Pedido y Pago por WhatsApp</span>
                     </button>
-
                     <button onclick="iniciarPagoPaymentez()" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-rose-600/20 transition">
-                        <i class="fa-solid fa-credit-card text-xl"></i>
-                        <span>Pagar con Tarjeta (Paymentez)</span>
+                        <i class="fa-solid fa-credit-card text-xl"></i><span>Pagar con Tarjeta (Paymentez)</span>
                     </button>
-
                     <button onclick="toggleCarrito()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2.5 rounded-xl flex items-center justify-center gap-2 transition">
-                        <i class="fa-solid fa-arrow-left"></i>
-                        <span>Seguir Comprando</span>
+                        <i class="fa-solid fa-arrow-left"></i><span>Seguir Comprando</span>
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 7. MODAL DE AUTENTICACIÓN (LOGIN / REGISTRO CON VERIFICACIÓN Y OJO 👁️) -->
     <div id="modal-auth" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto no-scrollbar">
-            <button onclick="cerrarModalAuth()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-            
+            <button onclick="cerrarModalAuth()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg"><i class="fa-solid fa-xmark"></i></button>
             <div class="flex border-b border-slate-200 mb-4">
                 <button onclick="cambiarTabAuth('login')" id="tab-login-btn" class="flex-1 pb-2 font-bold text-sm text-rose-600 border-b-2 border-rose-600">Iniciar Sesión</button>
                 <button onclick="cambiarTabAuth('registro')" id="tab-registro-btn" class="flex-1 pb-2 font-bold text-sm text-slate-400">Registrarse</button>
             </div>
-
-            <!-- Formulario Login -->
             <div id="form-login-container">
                 <form onsubmit="ejecutarLogin(event)" class="space-y-3">
                     <div>
@@ -198,70 +238,35 @@
                         <label class="text-xs font-bold text-slate-700 block mb-1">Contraseña</label>
                         <div class="relative">
                             <input type="password" id="login-password" required class="w-full bg-slate-100 text-xs rounded-xl p-3 pr-10 border border-slate-200 outline-none focus:border-rose-500">
-                            <button type="button" onclick="toggleVisibilidadPassword('login-password', 'ico-login-eye')" class="absolute right-3 top-3 text-slate-400 hover:text-slate-600 text-xs">
-                                <i class="fa-solid fa-eye" id="ico-login-eye"></i>
-                            </button>
+                            <button type="button" onclick="toggleVisibilidadPassword('login-password', 'ico-login-eye')" class="absolute right-3 top-3 text-slate-400 hover:text-slate-600 text-xs"><i class="fa-solid fa-eye" id="ico-login-eye"></i></button>
                         </div>
                     </div>
                     <button type="submit" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-3 rounded-xl shadow-md transition">Entrar a mi Cuenta</button>
                 </form>
             </div>
-
-            <!-- Formulario Registro con Confirmación Doble y Ojos 👁️ -->
             <div id="form-registro-container" class="hidden">
                 <form onsubmit="ejecutarRegistro(event)" class="space-y-3">
-                    <div>
-                        <label class="text-xs font-bold text-slate-700 block mb-1">Nombre Completo</label>
-                        <input type="text" id="reg-nombre" required class="w-full bg-slate-100 text-xs rounded-xl p-2.5 border border-slate-200 outline-none focus:border-rose-500">
-                    </div>
-                    <div>
-                        <label class="text-xs font-bold text-slate-700 block mb-1">Correo Electrónico</label>
-                        <input type="email" id="reg-correo" required class="w-full bg-slate-100 text-xs rounded-xl p-2.5 border border-slate-200 outline-none focus:border-rose-500">
-                    </div>
-                    
-                    <!-- Campo Contraseña con Ojo -->
+                    <div><label class="text-xs font-bold text-slate-700 block mb-1">Nombre Completo</label><input type="text" id="reg-nombre" required class="w-full bg-slate-100 text-xs rounded-xl p-2.5 border border-slate-200 outline-none focus:border-rose-500"></div>
+                    <div><label class="text-xs font-bold text-slate-700 block mb-1">Correo Electrónico</label><input type="email" id="reg-correo" required class="w-full bg-slate-100 text-xs rounded-xl p-2.5 border border-slate-200 outline-none focus:border-rose-500"></div>
                     <div>
                         <label class="text-xs font-bold text-slate-700 block mb-1">Contraseña</label>
-                        <div class="relative">
-                            <input type="password" id="reg-password" required class="w-full bg-slate-100 text-xs rounded-xl p-2.5 pr-10 border border-slate-200 outline-none focus:border-rose-500">
-                            <button type="button" onclick="toggleVisibilidadPassword('reg-password', 'ico-reg-eye')" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 text-xs">
-                                <i class="fa-solid fa-eye" id="ico-reg-eye"></i>
-                            </button>
-                        </div>
+                        <div class="relative"><input type="password" id="reg-password" required class="w-full bg-slate-100 text-xs rounded-xl p-2.5 pr-10 border border-slate-200 outline-none focus:border-rose-500"><button type="button" onclick="toggleVisibilidadPassword('reg-password', 'ico-reg-eye')" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 text-xs"><i class="fa-solid fa-eye" id="ico-reg-eye"></i></button></div>
                     </div>
-
-                    <!-- Campo Confirmar Contraseña con Ojo -->
                     <div>
                         <label class="text-xs font-bold text-slate-700 block mb-1">Confirmar Contraseña</label>
-                        <div class="relative">
-                            <input type="password" id="reg-password-confirm" required class="w-full bg-slate-100 text-xs rounded-xl p-2.5 pr-10 border border-slate-200 outline-none focus:border-rose-500">
-                            <button type="button" onclick="toggleVisibilidadPassword('reg-password-confirm', 'ico-reg-confirm-eye')" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 text-xs">
-                                <i class="fa-solid fa-eye" id="ico-reg-confirm-eye"></i>
-                            </button>
-                        </div>
+                        <div class="relative"><input type="password" id="reg-password-confirm" required class="w-full bg-slate-100 text-xs rounded-xl p-2.5 pr-10 border border-slate-200 outline-none focus:border-rose-500"><button type="button" onclick="toggleVisibilidadPassword('reg-password-confirm', 'ico-reg-confirm-eye')" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 text-xs"><i class="fa-solid fa-eye" id="ico-reg-confirm-eye"></i></button></div>
                     </div>
-
-                    <div>
-                        <label class="text-xs font-bold text-slate-700 block mb-1">Teléfono / WhatsApp</label>
-                        <input type="text" id="reg-telefono" class="w-full bg-slate-100 text-xs rounded-xl p-2.5 border border-slate-200 outline-none focus:border-rose-500">
-                    </div>
-                    <div>
-                        <label class="text-xs font-bold text-slate-700 block mb-1">Dirección de Envío</label>
-                        <input type="text" id="reg-direccion" class="w-full bg-slate-100 text-xs rounded-xl p-2.5 border border-slate-200 outline-none focus:border-rose-500">
-                    </div>
+                    <div><label class="text-xs font-bold text-slate-700 block mb-1">Teléfono / WhatsApp</label><input type="text" id="reg-telefono" class="w-full bg-slate-100 text-xs rounded-xl p-2.5 border border-slate-200 outline-none focus:border-rose-500"></div>
+                    <div><label class="text-xs font-bold text-slate-700 block mb-1">Dirección de Envío</label><input type="text" id="reg-direccion" class="w-full bg-slate-100 text-xs rounded-xl p-2.5 border border-slate-200 outline-none focus:border-rose-500"></div>
                     <button type="submit" class="w-full bg-slate-900 hover:bg-rose-600 text-white font-bold text-xs py-3 rounded-xl shadow-md transition">Crear Cuenta</button>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- 8. MODAL DE PERFIL E HISTORIAL DE PEDIDOS -->
     <div id="modal-perfil" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl p-6 relative max-h-[85vh] flex flex-col">
-            <button onclick="cerrarModalPerfil()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-            
+            <button onclick="cerrarModalPerfil()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg"><i class="fa-solid fa-xmark"></i></button>
             <div class="flex items-center gap-3 pb-4 border-b border-slate-200 mb-4">
                 <div class="w-12 h-12 bg-rose-100 rounded-full flex items-center justify-center text-rose-600 font-extrabold text-lg" id="perfil-inicial">U</div>
                 <div>
@@ -269,716 +274,19 @@
                     <p class="text-xs text-slate-500" id="perfil-correo">correo@ejemplo.com</p>
                 </div>
             </div>
-
             <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">📦 Mis Pedidos y Compras Anteriores</h4>
-            
             <div id="historial-pedidos-container" class="space-y-3 overflow-y-auto no-scrollbar flex-1 pr-1">
                 <div class="text-center py-8 text-slate-400 text-xs">Cargando tus pedidos...</div>
             </div>
-
             <div class="pt-4 border-t border-slate-200 mt-4">
                 <button onclick="cerrarSesion()" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs py-2.5 rounded-xl transition flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-right-from-bracket"></i>
-                    <span>Cerrar Sesión</span>
+                    <i class="fa-solid fa-right-from-bracket"></i><span>Cerrar Sesión</span>
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- JAVASCRIPT LOGIC -->
-    <script>
-        const API_URL = "/api/web/inventario";
-        const API_CATEGORIAS = "/api/web/categorias";
-        const SVG_FALLBACK = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100%' height='100%' fill='%23f1f5f9'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-size='10'>Fajas Isabella</text></svg>";
-
-        let productos = [];
-        let productosFiltrados = [];
-        let categoriasOficiales = [];
-        let productoSeleccionado = null;
-        let tallaSeleccionada = "";
-        let colorSeleccionado = "";
-        let cantidadSeleccionada = 1;
-        let carrito = [];
-
-        async function inicializarTienda() {
-            await cargarInventario();
-            actualizarBotonCuentaNav();
-        }
-
-        async function cargarInventario() {
-            try {
-                const [resProductos, resCategorias] = await Promise.all([
-                    fetch(API_URL),
-                    fetch(API_CATEGORIAS)
-                ]);
-
-                if (resProductos.ok) {
-                    productos = await resProductos.json();
-                } else {
-                    productos = [];
-                }
-
-                if (resCategorias.ok) {
-                    categoriasOficiales = await resCategorias.json();
-                } else {
-                    categoriasOficiales = [];
-                }
-            } catch (e) {
-                productos = [];
-                categoriasOficiales = [];
-            }
-
-            productosFiltrados = [...productos];
-            cargarCategoriasWeb();
-            renderizarCatalogo();
-        }
-
-        function obtenerRutaImagenProducto(imagenUrl) {
-            if (!imagenUrl || imagenUrl.trim() === "" || imagenUrl === "/logo.png" || imagenUrl === "logo.png") {
-                return SVG_FALLBACK;
-            }
-            if (imagenUrl.startsWith("http://") || imagenUrl.startsWith("https://")) {
-                return imagenUrl;
-            }
-            let nombreArchivo = imagenUrl.split('/').pop().trim();
-            return `/img/${nombreArchivo}`;
-        }
-
-        function cargarCategoriasWeb() {
-            const contenedor = document.getElementById("categorias-scroll");
-            const dropdownContainer = document.getElementById("dropdown-categorias-dinamico");
-            
-            let htmlScroll = `
-                <button onclick="filtrarCategoria('TODAS')" id="btn-cat-TODAS" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none">
-                    <div class="circle-cat w-14 h-14 rounded-full overflow-hidden border-2 border-rose-500 p-0.5 transition-all shadow-xs bg-rose-50 flex items-center justify-center">
-                        <img src="/img/cat-todas.jpg" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-cover rounded-full" alt="Todas">
-                    </div>
-                    <span class="text-[10px] font-bold text-rose-600 mt-1 uppercase tracking-tight label-cat">Todas</span>
-                </button>
-            `;
-
-            let htmlDropdown = `
-                <a href="#" onclick="filtrarCategoria('TODAS')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">✨ Ver Todo el Catálogo</a>
-                <div class="border-t border-slate-100 my-1"></div>
-            `;
-
-            categoriasOficiales.forEach(catObj => {
-                const nombreCat = catObj.nombre || catObj.categoria;
-                let imgCat = obtenerRutaImagenProducto(catObj.imagen_url);
-
-                htmlScroll += `
-                    <button onclick="filtrarCategoria('${nombreCat}')" id="btn-cat-${nombreCat}" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none">
-                        <div class="circle-cat w-14 h-14 rounded-full overflow-hidden border-2 border-slate-200 p-0.5 transition-all shadow-xs bg-rose-50 flex items-center justify-center">
-                            <img src="${imgCat}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-cover rounded-full" alt="${nombreCat}">
-                        </div>
-                        <span class="text-[10px] font-bold text-slate-700 mt-1 uppercase tracking-tight label-cat">${nombreCat}</span>
-                    </button>
-                `;
-
-                htmlDropdown += `
-                    <a href="#" onclick="filtrarCategoria('${nombreCat}')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">${nombreCat}</a>
-                `;
-            });
-
-            contenedor.innerHTML = htmlScroll;
-            if (dropdownContainer) {
-                dropdownContainer.innerHTML = htmlDropdown;
-            }
-        }
-
-        function renderizarCatalogo() {
-            const container = document.getElementById("catalog-container");
-            document.getElementById("total-productos").innerText = `${productosFiltrados.length} modelos`;
-
-            if (productosFiltrados.length === 0) {
-                container.innerHTML = `<div class="col-span-full text-center py-12 text-slate-400 text-sm">No encontramos modelos en esta sección.</div>`;
-                return;
-            }
-
-            container.innerHTML = productosFiltrados.map(p => {
-                const precios = p.variantes.map(v => v.precio);
-                const precioMin = Math.min(...precios);
-                const precioMax = Math.max(...precios);
-                const precioTexto = precioMin === precioMax ? `$${precioMin.toFixed(2)}` : `$${precioMin.toFixed(2)} - $${precioMax.toFixed(2)}`;
-                const coloresUnicos = [...new Set(p.variantes.map(v => v.color))].join(", ");
-
-                const badgeLiquidacion = p.en_liquidacion 
-                    ? `<span class="absolute top-2 left-2 bg-rose-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md animate-pulse">🔥 LIQUIDACIÓN</span>` 
-                    : '';
-
-                const imgSrc = obtenerRutaImagenProducto(p.imagen_url);
-
-                return `
-                    <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:shadow-lg transition flex flex-col justify-between group">
-                        <div class="relative bg-slate-50 h-48 flex items-center justify-center p-3 overflow-hidden">
-                            ${badgeLiquidacion}
-                            <img src="${imgSrc}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="h-full object-contain group-hover:scale-105 transition-all duration-300" alt="${p.nombre}">
-                            <span class="absolute top-2 right-2 bg-slate-900/80 text-white text-[9px] font-bold px-2 py-0.5 rounded-full backdrop-blur-xs">
-                                ${p.variantes.length} Opciones
-                            </span>
-                        </div>
-
-                        <div class="p-3.5 flex-1 flex flex-col justify-between">
-                            <div>
-                                <span class="text-[9px] font-bold text-rose-600 tracking-wider uppercase">${p.categoria}</span>
-                                <h3 class="text-xs font-bold text-slate-800 line-clamp-1 mb-1">${p.nombre}</h3>
-                                <p class="text-[10px] text-slate-500 mb-2">Colores: <span class="font-medium text-slate-700">${coloresUnicos}</span></p>
-                            </div>
-
-                            <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
-                                <div>
-                                    <span class="text-[9px] text-slate-400 block">${p.en_liquidacion ? 'Oferta' : 'Desde'}</span>
-                                    <span class="text-sm font-black ${p.en_liquidacion ? 'text-rose-600' : 'text-slate-900'}">${precioTexto}</span>
-                                </div>
-                                <button onclick="abrirModal(${p.id})" class="bg-slate-900 hover:bg-rose-600 text-white font-bold text-[11px] px-3 py-1.5 rounded-xl transition shadow-xs">
-                                    Ver Tallas
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function abrirModal(productoId) {
-            productoSeleccionado = productos.find(p => p.id === productoId);
-            if (!productoSeleccionado) return;
-
-            const variantes = productoSeleccionado.variantes;
-            const tallas = [...new Set(variantes.map(v => v.talla))];
-            const colores = [...new Set(variantes.map(v => v.color))];
-
-            tallaSeleccionada = tallas[0];
-            colorSeleccionado = colores[0];
-            cantidadSeleccionada = 1;
-
-            const imgSrcModal = obtenerRutaImagenProducto(productoSeleccionado.imagen_url);
-
-            const contenido = `
-                <div class="flex gap-4 items-start mb-4">
-                    <img src="${imgSrcModal}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-20 h-20 object-contain rounded-2xl bg-slate-50 p-2 border border-slate-100 shrink-0">
-                    <div>
-                        <span class="text-[10px] font-bold text-rose-600 tracking-wider uppercase">${productoSeleccionado.categoria}</span>
-                        <h3 class="text-base font-extrabold text-slate-900 leading-snug">${productoSeleccionado.nombre}</h3>
-                        <p id="modal-precio" class="text-xl font-black text-rose-600 mt-1">$${variantes[0].precio.toFixed(2)}</p>
-                    </div>
-                </div>
-
-                <div class="space-y-3.5 border-t border-slate-100 pt-3">
-                    <div>
-                        <label class="text-xs font-bold text-slate-800 block mb-1.5">Talla:</label>
-                        <div class="flex gap-2 flex-wrap" id="selector-tallas">
-                            ${tallas.map((t, idx) => `
-                                <button onclick="seleccionarTalla('${t}')" id="btn-talla-${t}" 
-                                    class="btn-talla px-3.5 py-1.5 text-xs rounded-xl font-bold border ${idx === 0 ? 'bg-rose-600 text-white border-rose-600 shadow-xs' : 'bg-white text-slate-700 border-slate-300'} transition">
-                                    ${t}
-                                </button>
-                            `).join('')}
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="text-xs font-bold text-slate-800 block mb-1.5">Color:</label>
-                        <div class="flex gap-2 flex-wrap" id="selector-colores">
-                            ${colores.map((c, idx) => `
-                                <button onclick="seleccionarColor('${c}')" id="btn-color-${c}" 
-                                    class="btn-color px-3.5 py-1.5 text-xs rounded-xl font-bold border ${idx === 0 ? 'bg-slate-900 text-white border-slate-900 shadow-xs' : 'bg-white text-slate-700 border-slate-300'} transition">
-                                    ${c}
-                                </button>
-                            `).join('')}
-                        </div>
-                    </div>
-
-                    <div class="bg-rose-50/60 border border-rose-100 p-3 rounded-2xl mt-3">
-                        <span class="text-[10px] font-bold text-rose-600 uppercase tracking-wider block mb-1">📋 Resumen de Selección:</span>
-                        <div class="text-xs text-slate-800 space-y-1.5">
-                            <div class="flex justify-between">
-                                <span class="text-slate-500">Variante:</span>
-                                <span class="font-bold text-slate-900"><span id="resumen-talla">${tallaSeleccionada}</span> / <span id="resumen-color">${colorSeleccionado}</span></span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-slate-500">Disponibilidad:</span>
-                                <span class="font-mono text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded" id="modal-stock">Consultando...</span>
-                            </div>
-
-                            <hr class="border-rose-200 my-2">
-
-                            <!-- SELECTOR DE CANTIDAD Y SUBTOTAL DINÁMICO -->
-                            <div class="flex justify-between items-center pt-1">
-                                <span class="text-slate-700 font-bold">Cantidad:</span>
-                                <div class="flex items-center border border-slate-300 rounded-lg bg-white overflow-hidden shadow-2xs">
-                                    <button onclick="cambiarCantidadModal(-1)" type="button" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold transition">-</button>
-                                    <input id="modal-cantidad-input" type="number" value="1" min="1" class="w-10 text-center text-xs font-black border-none outline-none bg-transparent" readonly>
-                                    <button onclick="cambiarCantidadModal(1)" type="button" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold transition">+</button>
-                                </div>
-                            </div>
-
-                            <div class="flex justify-between items-center pt-1 text-sm font-black text-slate-900">
-                                <span>Total Selección:</span>
-                                <span id="modal-total-seleccion" class="text-rose-600 text-base">$0.00</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-2 mt-2">
-                        <button onclick="agregarAlCarrito(false)" 
-                            class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs py-3 rounded-xl flex items-center justify-center gap-1.5 transition">
-                            <i class="fa-solid fa-plus"></i>
-                            <span>Seguir Comprando</span>
-                        </button>
-
-                        <button onclick="agregarAlCarrito(true)" 
-                            class="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-3 rounded-xl flex items-center justify-center gap-1.5 shadow-md shadow-rose-600/20 transition">
-                            <i class="fa-solid fa-cart-shopping"></i>
-                            <span>Ir al Carrito</span>
-                        </button>
-                    </div>
-                </div>
-            `;
-
-            document.getElementById("modal-contenido").innerHTML = contenido;
-            document.getElementById("modal-producto").classList.remove("hidden");
-            actualizarDetalleVariante();
-        }
-
-        function cambiarCantidadModal(delta) {
-            const variante = obtenerVarianteActual();
-            const stockMax = variante ? variante.stock : 99;
-
-            cantidadSeleccionada += delta;
-            if (cantidadSeleccionada < 1) cantidadSeleccionada = 1;
-            if (cantidadSeleccionada > stockMax && stockMax > 0) cantidadSeleccionada = stockMax;
-
-            const inputElem = document.getElementById("modal-cantidad-input");
-            if (inputElem) {
-                inputElem.value = cantidadSeleccionada;
-            }
-            actualizarDetalleVariante();
-        }
-
-        function obtenerVarianteActual() {
-            if (!productoSeleccionado) return null;
-            return productoSeleccionado.variantes.find(v => v.talla === tallaSeleccionada && v.color === colorSeleccionado) 
-                || productoSeleccionado.variantes.find(v => v.talla === tallaSeleccionada) 
-                || productoSeleccionado.variantes[0];
-        }
-
-        function seleccionarTalla(talla) {
-            tallaSeleccionada = talla;
-            document.querySelectorAll(".btn-talla").forEach(b => {
-                b.classList.remove("bg-rose-600", "text-white", "border-rose-600");
-                b.classList.add("bg-white", "text-slate-700", "border-slate-300");
-            });
-            const btn = document.getElementById(`btn-talla-${talla}`);
-            if (btn) {
-                btn.classList.remove("bg-white", "text-slate-700", "border-slate-300");
-                btn.classList.add("bg-rose-600", "text-white", "border-rose-600");
-            }
-            actualizarDetalleVariante();
-        }
-
-        function seleccionarColor(color) {
-            colorSeleccionado = color;
-            document.querySelectorAll(".btn-color").forEach(b => {
-                b.classList.remove("bg-slate-900", "text-white", "border-slate-900");
-                b.classList.add("bg-white", "text-slate-700", "border-slate-300");
-            });
-            const btn = document.getElementById(`btn-color-${color}`);
-            if (btn) {
-                btn.classList.remove("bg-white", "text-slate-700", "border-slate-300");
-                btn.classList.add("bg-slate-900", "text-white", "border-slate-900");
-            }
-            actualizarDetalleVariante();
-        }
-
-        function actualizarDetalleVariante() {
-            const variante = obtenerVarianteActual();
-
-            if (variante) {
-                const totalLinea = variante.precio * cantidadSeleccionada;
-                document.getElementById("modal-precio").innerText = `$${variante.precio.toFixed(2)}`;
-                document.getElementById("resumen-talla").innerText = tallaSeleccionada;
-                document.getElementById("resumen-color").innerText = colorSeleccionado;
-                document.getElementById("modal-stock").innerText = `Stock: ${variante.stock} disp. (${variante.sku})`;
-                
-                const elemTotal = document.getElementById("modal-total-seleccion");
-                if (elemTotal) {
-                    elemTotal.innerText = `$${totalLinea.toFixed(2)}`;
-                }
-            }
-        }
-
-        function cerrarModal() {
-            document.getElementById("modal-producto").classList.add("hidden");
-        }
-
-        function scrollCategorias(distancia) {
-            const contenedor = document.getElementById("categorias-scroll");
-            if (contenedor) {
-                contenedor.scrollBy({ left: distancia, behavior: 'smooth' });
-            }
-        }
-
-        function filtrarCategoria(cat) {
-            if (cat === 'LIQUIDACION') {
-                document.getElementById("titulo-categoria").innerText = "🔥 Productos en Liquidación / Oferta Especial";
-                productosFiltrados = productos.filter(p => p.en_liquidacion === true);
-            } else {
-                document.getElementById("titulo-categoria").innerText = cat === 'TODAS' ? 'Todas las Prendas Disponibles' : `Categoría: ${cat}`;
-                if (cat === 'TODAS') {
-                    productosFiltrados = [...productos];
-                } else {
-                    productosFiltrados = productos.filter(p => (p.categoria || '').toUpperCase() === cat.toUpperCase());
-                }
-            }
-            renderizarCatalogo();
-        }
-
-        function buscarProducto() {
-            const query = document.getElementById("input-busqueda").value.toLowerCase();
-            productosFiltrados = productos.filter(p => 
-                p.nombre.toLowerCase().includes(query) || 
-                p.categoria.toLowerCase().includes(query) ||
-                p.variantes.some(v => v.sku.toLowerCase().includes(query))
-            );
-            renderizarCatalogo();
-        }
-
-        function agregarAlCarrito(abrirCarritoDrawer = false) {
-            const variante = obtenerVarianteActual();
-            const cantAgregar = cantidadSeleccionada > 0 ? cantidadSeleccionada : 1;
-
-            const itemExistente = carrito.find(item => item.sku === variante.sku);
-            if (itemExistente) {
-                itemExistente.cantidad += cantAgregar;
-            } else {
-                carrito.push({
-                    nombre: productoSeleccionado.nombre,
-                    sku: variante.sku,
-                    talla: tallaSeleccionada,
-                    color: colorSeleccionado,
-                    precio: variante.precio,
-                    imagen_url: productoSeleccionado.imagen_url || SVG_FALLBACK,
-                    categoria: productoSeleccionado.categoria,
-                    cantidad: cantAgregar
-                });
-            }
-
-            cerrarModal();
-            actualizarCarritoUI();
-
-            if (abrirCarritoDrawer) {
-                toggleCarrito();
-            }
-        }
-
-        function actualizarCarritoUI() {
-            const count = carrito.reduce((acc, item) => acc + item.cantidad, 0);
-            const total = carrito.reduce((acc, item) => acc + (item.precio * item.cantidad), 0);
-
-            document.getElementById("cart-count").innerText = count;
-            document.getElementById("carrito-total").innerText = `$${total.toFixed(2)}`;
-
-            const container = document.getElementById("carrito-items");
-            if (carrito.length === 0) {
-                container.innerHTML = `<div class="text-center py-12 text-slate-400 text-xs">Tu carrito está vacío por el momento.</div>`;
-                return;
-            }
-
-            container.innerHTML = carrito.map((item, index) => {
-                const imgItem = obtenerRutaImagenProducto(item.imagen_url);
-                return `
-                    <div class="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
-                        <div class="flex items-center gap-3">
-                            <img src="${imgItem}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-12 h-12 object-contain rounded-lg bg-white p-1 border">
-                            <div>
-                                <h4 class="text-xs font-bold text-slate-800 line-clamp-1">${item.nombre}</h4>
-                                <p class="text-[10px] text-slate-500">Talla: <b>${item.talla}</b> | Color: <b>${item.color}</b></p>
-                                <span class="text-xs font-black text-rose-600">$${item.precio.toFixed(2)} x ${item.cantidad}</span>
-                            </div>
-                        </div>
-                        <button onclick="eliminarDelCarrito(${index})" class="text-slate-400 hover:text-rose-600 text-xs p-1">
-                            <i class="fa-solid fa-trash-can"></i>
-                        </button>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function eliminarDelCarrito(index) {
-            carrito.splice(index, 1);
-            actualizarCarritoUI();
-        }
-
-        function toggleCarrito() {
-            const drawer = document.getElementById("drawer-carrito");
-            drawer.classList.toggle("hidden");
-        }
-
-        function enviarPedidoFinalWhatsApp() {
-            if (carrito.length === 0) {
-                alert("Tu carrito está vacío. Agrega una prenda antes de enviar tu pedido.");
-                return;
-            }
-
-            let detalleText = "";
-            let total = 0;
-
-            carrito.forEach((item, idx) => {
-                const subtotal = item.precio * item.cantidad;
-                total += subtotal;
-                detalleText += `${idx + 1}. *${item.nombre}*%0A   - Talla: ${item.talla} | Color: ${item.color}%0A   - SKU: ${item.sku}%0A   - Cantidad: ${item.cantidad} x $${item.precio.toFixed(2)} = $${subtotal.toFixed(2)}%0A%0A`;
-            });
-
-            const mensaje = `¡Hola Fajas Isabella! 👋 Deseo realizar la compra de las siguientes prendas de mi carrito:%0A%0A${detalleText}💰 *Total a Pagar:* $${total.toFixed(2)}%0A%0A¿Me ayudan a confirmar el pedido y coordinar el envío?`;
-            
-            window.open(`https://wa.me/593983870398?text=${mensaje}`, '_blank');
-        }
-
-        function iniciarPagoPaymentez() {
-            if (carrito.length === 0) {
-                alert("Tu carrito está vacío.");
-                return;
-            }
-
-            const payloadCompra = {
-                items: carrito.map(item => ({
-                    sku: item.sku,
-                    cantidad: item.cantidad,
-                    precio_unitario: item.precio
-                }))
-            };
-
-            fetch('/api/pagos/iniciar-paymentez', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payloadCompra)
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === "success") {
-                    if (data.checkout_url && data.checkout_url !== "#") {
-                        window.location.href = data.checkout_url;
-                    } else {
-                        alert(data.mensaje || "Pasarela configurada en modo simulación de pruebas exitosamente.");
-                    }
-                } else {
-                    alert("Error al iniciar el pago: " + (data.detail || "Intente nuevamente."));
-                }
-            })
-            .catch(err => {
-                console.error("Error de red:", err);
-                alert("No se pudo conectar con el servidor de pagos.");
-            });
-        }
-
-        // --- GESTIÓN DE SESIÓN Y CLIENTES WEB ---
-        function obtenerUsuarioLogueado() {
-            const userStr = localStorage.getItem('usuario_fajas');
-            return userStr ? JSON.parse(userStr) : null;
-        }
-
-        function actualizarBotonCuentaNav() {
-            const usuario = obtenerUsuarioLogueado();
-            const nombreNav = document.getElementById('nombre-usuario-nav');
-            if (usuario) {
-                const primerNombre = usuario.nombre.split(' ')[0];
-                nombreNav.innerText = primerNombre;
-            } else {
-                nombreNav.innerText = "Mi Cuenta";
-            }
-        }
-
-        function gestionarClicCuenta() {
-            const usuario = obtenerUsuarioLogueado();
-            if (usuario) {
-                abrirModalPerfil();
-            } else {
-                abrirModalAuth();
-            }
-        }
-
-        function abrirModalAuth() {
-            document.getElementById('modal-auth').classList.remove('hidden');
-        }
-
-        function cerrarModalAuth() {
-            document.getElementById('modal-auth').classList.add('hidden');
-        }
-
-        function cambiarTabAuth(tipo) {
-            const btnLogin = document.getElementById('tab-login-btn');
-            const btnReg = document.getElementById('tab-registro-btn');
-            const boxLogin = document.getElementById('form-login-container');
-            const boxReg = document.getElementById('form-registro-container');
-
-            if (tipo === 'login') {
-                btnLogin.className = "flex-1 pb-2 font-bold text-sm text-rose-600 border-b-2 border-rose-600";
-                btnReg.className = "flex-1 pb-2 font-bold text-sm text-slate-400";
-                boxLogin.classList.remove('hidden');
-                boxReg.classList.add('hidden');
-            } else {
-                btnReg.className = "flex-1 pb-2 font-bold text-sm text-rose-600 border-b-2 border-rose-600";
-                btnLogin.className = "flex-1 pb-2 font-bold text-sm text-slate-400";
-                boxReg.classList.remove('hidden');
-                boxLogin.classList.add('hidden');
-            }
-        }
-
-        function toggleVisibilidadPassword(inputId, iconId) {
-            const input = document.getElementById(inputId);
-            const icon = document.getElementById(iconId);
-            if (input.type === "password") {
-                input.type = "text";
-                icon.classList.remove("fa-eye");
-                icon.classList.add("fa-eye-slash");
-            } else {
-                input.type = "password";
-                icon.classList.remove("fa-eye-slash");
-                icon.classList.add("fa-eye");
-            }
-        }
-
-        async function ejecutarLogin(event) {
-            event.preventDefault();
-            const correo = document.getElementById('login-correo').value;
-            const password = document.getElementById('login-password').value;
-
-            try {
-                const res = await fetch('/api/web/auth/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ correo, password })
-                });
-                
-                const data = await res.json();
-                console.log("Respuesta login:", res.status, data);
-
-                if (res.ok && data.status === 'success') {
-                    localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
-                    cerrarModalAuth();
-                    actualizarBotonCuentaNav();
-                    alert(data.mensaje);
-                } else {
-                    alert("Error [Server]: " + (data.detail || JSON.stringify(data)));
-                }
-            } catch (e) {
-                console.error("Error de red login:", e);
-                alert("Error de conexión con el servidor (Catch): " + e.message);
-            }
-        }
-
-        async function ejecutarRegistro(event) {
-            event.preventDefault();
-            console.log("🚀 [Chivato]: Se disparó el evento submit en ejecutarRegistro.");
-
-            const nombre = document.getElementById('reg-nombre').value;
-            const correo = document.getElementById('reg-correo').value;
-            const password = document.getElementById('reg-password').value;
-            const passwordConfirm = document.getElementById('reg-password-confirm').value;
-            const telefono = document.getElementById('reg-telefono').value;
-            const direccion = document.getElementById('reg-direccion').value;
-
-            if (password !== passwordConfirm) {
-                alert("⚠️ Las contraseñas no coinciden. Por favor verifíquelas e intente nuevamente.");
-                return;
-            }
-
-            try {
-                const payload = { nombre, correo, password, telefono, direccion };
-                console.log("📦 [Chivato]: Payload enviado al servidor:", payload);
-
-                const res = await fetch('/api/web/auth/registro', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                // Leemos como texto primero para evitar el crash de 'Unexpected token I'
-                const rawText = await res.text();
-                let data;
-                try {
-                    data = JSON.parse(rawText);
-                } catch(errJson) {
-                    console.error("❌ El servidor no devolvió JSON:", rawText);
-                    alert("Error 500 Servidor: " + rawText);
-                    return;
-                }
-
-                console.log("📥 [Chivato]: Respuesta del servidor:", res.status, data);
-
-                if (res.ok && data.status === 'success') {
-                    localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
-                    cerrarModalAuth();
-                    actualizarBotonCuentaNav();
-                    alert(data.mensaje);
-                } else {
-                    let errorMsg = data.detail || "Error al registrarse.";
-                    if (Array.isArray(errorMsg)) {
-                        errorMsg = errorMsg.map(err => `${err.loc.join('.')}: ${err.msg}`).join(', ');
-                    }
-                    alert("Error [Server]: " + errorMsg);
-                }
-            } catch (e) {
-                console.error("❌ [Chivato Error de red]:", e);
-                alert("Error de conexión con el servidor (Catch): " + e.message);
-            }
-        }
-
-        async function abrirModalPerfil() {
-            const usuario = obtenerUsuarioLogueado();
-            if (!usuario) return;
-
-            document.getElementById('perfil-nombre').innerText = usuario.nombre;
-            document.getElementById('perfil-correo').innerText = usuario.correo;
-            document.getElementById('perfil-inicial').innerText = usuario.nombre.charAt(0).toUpperCase();
-            document.getElementById('modal-perfil').classList.remove('hidden');
-
-            const container = document.getElementById('historial-pedidos-container');
-            container.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">Cargando tus pedidos...</div>`;
-
-            try {
-                const res = await fetch(`/api/web/auth/pedidos/${usuario.id}`);
-                const pedidos = await res.json();
-
-                if (pedidos.length === 0) {
-                    container.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">Aún no tienes compras registradas. ¡Anímate a estrenar!</div>`;
-                    return;
-                }
-
-                container.innerHTML = pedidos.map(p => `
-                    <div class="bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs space-y-1">
-                        <div class="flex justify-between font-bold text-slate-900">
-                            <span>Factura #${p.numero_factura}</span>
-                            <span class="text-rose-600">$${p.total.toFixed(2)}</span>
-                        </div>
-                        <div class="flex justify-between text-slate-500 text-[11px]">
-                            <span>Fecha: ${p.fecha}</span>
-                            <span class="font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">${p.estado_despacho}</span>
-                        </div>
-                        <div class="pt-1 border-t border-slate-200 text-[11px] flex justify-between">
-                            <span>Courier: <b>${p.courier}</b></span>
-                            <span>Guía: <b>${p.numero_guia}</b></span>
-                        </div>
-                    </div>
-                `).join('');
-            } catch (e) {
-                container.innerHTML = `<div class="text-center py-8 text-rose-500 text-xs">Error al cargar el historial.</div>`;
-            }
-        }
-
-        function cerrarModalPerfil() {
-            document.getElementById('modal-perfil').classList.add('hidden');
-        }
-
-        function cerrarSesion() {
-            localStorage.removeItem('usuario_fajas');
-            cerrarModalPerfil();
-            actualizarBotonCuentaNav();
-            alert("Has cerrado sesión correctamente.");
-        }
-
-        inicializarTienda();
-    </script>
+    <!-- ENLACE AL ARCHIVO JS EXTERNO -->
+    <script src="tienda.js"></script>
 </body>
 </html>

@@ -1,120 +1,343 @@
-// --- MÓDULO JS EXTERNO: TIENDA FAJAS ISABELLA ---
+const API_URL = "/api/web/inventario";
+const API_CATEGORIAS = "/api/web/categorias";
+const SVG_FALLBACK = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100%' height='100%' fill='%23f1f5f9'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-size='10'>Fajas Isabella</text></svg>";
 
-// Reemplazamos la función original para que consulte en tiempo real de forma transparente
-async function abrirModal(productoId) {
-    const modalElemento = document.getElementById("modal-producto");
-    const contenedorModal = document.getElementById("modal-contenido");
+let productos = [];
+let productosFiltrados = [];
+let categoriasOficiales = [];
+let productoSeleccionado = null;
+let tallaSeleccionada = "";
+let colorSeleccionado = "";
+let cantidadSeleccionada = 1;
+let carrito = [];
+let categoriaSeleccionadaActual = "TODAS";
 
-    if (!modalElemento || !contenedorModal) return;
+async function inicializarTienda() {
+    await cargarInventario();
+    actualizarBotonCuentaNav();
+}
 
-    // 1. Mostrar estado de carga rápido dentro del modal
-    contenedorModal.innerHTML = `
-        <div class="text-center py-10">
-            <i class="fa-solid fa-circle-notch fa-spin text-3xl text-rose-600 mb-3"></i>
-            <p class="text-xs font-bold text-slate-600">Consultando stock y precios en tiempo real...</p>
-        </div>
-    `;
-    modalElemento.classList.remove("hidden");
-
+async function cargarInventario() {
     try {
-        // 2. Petición en vivo al endpoint de FastAPI
-        const response = await fetch(`/web/producto/${productoId}`);
-        const data = await response.json();
+        const [resProductos, resCategorias] = await Promise.all([
+            fetch(API_URL),
+            fetch(API_CATEGORIAS)
+        ]);
 
-        if (data.status !== "success" || !data.variantes || data.variantes.length === 0) {
-            contenedorModal.innerHTML = `
-                <div class="text-center py-8">
-                    <p class="text-rose-600 font-bold text-sm">⚠️ Agotado Temporalmente</p>
-                    <p class="text-xs text-slate-500 mt-1">Este producto se acaba de agotar. ¡Vuelve pronto!</p>
-                </div>
-            `;
-            return;
+        if (resProductos.ok) {
+            productos = await resProductos.json();
+        } else {
+            productos = [];
         }
 
-        // Guardar referencia activa para el manejo de variantes
-        window.productoActivoDinamico = data;
+        if (resCategorias.ok) {
+            categoriasOficiales = await resCategorias.json();
+        } else {
+            categoriasOficiales = [];
+        }
+    } catch (e) {
+        productos = [];
+        categoriasOficiales = [];
+    }
 
-        let varianteSeleccionada = data.variantes[0];
-        const tallas = [...new Set(data.variantes.map(v => v.talla))];
-        const colores = [...new Set(data.variantes.map(v => v.color))];
+    productosFiltrados = [...productos];
+    cargarCategoriasWeb();
+    renderizarCatalogo();
+}
 
-        const imgSrcModal = obtenerRutaImagenProducto(data.imagen_url);
+function obtenerRutaImagenProducto(imagenUrl) {
+    if (!imagenUrl || imagenUrl.trim() === "" || imagenUrl === "/logo.png" || imagenUrl === "logo.png") {
+        return SVG_FALLBACK;
+    }
+    if (imagenUrl.startsWith("http://") || imagenUrl.startsWith("https://")) {
+        return imagenUrl;
+    }
+    let nombreArchivo = imagenUrl.split('/').pop().trim();
+    return `/img/${nombreArchivo}`;
+}
 
-        // 3. Renderizar el modal con datos frescos del servidor
-        contenedorModal.innerHTML = `
-            <div class="flex gap-4 items-start mb-4">
-                <img src="${imgSrcModal}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-20 h-20 object-contain rounded-2xl bg-slate-50 p-2 border border-slate-100 shrink-0">
-                <div>
-                    <span class="text-[10px] font-bold text-rose-600 tracking-wider uppercase">${data.categoria}</span>
-                    <h3 class="text-base font-extrabold text-slate-900 leading-snug">${data.nombre}</h3>
-                    <p id="modal-precio" class="text-xl font-black text-rose-600 mt-1">$${varianteSeleccionada.precio.toFixed(2)}</p>
-                </div>
+function cargarCategoriasWeb() {
+    const contenedor = document.getElementById("categorias-scroll");
+    const dropdownContainer = document.getElementById("dropdown-categorias-dinamico");
+    
+    let htmlScroll = `
+        <button onclick="filtrarCategoria('TODAS')" id="btn-cat-TODAS" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none">
+            <div class="circle-cat w-14 h-14 rounded-full overflow-hidden border-2 border-rose-500 p-0.5 transition-all shadow-xs bg-rose-50 flex items-center justify-center">
+                <img src="/img/cat-todas.jpg" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-cover rounded-full" alt="Todas">
             </div>
+            <span class="text-[10px] font-bold text-rose-600 mt-1 uppercase tracking-tight label-cat">Todas</span>
+        </button>
+    `;
 
-            <div class="space-y-3.5 border-t border-slate-100 pt-3">
-                <div>
-                    <label class="text-xs font-bold text-slate-800 block mb-1.5">Talla:</label>
-                    <div class="flex gap-2 flex-wrap" id="selector-tallas">
-                        ${tallas.map((t, idx) => `
-                            <button onclick="cambiarTallaDinamica(${productoId}, '${t}')" id="btn-talla-${t}" 
-                                class="btn-talla px-3.5 py-1.5 text-xs rounded-xl font-bold border ${idx === 0 ? 'bg-rose-600 text-white border-rose-600 shadow-xs' : 'bg-white text-slate-700 border-slate-300'} transition">
-                                ${t}
-                            </button>
-                        `).join('')}
-                    </div>
+    let htmlDropdown = `
+        <a href="#" onclick="filtrarCategoria('TODAS')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">✨ Ver Todo el Catálogo</a>
+        <div class="border-t border-slate-100 my-1"></div>
+    `;
+
+    categoriasOficiales.forEach(catObj => {
+        const nombreCat = catObj.nombre || catObj.categoria;
+        let imgCat = obtenerRutaImagenProducto(catObj.imagen_url);
+
+        htmlScroll += `
+            <button onclick="filtrarCategoria('${nombreCat}')" id="btn-cat-${nombreCat}" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none">
+                <div class="circle-cat w-14 h-14 rounded-full overflow-hidden border-2 border-slate-200 p-0.5 transition-all shadow-xs bg-rose-50 flex items-center justify-center">
+                    <img src="${imgCat}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-cover rounded-full" alt="${nombreCat}">
                 </div>
-
-                <div>
-                    <label class="text-xs font-bold text-slate-800 block mb-1.5">Color:</label>
-                    <div class="flex gap-2 flex-wrap" id="selector-colores">
-                        ${colores.map((c, idx) => `
-                            <button onclick="cambiarColorDinamico(${productoId}, '${c}')" id="btn-color-${c}" 
-                                class="btn-color px-3.5 py-1.5 text-xs rounded-xl font-bold border ${idx === 0 ? 'bg-slate-900 text-white border-slate-900 shadow-xs' : 'bg-white text-slate-700 border-slate-300'} transition">
-                                ${c}
-                            </button>
-                        `).join('')}
-                    </div>
-                </div>
-
-                <div class="bg-rose-50/60 border border-rose-100 p-3 rounded-2xl mt-3">
-                    <span class="text-[10px] font-bold text-rose-600 uppercase tracking-wider block mb-1">📋 Resumen en Tiempo Real:</span>
-                    <div class="text-xs text-slate-800 space-y-1">
-                        <div class="flex justify-between">
-                            <span class="text-slate-500">Variante:</span>
-                            <span class="font-bold text-slate-900"><span id="resumen-talla">${varianteSeleccionada.talla}</span> / <span id="resumen-color">${varianteSeleccionada.color}</span></span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-slate-500">Stock Actual:</span>
-                            <span class="font-mono text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded" id="modal-stock">Stock: ${varianteSeleccionada.stock} disp.</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-2 mt-2">
-                    <button onclick="agregarAlCarritoDinamico(false)" 
-                        class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs py-3 rounded-xl flex items-center justify-center gap-1.5 transition">
-                        <i class="fa-solid fa-plus"></i>
-                        <span>Seguir Comprando</span>
-                    </button>
-
-                    <button onclick="agregarAlCarritoDinamico(true)" 
-                        class="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-3 rounded-xl flex items-center justify-center gap-1.5 shadow-md shadow-rose-600/20 transition">
-                        <i class="fa-solid fa-cart-shopping"></i>
-                        <span>Ir al Carrito</span>
-                    </button>
-                </div>
-            </div>
+                <span class="text-[10px] font-bold text-slate-700 mt-1 uppercase tracking-tight label-cat">${nombreCat}</span>
+            </button>
         `;
 
-    } catch (err) {
-        console.error("Error al consultar producto dinámico:", err);
-        contenedorModal.innerHTML = `<p class="text-center text-xs text-red-500 py-6">Error al obtener el stock en tiempo real.</p>`;
+        htmlDropdown += `
+            <a href="#" onclick="filtrarCategoria('${nombreCat}')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">${nombreCat}</a>
+        `;
+    });
+
+    contenedor.innerHTML = htmlScroll;
+    if (dropdownContainer) {
+        dropdownContainer.innerHTML = htmlDropdown;
     }
 }
 
-function cambiarTallaDinamica(prodId, talla) {
-    if (!window.productoActivoDinamico) return;
+function generarHTMLTarjetaProducto(p) {
+    const precios = p.variantes ? p.variantes.map(v => v.precio) : [0];
+    const precioMin = Math.min(...precios);
+    const precioMax = Math.max(...precios);
+    const precioTexto = precioMin === precioMax ? `$${precioMin.toFixed(2)}` : `$${precioMin.toFixed(2)} - $${precioMax.toFixed(2)}`;
+    const coloresUnicos = p.variantes ? [...new Set(p.variantes.map(v => v.color))].join(", ") : "Variados";
+
+    let badgePromo = '';
+    if (p.en_liquidacion) {
+        badgePromo = `<span class="absolute top-2 left-2 bg-rose-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md animate-pulse">🔥 LIQUIDACIÓN</span>`;
+    } else if (p.en_oferta) {
+        const descTxt = p.descuento_oferta > 0 ? ` -${p.descuento_oferta}%` : '';
+        badgePromo = `<span class="absolute top-2 left-2 bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md">🏷️ OFERTA${descTxt}</span>`;
+    } else if (p.es_nuevo) {
+        badgePromo = `<span class="absolute top-2 left-2 bg-blue-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md">✨ NUEVO</span>`;
+    }
+
+    const imgSrc = obtenerRutaImagenProducto(p.imagen_url);
+
+    return `
+        <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:shadow-lg transition flex flex-col justify-between group">
+            <div class="relative bg-slate-50 h-48 flex items-center justify-center p-3 overflow-hidden">
+                ${badgePromo}
+                <img src="${imgSrc}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="h-full object-contain group-hover:scale-105 transition-all duration-300" alt="${p.nombre}">
+                <span class="absolute top-2 right-2 bg-slate-900/80 text-white text-[9px] font-bold px-2 py-0.5 rounded-full backdrop-blur-xs">
+                    ${p.variantes ? p.variantes.length : 1} Opciones
+                </span>
+            </div>
+
+            <div class="p-3.5 flex-1 flex flex-col justify-between">
+                <div>
+                    <span class="text-[9px] font-bold text-rose-600 tracking-wider uppercase">${p.categoria}</span>
+                    <h3 class="text-xs font-bold text-slate-800 line-clamp-1 mb-1">${p.nombre}</h3>
+                    <p class="text-[10px] text-slate-500 mb-2">Colores: <span class="font-medium text-slate-700">${coloresUnicos}</span></p>
+                </div>
+
+                <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
+                    <div>
+                        <span class="text-[9px] text-slate-400 block">${(p.en_liquidacion || p.en_oferta) ? 'Oferta' : 'Desde'}</span>
+                        <span class="text-sm font-black ${(p.en_liquidacion || p.en_oferta) ? 'text-rose-600' : 'text-slate-900'}">${precioTexto}</span>
+                    </div>
+                    <button onclick="abrirModal(${p.id})" class="bg-slate-900 hover:bg-rose-600 text-white font-bold text-[11px] px-3 py-1.5 rounded-xl transition shadow-xs">
+                        Ver Tallas
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderizarCatalogo() {
+    const container = document.getElementById("catalog-container");
+    document.getElementById("total-productos").innerText = `${productosFiltrados.length} modelos`;
+
+    if (productosFiltrados.length === 0) {
+        container.innerHTML = `<div class="col-span-full text-center py-12 text-slate-400 text-sm">No encontramos modelos en esta categoría.</div>`;
+    } else {
+        container.innerHTML = productosFiltrados.map(p => generarHTMLTarjetaProducto(p)).join('');
+    }
+
+    // ---------------------------------------------------------------------------------
+    // SECCIONES ADICIONALES A RENGLÓN SEGUIDO (Mira lo Nuevo & Aprovecha Nuestras Ofertas)
+    // ---------------------------------------------------------------------------------
+    const contenedorSeccionesSecundarias = document.getElementById("secciones-secundarias-container");
     
+    if (contenedorSeccionesSecundarias) {
+        if (categoriaSeleccionadaActual !== "TODAS" && categoriaSeleccionadaActual !== "LIQUIDACION" && categoriaSeleccionadaActual !== "OFERTAS" && categoriaSeleccionadaActual !== "NEW") {
+            
+            const productosNuevos = productos.filter(p => p.es_nuevo === true);
+            const productosOfertas = productos.filter(p => p.en_oferta === true);
+
+            let htmlSecundario = '';
+
+            // 1. Renglón seguido: SECCIÓN LO NUEVO
+            if (productosNuevos.length > 0) {
+                htmlSecundario += `
+                    <div class="mt-16 pt-8 border-t border-slate-200">
+                        <div class="flex items-center justify-between mb-6">
+                            <div class="flex items-center gap-2">
+                                <span class="bg-blue-100 text-blue-700 p-2 rounded-xl text-xs"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+                                <h3 class="text-base font-extrabold text-slate-900">✨ Mira lo Nuevo de Fajas Isabella</h3>
+                            </div>
+                            <span class="text-xs text-blue-600 font-bold cursor-pointer hover:underline" onclick="filtrarCategoria('NEW')">Ver todo lo nuevo →</span>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                            ${productosNuevos.map(p => generarHTMLTarjetaProducto(p)).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 2. Renglón seguido: SECCIÓN OFERTAS
+            if (productosOfertas.length > 0) {
+                htmlSecundario += `
+                    <div class="mt-12 pt-8 border-t border-slate-200">
+                        <div class="flex items-center justify-between mb-6">
+                            <div class="flex items-center gap-2">
+                                <span class="bg-amber-100 text-amber-700 p-2 rounded-xl text-xs"><i class="fa-solid fa-tags"></i></span>
+                                <h3 class="text-base font-extrabold text-slate-900">🏷️ ¡Aprovecha nuestras Ofertas Especiales!</h3>
+                            </div>
+                            <span class="text-xs text-amber-600 font-bold cursor-pointer hover:underline" onclick="filtrarCategoria('OFERTAS')">Ver todas las ofertas →</span>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                            ${productosOfertas.map(p => generarHTMLTarjetaProducto(p)).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            contenedorSeccionesSecundarias.innerHTML = htmlSecundario;
+        } else {
+            contenedorSeccionesSecundarias.innerHTML = ''; 
+        }
+    }
+}
+
+function abrirModal(productoId) {
+    productoSeleccionado = productos.find(p => p.id === productoId);
+    if (!productoSeleccionado) return;
+
+    const variantes = productoSeleccionado.variantes || [];
+    const tallas = [...new Set(variantes.map(v => v.talla))];
+    const colores = [...new Set(variantes.map(v => v.color))];
+
+    tallaSeleccionada = tallas[0] || "S";
+    colorSeleccionado = colores[0] || "Negro";
+    cantidadSeleccionada = 1;
+
+    const imgSrcModal = obtenerRutaImagenProducto(productoSeleccionado.imagen_url);
+
+    const contenido = `
+        <div class="flex gap-4 items-start mb-4">
+            <img src="${imgSrcModal}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-20 h-20 object-contain rounded-2xl bg-slate-50 p-2 border border-slate-100 shrink-0">
+            <div>
+                <span class="text-[10px] font-bold text-rose-600 tracking-wider uppercase">${productoSeleccionado.categoria}</span>
+                <h3 class="text-base font-extrabold text-slate-900 leading-snug">${productoSeleccionado.nombre}</h3>
+                <p id="modal-precio" class="text-xl font-black text-rose-600 mt-1">$${variantes[0] ? variantes[0].precio.toFixed(2) : '0.00'}</p>
+            </div>
+        </div>
+
+        <div class="space-y-3.5 border-t border-slate-100 pt-3">
+            <div>
+                <label class="text-xs font-bold text-slate-800 block mb-1.5">Talla:</label>
+                <div class="flex gap-2 flex-wrap" id="selector-tallas">
+                    ${tallas.map((t, idx) => `
+                        <button onclick="seleccionarTalla('${t}')" id="btn-talla-${t}" 
+                            class="btn-talla px-3.5 py-1.5 text-xs rounded-xl font-bold border ${idx === 0 ? 'bg-rose-600 text-white border-rose-600 shadow-xs' : 'bg-white text-slate-700 border-slate-300'} transition">
+                            ${t}
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+
+            <div>
+                <label class="text-xs font-bold text-slate-800 block mb-1.5">Color:</label>
+                <div class="flex gap-2 flex-wrap" id="selector-colores">
+                    ${colores.map((c, idx) => `
+                        <button onclick="seleccionarColor('${c}')" id="btn-color-${c}" 
+                            class="btn-color px-3.5 py-1.5 text-xs rounded-xl font-bold border ${idx === 0 ? 'bg-slate-900 text-white border-slate-900 shadow-xs' : 'bg-white text-slate-700 border-slate-300'} transition">
+                            ${c}
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+
+            <div class="bg-rose-50/60 border border-rose-100 p-3 rounded-2xl mt-3">
+                <span class="text-[10px] font-bold text-rose-600 uppercase tracking-wider block mb-1">📋 Resumen de Selección:</span>
+                <div class="text-xs text-slate-800 space-y-1.5">
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Variante:</span>
+                        <span class="font-bold text-slate-900"><span id="resumen-talla">${tallaSeleccionada}</span> / <span id="resumen-color">${colorSeleccionado}</span></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Disponibilidad:</span>
+                        <span class="font-mono text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded" id="modal-stock">Consultando...</span>
+                    </div>
+
+                    <hr class="border-rose-200 my-2">
+
+                    <div class="flex justify-between items-center pt-1">
+                        <span class="text-slate-700 font-bold">Cantidad:</span>
+                        <div class="flex items-center border border-slate-300 rounded-lg bg-white overflow-hidden shadow-2xs">
+                            <button onclick="cambiarCantidadModal(-1)" type="button" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold transition">-</button>
+                            <input id="modal-cantidad-input" type="number" value="1" min="1" class="w-10 text-center text-xs font-black border-none outline-none bg-transparent" readonly>
+                            <button onclick="cambiarCantidadModal(1)" type="button" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold transition">+</button>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center pt-1 text-sm font-black text-slate-900">
+                        <span>Total Selección:</span>
+                        <span id="modal-total-seleccion" class="text-rose-600 text-base">$0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 mt-2">
+                <button onclick="agregarAlCarrito(false)" 
+                    class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs py-3 rounded-xl flex items-center justify-center gap-1.5 transition">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Seguir Comprando</span>
+                </button>
+
+                <button onclick="agregarAlCarrito(true)" 
+                    class="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-3 rounded-xl flex items-center justify-center gap-1.5 shadow-md shadow-rose-600/20 transition">
+                    <i class="fa-solid fa-cart-shopping"></i>
+                    <span>Ir al Carrito</span>
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.getElementById("modal-contenido").innerHTML = contenido;
+    document.getElementById("modal-producto").classList.remove("hidden");
+    actualizarDetalleVariante();
+}
+
+function cambiarCantidadModal(delta) {
+    const variante = obtenerVarianteActual();
+    const stockMax = variante ? variante.stock : 99;
+
+    cantidadSeleccionada += delta;
+    if (cantidadSeleccionada < 1) cantidadSeleccionada = 1;
+    if (cantidadSeleccionada > stockMax && stockMax > 0) cantidadSeleccionada = stockMax;
+
+    const inputElem = document.getElementById("modal-cantidad-input");
+    if (inputElem) {
+        inputElem.value = cantidadSeleccionada;
+    }
+    actualizarDetalleVariante();
+}
+
+function obtenerVarianteActual() {
+    if (!productoSeleccionado || !productoSeleccionado.variantes) return null;
+    return productoSeleccionado.variantes.find(v => v.talla === tallaSeleccionada && v.color === colorSeleccionado) 
+        || productoSeleccionado.variantes.find(v => v.talla === tallaSeleccionada) 
+        || productoSeleccionado.variantes[0];
+}
+
+function seleccionarTalla(talla) {
+    tallaSeleccionada = talla;
     document.querySelectorAll(".btn-talla").forEach(b => {
         b.classList.remove("bg-rose-600", "text-white", "border-rose-600");
         b.classList.add("bg-white", "text-slate-700", "border-slate-300");
@@ -124,14 +347,11 @@ function cambiarTallaDinamica(prodId, talla) {
         btn.classList.remove("bg-white", "text-slate-700", "border-slate-300");
         btn.classList.add("bg-rose-600", "text-white", "border-rose-600");
     }
-
-    const colorActual = document.getElementById("resumen-color").innerText;
-    actualizarVistaVarianteActiva(talla, colorActual);
+    actualizarDetalleVariante();
 }
 
-function cambiarColorDinamico(prodId, color) {
-    if (!window.productoActivoDinamico) return;
-
+function seleccionarColor(color) {
+    colorSeleccionado = color;
     document.querySelectorAll(".btn-color").forEach(b => {
         b.classList.remove("bg-slate-900", "text-white", "border-slate-900");
         b.classList.add("bg-white", "text-slate-700", "border-slate-300");
@@ -141,56 +361,392 @@ function cambiarColorDinamico(prodId, color) {
         btn.classList.remove("bg-white", "text-slate-700", "border-slate-300");
         btn.classList.add("bg-slate-900", "text-white", "border-slate-900");
     }
-
-    const tallaActual = document.getElementById("resumen-talla").innerText;
-    actualizarVistaVarianteActiva(tallaActual, color);
+    actualizarDetalleVariante();
 }
 
-function actualizarVistaVarianteActiva(talla, color) {
-    const data = window.productoActivoDinamico;
-    if (!data) return;
-
-    let variante = data.variantes.find(v => v.talla === talla && v.color === color) 
-                || data.variantes.find(v => v.talla === talla) 
-                || data.variantes[0];
+function actualizarDetalleVariante() {
+    const variante = obtenerVarianteActual();
 
     if (variante) {
+        const totalLinea = variante.precio * cantidadSeleccionada;
         document.getElementById("modal-precio").innerText = `$${variante.precio.toFixed(2)}`;
-        document.getElementById("resumen-talla").innerText = variante.talla;
-        document.getElementById("resumen-color").innerText = variante.color;
+        document.getElementById("resumen-talla").innerText = tallaSeleccionada;
+        document.getElementById("resumen-color").innerText = colorSeleccionado;
         document.getElementById("modal-stock").innerText = `Stock: ${variante.stock} disp. (${variante.sku})`;
+        
+        const elemTotal = document.getElementById("modal-total-seleccion");
+        if (elemTotal) {
+            elemTotal.innerText = `$${totalLinea.toFixed(2)}`;
+        }
     }
 }
 
-function agregarAlCarritoDinamico(abrirDrawer = false) {
-    const data = window.productoActivoDinamico;
-    if (!data) return;
+function cerrarModal() {
+    document.getElementById("modal-producto").classList.add("hidden");
+}
 
-    const tallaActual = document.getElementById("resumen-talla").innerText;
-    const colorActual = document.getElementById("resumen-color").innerText;
+function scrollCategorias(distancia) {
+    const contenedor = document.getElementById("categorias-scroll");
+    if (contenedor) {
+        contenedor.scrollBy({ left: distancia, behavior: 'smooth' });
+    }
+}
 
-    let variante = data.variantes.find(v => v.talla === tallaActual && v.color === colorActual) || data.variantes[0];
+function filtrarCategoria(cat) {
+    categoriaSeleccionadaActual = cat;
+
+    if (cat === 'LIQUIDACION') {
+        document.getElementById("titulo-categoria").innerText = "🔥 Productos en Liquidación";
+        productosFiltrados = productos.filter(p => p.en_liquidacion === true);
+    } else if (cat === 'OFERTAS') {
+        document.getElementById("titulo-categoria").innerText = "🏷️ Productos en Oferta Especial";
+        productosFiltrados = productos.filter(p => p.en_oferta === true);
+    } else if (cat === 'NEW') {
+        document.getElementById("titulo-categoria").innerText = "✨ Nuevos Modelos (New)";
+        productosFiltrados = productos.filter(p => p.es_nuevo === true);
+    } else {
+        document.getElementById("titulo-categoria").innerText = cat === 'TODAS' ? 'Todas las Prendas Disponibles' : `Categoría: ${cat}`;
+        if (cat === 'TODAS') {
+            productosFiltrados = [...productos];
+        } else {
+            productosFiltrados = productos.filter(p => (p.categoria || '').toUpperCase() === cat.toUpperCase());
+        }
+    }
+    renderizarCatalogo();
+}
+
+function buscarProducto() {
+    const query = document.getElementById("input-busqueda").value.toLowerCase();
+    productosFiltrados = productos.filter(p => 
+        p.nombre.toLowerCase().includes(query) || 
+        p.categoria.toLowerCase().includes(query) ||
+        (p.variantes && p.variantes.some(v => v.sku.toLowerCase().includes(query)))
+    );
+    renderizarCatalogo();
+}
+
+function agregarAlCarrito(abrirCarritoDrawer = false) {
+    const variante = obtenerVarianteActual();
+    const cantAgregar = cantidadSeleccionada > 0 ? cantidadSeleccionada : 1;
 
     const itemExistente = carrito.find(item => item.sku === variante.sku);
     if (itemExistente) {
-        itemExistente.cantidad += 1;
+        itemExistente.cantidad += cantAgregar;
     } else {
         carrito.push({
-            nombre: data.nombre,
+            nombre: productoSeleccionado.nombre,
             sku: variante.sku,
-            talla: variante.talla,
-            color: variante.color,
+            talla: tallaSeleccionada,
+            color: colorSeleccionado,
             precio: variante.precio,
-            imagen_url: data.imagen_url || SVG_FALLBACK,
-            categoria: data.categoria,
-            cantidad: 1
+            imagen_url: productoSeleccionado.imagen_url || SVG_FALLBACK,
+            categoria: productoSeleccionado.categoria,
+            cantidad: cantAgregar
         });
     }
 
     cerrarModal();
     actualizarCarritoUI();
 
-    if (abrirDrawer) {
+    if (abrirCarritoDrawer) {
         toggleCarrito();
     }
 }
+
+function actualizarCarritoUI() {
+    const count = carrito.reduce((acc, item) => acc + item.cantidad, 0);
+    const total = carrito.reduce((acc, item) => acc + (item.precio * item.cantidad), 0);
+
+    document.getElementById("cart-count").innerText = count;
+    document.getElementById("carrito-total").innerText = `$${total.toFixed(2)}`;
+
+    const container = document.getElementById("carrito-items");
+    if (carrito.length === 0) {
+        container.innerHTML = `<div class="text-center py-12 text-slate-400 text-xs">Tu carrito está vacío por el momento.</div>`;
+        return;
+    }
+
+    container.innerHTML = carrito.map((item, index) => {
+        const imgItem = obtenerRutaImagenProducto(item.imagen_url);
+        return `
+            <div class="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                <div class="flex items-center gap-3">
+                    <img src="${imgItem}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-12 h-12 object-contain rounded-lg bg-white p-1 border">
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-800 line-clamp-1">${item.nombre}</h4>
+                        <p class="text-[10px] text-slate-500">Talla: <b>${item.talla}</b> | Color: <b>${item.color}</b></p>
+                        <span class="text-xs font-black text-rose-600">$${item.precio.toFixed(2)} x ${item.cantidad}</span>
+                    </div>
+                </div>
+                <button onclick="eliminarDelCarrito(${index})" class="text-slate-400 hover:text-rose-600 text-xs p-1">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            </div>
+        `;
+    }).join('');
+}
+
+function eliminarDelCarrito(index) {
+    carrito.splice(index, 1);
+    actualizarCarritoUI();
+}
+
+function toggleCarrito() {
+    const drawer = document.getElementById("drawer-carrito");
+    drawer.classList.toggle("hidden");
+}
+
+function enviarPedidoFinalWhatsApp() {
+    if (carrito.length === 0) {
+        alert("Tu carrito está vacío. Agrega una prenda antes de enviar tu pedido.");
+        return;
+    }
+
+    let detalleText = "";
+    let total = 0;
+
+    carrito.forEach((item, idx) => {
+        const subtotal = item.precio * item.cantidad;
+        total += subtotal;
+        detalleText += `${idx + 1}. *${item.nombre}*%0A   - Talla: ${item.talla} | Color: ${item.color}%0A   - SKU: ${item.sku}%0A   - Cantidad: ${item.cantidad} x $${item.precio.toFixed(2)} = $${subtotal.toFixed(2)}%0A%0A`;
+    });
+
+    const mensaje = `¡Hola Fajas Isabella! 👋 Deseo realizar la compra de las siguientes prendas de mi carrito:%0A%0A${detalleText}💰 *Total a Pagar:* $${total.toFixed(2)}%0A%0A¿Me ayudan a confirmar el pedido y coordinar el envío?`;
+    
+    window.open(`https://wa.me/593983870398?text=${mensaje}`, '_blank');
+}
+
+function iniciarPagoPaymentez() {
+    if (carrito.length === 0) {
+        alert("Tu carrito está vacío.");
+        return;
+    }
+
+    const payloadCompra = {
+        items: carrito.map(item => ({
+            sku: item.sku,
+            cantidad: item.cantidad,
+            precio_unitario: item.precio
+        }))
+    };
+
+    fetch('/api/pagos/iniciar-paymentez', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payloadCompra)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === "success") {
+            if (data.checkout_url && data.checkout_url !== "#") {
+                window.location.href = data.checkout_url;
+            } else {
+                alert(data.mensaje || "Pasarela configurada en modo simulación de pruebas exitosamente.");
+            }
+        } else {
+            alert("Error al iniciar el pago: " + (data.detail || "Intente nuevamente."));
+        }
+    })
+    .catch(err => {
+        console.error("Error de red:", err);
+        alert("No se pudo conectar con el servidor de pagos.");
+    });
+}
+
+function obtenerUsuarioLogueado() {
+    const userStr = localStorage.getItem('usuario_fajas');
+    return userStr ? JSON.parse(userStr) : null;
+}
+
+function actualizarBotonCuentaNav() {
+    const usuario = obtenerUsuarioLogueado();
+    const nombreNav = document.getElementById('nombre-usuario-nav');
+    if (usuario) {
+        const primerNombre = usuario.nombre.split(' ')[0];
+        nombreNav.innerText = primerNombre;
+    } else {
+        nombreNav.innerText = "Mi Cuenta";
+    }
+}
+
+function gestionarClicCuenta() {
+    const usuario = obtenerUsuarioLogueado();
+    if (usuario) {
+        abrirModalPerfil();
+    } else {
+        abrirModalAuth();
+    }
+}
+
+function abrirModalAuth() {
+    document.getElementById('modal-auth').classList.remove('hidden');
+}
+
+function cerrarModalAuth() {
+    document.getElementById('modal-auth').classList.add('hidden');
+}
+
+function cambiarTabAuth(tipo) {
+    const btnLogin = document.getElementById('tab-login-btn');
+    const btnReg = document.getElementById('tab-registro-btn');
+    const boxLogin = document.getElementById('form-login-container');
+    const boxReg = document.getElementById('form-registro-container');
+
+    if (tipo === 'login') {
+        btnLogin.className = "flex-1 pb-2 font-bold text-sm text-rose-600 border-b-2 border-rose-600";
+        btnReg.className = "flex-1 pb-2 font-bold text-sm text-slate-400";
+        boxLogin.classList.remove('hidden');
+        boxReg.classList.add('hidden');
+    } else {
+        btnReg.className = "flex-1 pb-2 font-bold text-sm text-rose-600 border-b-2 border-rose-600";
+        btnLogin.className = "flex-1 pb-2 font-bold text-sm text-slate-400";
+        boxReg.classList.remove('hidden');
+        boxLogin.classList.add('hidden');
+    }
+}
+
+function toggleVisibilidadPassword(inputId, iconId) {
+    const input = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
+    if (input.type === "password") {
+        input.type = "text";
+        icon.classList.remove("fa-eye");
+        icon.classList.add("fa-eye-slash");
+    } else {
+        input.type = "password";
+        icon.classList.remove("fa-eye-slash");
+        icon.classList.add("fa-eye");
+    }
+}
+
+async function ejecutarLogin(event) {
+    event.preventDefault();
+    const correo = document.getElementById('login-correo').value;
+    const password = document.getElementById('login-password').value;
+
+    try {
+        const res = await fetch('/api/web/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ correo, password })
+        });
+        
+        const data = await res.json();
+
+        if (res.ok && data.status === 'success') {
+            localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
+            cerrarModalAuth();
+            actualizarBotonCuentaNav();
+            alert(data.mensaje);
+        } else {
+            alert("Error [Server]: " + (data.detail || JSON.stringify(data)));
+        }
+    } catch (e) {
+        alert("Error de conexión con el servidor: " + e.message);
+    }
+}
+
+async function ejecutarRegistro(event) {
+    event.preventDefault();
+
+    const nombre = document.getElementById('reg-nombre').value;
+    const correo = document.getElementById('reg-correo').value;
+    const password = document.getElementById('reg-password').value;
+    const passwordConfirm = document.getElementById('reg-password-confirm').value;
+    const telefono = document.getElementById('reg-telefono').value;
+    const direccion = document.getElementById('reg-direccion').value;
+
+    if (password !== passwordConfirm) {
+        alert("⚠️ Las contraseñas no coinciden. Por favor verifíquelas e intente nuevamente.");
+        return;
+    }
+
+    try {
+        const payload = { nombre, correo, password, telefono, direccion };
+
+        const res = await fetch('/api/web/auth/registro', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const rawText = await res.text();
+        let data;
+        try {
+            data = JSON.parse(rawText);
+        } catch(errJson) {
+            alert("Error 500 Servidor: " + rawText);
+            return;
+        }
+
+        if (res.ok && data.status === 'success') {
+            localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
+            cerrarModalAuth();
+            actualizarBotonCuentaNav();
+            alert(data.mensaje);
+        } else {
+            let errorMsg = data.detail || "Error al registrarse.";
+            if (Array.isArray(errorMsg)) {
+                errorMsg = errorMsg.map(err => `${err.loc.join('.')}: ${err.msg}`).join(', ');
+            }
+            alert("Error [Server]: " + errorMsg);
+        }
+    } catch (e) {
+        alert("Error de conexión con el servidor: " + e.message);
+    }
+}
+
+async function abrirModalPerfil() {
+    const usuario = obtenerUsuarioLogueado();
+    if (!usuario) return;
+
+    document.getElementById('perfil-nombre').innerText = usuario.nombre;
+    document.getElementById('perfil-correo').innerText = usuario.correo;
+    document.getElementById('perfil-inicial').innerText = usuario.nombre.charAt(0).toUpperCase();
+    document.getElementById('modal-perfil').classList.remove('hidden');
+
+    const container = document.getElementById('historial-pedidos-container');
+    container.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">Cargando tus pedidos...</div>`;
+
+    try {
+        const res = await fetch(`/api/web/auth/pedidos/${usuario.id}`);
+        const pedidos = await res.json();
+
+        if (pedidos.length === 0) {
+            container.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">Aún no tienes compras registradas. ¡Anímate a estrenar!</div>`;
+            return;
+        }
+
+        container.innerHTML = pedidos.map(p => `
+            <div class="bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs space-y-1">
+                <div class="flex justify-between font-bold text-slate-900">
+                    <span>Factura #${p.numero_factura}</span>
+                    <span class="text-rose-600">$${p.total.toFixed(2)}</span>
+                </div>
+                <div class="flex justify-between text-slate-500 text-[11px]">
+                    <span>Fecha: ${p.fecha}</span>
+                    <span class="font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">${p.estado_despacho}</span>
+                </div>
+                <div class="pt-1 border-t border-slate-200 text-[11px] flex justify-between">
+                    <span>Courier: <b>${p.courier}</b></span>
+                    <span>Guía: <b>${p.numero_guia}</b></span>
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        container.innerHTML = `<div class="text-center py-8 text-rose-500 text-xs">Error al cargar el historial.</div>`;
+    }
+}
+
+function cerrarModalPerfil() {
+    document.getElementById('modal-perfil').classList.add('hidden');
+}
+
+function cerrarSesion() {
+    localStorage.removeItem('usuario_fajas');
+    cerrarModalPerfil();
+    actualizarBotonCuentaNav();
+    alert("Has cerrado sesión correctamente.");
+}
+
+inicializarTienda();

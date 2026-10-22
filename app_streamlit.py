@@ -10,7 +10,7 @@ from modules.login_admin import render_login_admin
 
 from modules.inventario_ui import render_inventario
 from modules.ventas_ui import render_ventas
-from modules.despachos_ui import render_despachos
+from modules.logistica_ui import render_logistica
 from modules.compras_ui import render_compras
 from modules.proveedores_ui import render_proveedores
 from modules.clientes_ui import render_clientes
@@ -40,7 +40,7 @@ if "rol_actual" not in st.session_state:
 # --- EVALUACIÓN DE LOGIN DEL PANEL ---
 if not st.session_state["autenticado"]:
     render_login_admin()
-    st.stop()  # Bloquea el panel administrativo si no se autentica
+    st.stop()
 
 # --- INFORMACIÓN Y CERRAR SESIÓN EN SIDEBAR ---
 st.sidebar.markdown(f"👤 **Usuario:** {st.session_state['usuario_actual']}")
@@ -56,27 +56,26 @@ rol = st.session_state["rol_actual"]
 
 if rol == "Administrador":
     modulos_disponibles = [
-        "📦 Módulo de Inventario", 
-        "💳 Módulo de Ventas", 
-        "🚚 Logística y Despachos",
-        "📥 Módulo de Compras", 
-        "🏭 Mantenimiento de Proveedores",
-        "👥 Mantenimiento de Clientes",
-        "📊 Reportes y Auditoría"
+        "📦 Inventario", 
+        "💳 Ventas", 
+        "🚚 Logística",
+        "📥 Compras", 
+        "🏭 Proveedores",
+        "👥 Clientes",
+        "📊 Reportes"
     ]
 elif rol == "Ventas":
     modulos_disponibles = [
-        "💳 Módulo de Ventas",
-        "📦 Módulo de Inventario",
-        "👥 Mantenimiento de Clientes"
+        "💳 Ventas",
+        "📦 Inventario",
+        "👥 Clientes"
     ]
 elif rol == "Despacho":
     modulos_disponibles = [
-        "🚚 Logística y Despachos",
-        "📦 Módulo de Inventario"
+        "🚚 Logística"  # Acceso exclusivo al módulo de logística
     ]
 else:
-    modulos_disponibles = ["📦 Módulo de Inventario"]
+    modulos_disponibles = ["📦 Inventario"]
 
 seccion = st.sidebar.radio("Seleccione el Módulo de Trabajo:", modulos_disponibles)
 
@@ -108,17 +107,17 @@ with col_head2:
 st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
 
 # --- RENDERIZADO DE MÓDULOS ---
-if seccion == "📦 Módulo de Inventario":
+if seccion == "📦 Inventario":
     render_inventario()
-elif seccion == "💳 Módulo de Ventas":
+elif seccion == "💳 Ventas":
     render_ventas()
-elif seccion == "🚚 Logística y Despachos":
-    render_despachos()
-elif seccion == "📥 Módulo de Compras":
+elif seccion == "🚚 Logística":
+    render_logistica()
+elif seccion == "📥 Compras":
     render_compras()
-elif seccion == "🏭 Mantenimiento de Proveedores":
+elif seccion == "🏭 Proveedores":
     render_proveedores()
-elif seccion == "👥 Mantenimiento de Clientes":
+elif seccion == "👥 Clientes":
     render_clientes()
-elif seccion == "📊 Reportes y Auditoría":
+elif seccion == "📊 Reportes":
     render_reportes()

@@ -13,7 +13,6 @@ def render_inventario():
     accion = st.radio("Acción:" ,
         ("Registrar Nuevo Ítem", "Consultar y Modificar Inventario", "Mantenimiento de Categorías"),
         horizontal=True,
-        #label_visibility="collapsed"
     )
 
     # Cargar categorías de forma dinámica desde la tabla de PostgreSQL
@@ -40,7 +39,6 @@ def render_inventario():
             st.markdown("###### 🏷️ Variantes (Tallas, Colores, Precios y Stock)")
             st.caption("Puedes dejar el SKU vacío para que el sistema lo genere automáticamente de forma compacta (ej: id-talla-color), o escribir uno personalizado.")
 
-            # Tabla inicial limpia sin SKUs quemados estáticos (SKU en blanco para autogeneración)
             df_inicial = pd.DataFrame([
                 {"sku": "", "talla": "S", "color": "Negro", "precio": 45.0, "stock_actual": 10},
                 {"sku": "", "talla": "M", "color": "Negro", "precio": 45.0, "stock_actual": 15},
@@ -69,7 +67,28 @@ def render_inventario():
             else:
                 st.info("Sin imagen seleccionada")
 
-            en_liquidacion = st.checkbox("🔥 Marcar como En Liquidación (Oferta)")
+            st.markdown("---")
+            st.markdown("#### 🏷️ Estado y Promociones")
+
+            # 1. Checkbox Liquidación
+            en_liquidacion = st.checkbox("🔥 Marcar como En Liquidación")
+
+            # 2. Checkbox Nuevo (New)
+            es_nuevo = st.checkbox("✨ Marcar como Nuevo (New)")
+
+            # 3. Checkbox Oferta y Porcentaje
+            en_oferta = st.checkbox("🏷️ Marcar como Oferta")
+            
+            porcentaje_oferta = 0.0
+            if en_oferta:
+                porcentaje_oferta = st.number_input(
+                    "Porcentaje de Oferta (%):",
+                    min_value=1.0,
+                    max_value=90.0,
+                    value=10.0,
+                    step=1.0,
+                    help="Ingrese el porcentaje de descuento a aplicar para esta oferta"
+                )
 
         st.divider()
 
@@ -113,6 +132,9 @@ def render_inventario():
                         "modelo": nombre_producto,
                         "categoria": categoria,
                         "en_liquidacion": str(en_liquidacion).lower(),
+                        "es_nuevo": str(es_nuevo).lower(),
+                        "en_oferta": str(en_oferta).lower(),
+                        "descuento_oferta": str(porcentaje_oferta),
                         "variantes": json.dumps(lista_variantes)
                     }
 
@@ -160,7 +182,6 @@ def render_inventario():
                     
                     df_inventario = pd.DataFrame(data_tabla)
 
-                    #st.markdown("##### 🔍 Filtrar Inventario")
                     col_f1, col_f2 = st.columns(2)
                     
                     opciones_filtro = ["TODAS"] + categorias_disponibles
@@ -214,7 +235,6 @@ def render_inventario():
                                 
                                 st.caption(f"**Mod.:** {p_info.get('nombre', 'N/D')}")
                                 if img_url:
-                                    # Carga remota directa desde la API para evitar problemas de contenedores locales
                                     url_imagen_completa = f"{API_BASE}/{img_url}"
                                     st.image(url_imagen_completa, width=110)
                                 else:

@@ -2,8 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
-# Importamos el nuevo router de despachos junto con los demás
-from routers import clientes, proveedores, productos, compras, ventas, reportes, web_publica, auth_web, despachos
+# 1. Importa logistica aquí:
+from routers import clientes, proveedores, productos, compras, ventas, reportes, web_publica, auth_web, logistica
 
 app = FastAPI(title="Fajas Isabella - Sistema Modular API", version="5.0")
 
@@ -15,18 +15,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Redirección de la ruta raíz a la página web principal
 @app.get("/")
 def home():
     return RedirectResponse(url="/web/index.html")
 
-# --- RUTA INTERNA PARA ACCEDER AL PANEL ADMINISTRATIVO STREAMLIT ---
 @app.get("/admin")
 @app.get("/panel")
 def redirigir_admin():
     return RedirectResponse(url="http://localhost:8501")
 
-# Todos los routers del negocio estandarizados bajo el prefijo /api
+# Routers del negocio
 app.include_router(web_publica.router, prefix="/api", tags=["Web Pública"])
 app.include_router(ventas.router, prefix="/api", tags=["Ventas"])
 app.include_router(clientes.router, prefix="/api", tags=["Clientes"])
@@ -34,7 +32,8 @@ app.include_router(proveedores.router, prefix="/api", tags=["Proveedores"])
 app.include_router(productos.router, prefix="/api", tags=["Productos & Inventario"])
 app.include_router(compras.router, prefix="/api", tags=["Compras"])
 app.include_router(reportes.router, prefix="/api", tags=["Reportes"])
-app.include_router(despachos.router, prefix="/api", tags=["Despachos"])  # <--- ROUTER DE LOGÍSTICA Y DESPACHOS
+# 2. Incluye el router de logística (logistica.py ya trae el prefijo /api/despachos internamente):
+app.include_router(logistica.router)
 app.include_router(auth_web.router)
 
 # Archivos estáticos
