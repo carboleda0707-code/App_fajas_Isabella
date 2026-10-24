@@ -56,7 +56,8 @@ def render_compras():
             st.warning("⚠️ No hay productos o variantes registradas en el inventario. Debe crearlos primero en el Módulo de Inventario.")
             return
 
-        dict_skus = {}
+        # 1. Agrupar variantes por Producto / Modelo principal
+        productos_dict = {}
         info_variantes = {}
 
         for item in inventario:
@@ -72,9 +73,17 @@ def render_compras():
             talla_val = item.get('talla') or item.get('Talla') or 'Única'
             color_val = item.get('color') or item.get('Color') or 'Único'
             
-            label_desc = f"🛍️ {str(nombre_prod).upper()} — [Talla: {talla_val} | Color: {color_val}] (SKU: {sku_val})"
+            # Agrupación por nombre de producto
+            if nombre_prod not in productos_dict:
+                productos_dict[nombre_prod] = []
             
-            dict_skus[label_desc] = sku_val
+            productos_dict[nombre_prod].append({
+                "sku": sku_val,
+                "talla": talla_val,
+                "color": color_val,
+                "imagen_url": obtener_url_imagen(imagen_url)
+            })
+
             info_variantes[sku_val] = {
                 "nombre": nombre_prod,
                 "talla": talla_val,
@@ -82,7 +91,7 @@ def render_compras():
                 "imagen_url": obtener_url_imagen(imagen_url)
             }
 
-        lista_desc_skus = list(dict_skus.keys())
+        lista_productos = list(productos_dict.keys())
 
         # Consultar Proveedores para Autocompletar
         try:
@@ -122,64 +131,88 @@ def render_compras():
                 nom_p = st.text_input("Nombre / Razón Social Proveedor", value=nombre_sugerido).strip()
 
             st.markdown("---")
-            st.subheader("📦 Detalle de Variantes Recibidas en Bodega")
+            st.subheader("📦 Detalle de Ítems y Variantes Recibidas en Bodega")
             
-            num_lineas = st.number_input("Número de variantes distintas en la factura", min_value=1, max_value=30, value=1, step=1)
+            num_lineas = st.number_input("Número de productos distintos en la factura", min_value=1, max_value=30, value=1, step=1)
             
             items_compra = []
+            
             for i in range(int(num_lineas)):
-                st.markdown(f"**Línea #{i+1}**")
+                st.markdown(f"**Línea de Producto #{i+1}**")
                 
-                col_img, col_sel, col_cant, col_costo = st.columns([1, 3.5, 1.2, 1.3])
+                # 2. Selección de Producto principal
+                sel_producto = st.selectbox(
+                    f"Seleccionar Producto / Modelo #{i+1}", 
+                    lista_productos, 
+                    key=f"comp_prod_{i}"
+                )
                 
-                with col_sel:
-                    sel_sku_desc = st.selectbox(
-                        f"Seleccionar Producto / Variante #{i+1}", 
-                        lista_desc_skus, 
-                        key=f"comp_sku_{i}"
-                    )
-                    sku_elegido = dict_skus[sel_sku_desc]
-                    info_var = info_variantes.get(sku_elegido, {})
+                variantes_del_producto = productos_dict.get(sel_producto, [])
+                
+                if variantes_del_producto:
+                    # Mostrar la imagen de referencia del producto
+                    img_muestra = variantes_del_producto[0].get("imagen_url", SVG_FALLBACK)
+                    col_img_m, col_info_m = st.columns([1, 5])
+                    with col_img_m:
+                        try:
+                            st.image(img_muestra, width=70)
+                        except:
+                            st.image(SVG_FALLBACK, width=70)
+                    with col_info_m:
+                        st.caption(f"Se registrarán las **{len(variantes_del_producto)} variantes** asociadas a este modelo[cite: 11]. Indique cantidad y costo unitario para cada una:")
 
-                with col_img:
-                    img_path_var = info_var.get("imagen_url", SVG_FALLBACK)
-                    try:
-                        st.image(img_path_var, width=80)
-                    except:
-                        st.image(SVG_FALLBACK, width=80)
-
-                with col_cant:
-                    cant_ing = st.number_input(f"Cantidad #{i+1}", min_value=1, value=1, key=f"comp_cant_{i}")
-                with col_costo:
-                    val_neto = st.number_input(f"Costo Unit. ($) #{i+1}", min_value=0.0, value=0.0, step=0.5, key=f"comp_val_{i}")
+                    # Listar todas las variantes del producto seleccionado con validación de costo > 0
+                    for v_idx, var in enumerate(variantes_del_producto):
+                        sku_v = var["sku"]
+                        talla_v = var["talla"]
+                        color_v = var["color"]
+                        
+                        cols_v = st.columns([3, 1.2, 1.3])
+                        with cols_v[0]:
+                            st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;🏷️ **Talla:** {talla_v} | **Color:** {color_v} *(SKU: {sku_v})*")
+                        with cols_v[1]:
+                            cant_ing = st.number_input("Cantidad", min_value=0, value=0, key=f"cant_{i}_{v_idx}")
+                        with cols_v[2]:
+                            val_neto = st.number_input("Costo Unit. ($)", min_value=0.0, value=0.0, step=0.5, key=f"costo_{i}_{v_idx}")
+                        
+                        if cant_ing > 0:
+                            items_compra.append({
+                                "sku": sku_v,
+                                "cantidad": int(cant_ing),
+                                "valor_neto": float(val_neto)
+                            })
                 
-                items_compra.append({
-                    "sku": sku_elegido,
-                    "cantidad": int(cant_ing),
-                    "valor_neto": float(val_neto)
-                })
                 st.markdown("---")
 
             submitted = st.form_submit_button("💾 Guardar Compra e Incrementar Stock", type="primary", use_container_width=True)
             
             if submitted:
+                # 3. Validaciones estrictas antes de enviar
                 if not num_f or not ruc_p or not nom_p:
                     st.warning("⚠️ Complete todos los campos obligatorios del proveedor y número de factura.")
+                elif not items_compra:
+                    st.warning("⚠️ Debe ingresar al menos una cantidad mayor a 0 en las variantes de la compra.")
                 else:
-                    payload = {
-                        "numero_factura": num_f,
-                        "fecha_factura": str(f_compra),
-                        "ruc_proveedor": ruc_p,
-                        "nombre_proveedor": nom_p,
-                        "items": items_compra
-                    }
-                    try:
-                        resp = requests.post(f"{API_URL}/compras-factura", json=payload, timeout=10)
-                        if resp.status_code in (200, 201):
-                            st.success("✅ ¡Compra registrada con éxito y stock actualizado en bodega!")
-                            st.balloons()
-                        else:
-                            detail = resp.json().get('detail', 'Error al procesar la compra')
-                            st.error(f"❌ {detail}")
-                    except Exception as e:
-                        st.error(f"❌ Error de conexión con el servidor: {e}")
+                    # Validar que ningún costo unitario sea 0 si la cantidad es mayor a 0
+                    costos_invalidos = any(item["valor_neto"] <= 0 for item in items_compra)
+                    
+                    if costos_invalidos:
+                        st.error("❌ **Error de validación:** Todas las variantes con cantidad a comprar mayor a 0 deben tener obligatoriamente un **Costo Unitario mayor a 0**[cite: 11]. Por favor verifique.")
+                    else:
+                        payload = {
+                            "numero_factura": num_f,
+                            "fecha_factura": str(f_compra),
+                            "ruc_proveedor": ruc_p,
+                            "nombre_proveedor": nom_p,
+                            "items": items_compra
+                        }
+                        try:
+                            resp = requests.post(f"{API_URL}/compras-factura", json=payload, timeout=10)
+                            if resp.status_code in (200, 201):
+                                st.success("✅ ¡Compra registrada con éxito y stock actualizado en bodega!")
+                                st.balloons()
+                            else:
+                                detail = resp.json().get('detail', 'Error al procesar la compra')
+                                st.error(f"❌ {detail}")
+                        except Exception as e:
+                            st.error(f"❌ Error de conexión con el servidor: {e}")
