@@ -3,7 +3,15 @@ from datetime import datetime, date
 from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, DateTime, Date, Boolean, text
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+# Detección automática de entorno:
+is_railway = os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("RAILWAY_PROJECT_ID") or os.getenv("PORT")
+
+if is_railway:
+    # Si estamos en producción (Railway), toma la URL de forma segura desde las variables de entorno
+    DATABASE_URL = os.getenv("DATABASE_URL")
+else:
+    # Si estamos en desarrollo local, usamos la base de datos local de DBeaver
+    DATABASE_URL = "postgresql+psycopg2://postgres:Litos0707@localhost:5432/fajas_isabella_db"
 
 if not DATABASE_URL:
     DATABASE_URL = "postgresql+psycopg2://postgres:Litos0707@localhost:5432/fajas_isabella_db"
@@ -61,6 +69,8 @@ class Producto(Base):
     categoria = Column(String, index=True)
     imagen_url = Column(String, nullable=True)
     en_liquidacion = Column(Boolean, default=False)
+    es_nuevo = Column(Boolean, default=False)
+    en_oferta = Column(Boolean, default=False)
     
     variantes = relationship("VarianteProducto", back_populates="producto", cascade="all, delete-orphan")
 
@@ -73,6 +83,11 @@ class VarianteProducto(Base):
     color = Column(String, nullable=False)
     stock_actual = Column(Integer, default=0)
     precio = Column(Float, nullable=False)
+    
+    stock_minimo = Column(Integer, default=2)
+    stock_maximo = Column(Integer, default=20)
+    fecha_creacion = Column(DateTime, default=datetime.now)
+    fecha_ultima_venta = Column(DateTime, nullable=True)
     
     producto = relationship("Producto", back_populates="variantes")
 
@@ -165,6 +180,13 @@ def asegurar_columnas_logistica():
         conn.execute(text("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS tipo_precio VARCHAR(50) DEFAULT 'REGULAR';"))
         conn.execute(text("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS descuento_porcentaje FLOAT DEFAULT 0.0;"))
         conn.execute(text("ALTER TABLE movimientos_inventario ADD COLUMN IF NOT EXISTS valor_neto FLOAT;"))
+        conn.execute(text("ALTER TABLE productos ADD COLUMN IF NOT EXISTS en_liquidacion BOOLEAN DEFAULT FALSE;"))
+        conn.execute(text("ALTER TABLE productos ADD COLUMN IF NOT EXISTS es_nuevo BOOLEAN DEFAULT FALSE;"))
+        conn.execute(text("ALTER TABLE productos ADD COLUMN IF NOT EXISTS en_oferta BOOLEAN DEFAULT FALSE;"))
+        conn.execute(text("ALTER TABLE variantes_producto ADD COLUMN IF NOT EXISTS stock_minimo INTEGER DEFAULT 2;"))
+        conn.execute(text("ALTER TABLE variantes_producto ADD COLUMN IF NOT EXISTS stock_maximo INTEGER DEFAULT 20;"))
+        conn.execute(text("ALTER TABLE variantes_producto ADD COLUMN IF NOT EXISTS fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
+        conn.execute(text("ALTER TABLE variantes_producto ADD COLUMN IF NOT EXISTS fecha_ultima_venta TIMESTAMP;"))
 
 try:
     asegurar_columnas_logistica()

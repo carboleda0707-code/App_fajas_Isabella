@@ -99,17 +99,58 @@ function cargarCategoriasWeb() {
 }
 
 function generarHTMLTarjetaProducto(p) {
-    const precios = p.variantes ? p.variantes.map(v => v.precio) : [0];
-    const precioMin = Math.min(...precios);
-    const precioMax = Math.max(...precios);
-    const precioTexto = precioMin === precioMax ? `$${precioMin.toFixed(2)}` : `$${precioMin.toFixed(2)} - $${precioMax.toFixed(2)}`;
-    const coloresUnicos = p.variantes ? [...new Set(p.variantes.map(v => v.color))].join(", ") : "Variados";
+    const variantes = p.variantes || [];
+    const descuento = Number(p.descuento_oferta || 0);
+    
+    let preciosTextoHtml = "";
+    if (variantes.length > 0) {
+        const preciosCalculados = variantes.map(v => {
+            let precioV = Number(v.precio || 0);
+            if ((p.en_oferta || p.en_liquidacion) && descuento > 0) {
+                precioV = precioV * (1 - (descuento / 100));
+            }
+            return precioV;
+        });
+
+        const precioMin = Math.min(...preciosCalculados);
+        const precioMax = Math.max(...preciosCalculados);
+        const precioMinOrig = Math.min(...variantes.map(v => Number(v.precio || 0)));
+        const precioMaxOrig = Math.max(...variantes.map(v => Number(v.precio || 0)));
+
+        if ((p.en_oferta || p.en_liquidacion) && descuento > 0) {
+            if (precioMin === precioMax) {
+                preciosTextoHtml = `
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-slate-400 line-through">$${precioMinOrig.toFixed(2)}</span>
+                        <span class="text-sm font-black text-rose-600">$${precioMin.toFixed(2)}</span>
+                    </div>
+                `;
+            } else {
+                preciosTextoHtml = `
+                    <div class="flex items-center gap-1">
+                        <span class="text-[10px] text-slate-400 line-through">$${precioMinOrig.toFixed(2)}</span>
+                        <span class="text-sm font-black text-rose-600">$${precioMin.toFixed(2)} - $${precioMax.toFixed(2)}</span>
+                    </div>
+                `;
+            }
+        } else {
+            if (precioMin === precioMax) {
+                preciosTextoHtml = `<span class="text-sm font-black text-slate-900">$${precioMin.toFixed(2)}</span>`;
+            } else {
+                preciosTextoHtml = `<span class="text-sm font-black text-slate-900">$${precioMin.toFixed(2)} - $${precioMax.toFixed(2)}</span>`;
+            }
+        }
+    } else {
+        preciosTextoHtml = `<span class="text-sm font-black text-slate-900">$0.00</span>`;
+    }
+
+    const coloresUnicos = variantes.length > 0 ? [...new Set(variantes.map(v => v.color))].join(", ") : "Variados";
 
     let badgePromo = '';
     if (p.en_liquidacion) {
         badgePromo = `<span class="absolute top-2 left-2 bg-rose-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md animate-pulse">🔥 LIQUIDACIÓN</span>`;
     } else if (p.en_oferta) {
-        const descTxt = p.descuento_oferta > 0 ? ` -${p.descuento_oferta}%` : '';
+        const descTxt = descuento > 0 ? ` -${descuento}%` : '';
         badgePromo = `<span class="absolute top-2 left-2 bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md">🏷️ OFERTA${descTxt}</span>`;
     } else if (p.es_nuevo) {
         badgePromo = `<span class="absolute top-2 left-2 bg-blue-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md">✨ NUEVO</span>`;
@@ -123,7 +164,7 @@ function generarHTMLTarjetaProducto(p) {
                 ${badgePromo}
                 <img src="${imgSrc}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="h-full object-contain group-hover:scale-105 transition-all duration-300" alt="${p.nombre}">
                 <span class="absolute top-2 right-2 bg-slate-900/80 text-white text-[9px] font-bold px-2 py-0.5 rounded-full backdrop-blur-xs">
-                    ${p.variantes ? p.variantes.length : 1} Opciones
+                    ${variantes.length} Opciones
                 </span>
             </div>
 
@@ -136,10 +177,10 @@ function generarHTMLTarjetaProducto(p) {
 
                 <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
                     <div>
-                        <span class="text-[9px] text-slate-400 block">${(p.en_liquidacion || p.en_oferta) ? 'Oferta' : 'Desde'}</span>
-                        <span class="text-sm font-black ${(p.en_liquidacion || p.en_oferta) ? 'text-rose-600' : 'text-slate-900'}">${precioTexto}</span>
+                        <span class="text-[9px] text-slate-400 block">${(p.en_liquidacion || p.en_oferta) ? 'Precio Oferta' : 'Precio'}</span>
+                        ${preciosTextoHtml}
                     </div>
-                    <button onclick="abrirModal(${p.id})" class="bg-slate-900 hover:bg-rose-600 text-white font-bold text-[11px] px-3 py-1.5 rounded-xl transition shadow-xs">
+                    <button onclick="abrirModal(${p.id})" class="bg-slate-900 hover:bg-rose-600 text-white font-bold text-[11px] px-3 py-1.5 rounded-xl transition shadow-xs cursor-pointer">
                         Ver Tallas
                     </button>
                 </div>
@@ -150,7 +191,10 @@ function generarHTMLTarjetaProducto(p) {
 
 function renderizarCatalogo() {
     const container = document.getElementById("catalog-container");
-    document.getElementById("total-productos").innerText = `${productosFiltrados.length} modelos`;
+    const contadorElem = document.getElementById("total-productos");
+    if (contadorElem) {
+        contadorElem.innerText = `${productosFiltrados.length} modelos`;
+    }
 
     if (productosFiltrados.length === 0) {
         container.innerHTML = `<div class="col-span-full text-center py-12 text-slate-400 text-sm">No encontramos modelos en esta categoría.</div>`;
@@ -158,59 +202,45 @@ function renderizarCatalogo() {
         container.innerHTML = productosFiltrados.map(p => generarHTMLTarjetaProducto(p)).join('');
     }
 
-    // ---------------------------------------------------------------------------------
-    // SECCIONES ADICIONALES A RENGLÓN SEGUIDO (Mira lo Nuevo & Aprovecha Nuestras Ofertas)
-    // ---------------------------------------------------------------------------------
+    // Mostrar siempre las secciones de Nuevos y Ofertas debajo de cualquier categoría seleccionada
     const contenedorSeccionesSecundarias = document.getElementById("secciones-secundarias-container");
-    
     if (contenedorSeccionesSecundarias) {
-        if (categoriaSeleccionadaActual !== "TODAS" && categoriaSeleccionadaActual !== "LIQUIDACION" && categoriaSeleccionadaActual !== "OFERTAS" && categoriaSeleccionadaActual !== "NEW") {
-            
-            const productosNuevos = productos.filter(p => p.es_nuevo === true);
-            const productosOfertas = productos.filter(p => p.en_oferta === true);
+        const productosNuevos = productos.filter(p => p.es_nuevo === true);
+        const productosOfertas = productos.filter(p => p.en_oferta === true);
 
-            let htmlSecundario = '';
-
-            // 1. Renglón seguido: SECCIÓN LO NUEVO
-            if (productosNuevos.length > 0) {
-                htmlSecundario += `
-                    <div class="mt-16 pt-8 border-t border-slate-200">
-                        <div class="flex items-center justify-between mb-6">
-                            <div class="flex items-center gap-2">
-                                <span class="bg-blue-100 text-blue-700 p-2 rounded-xl text-xs"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
-                                <h3 class="text-base font-extrabold text-slate-900">✨ Mira lo Nuevo de Fajas Isabella</h3>
-                            </div>
-                            <span class="text-xs text-blue-600 font-bold cursor-pointer hover:underline" onclick="filtrarCategoria('NEW')">Ver todo lo nuevo →</span>
-                        </div>
-                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                            ${productosNuevos.map(p => generarHTMLTarjetaProducto(p)).join('')}
+        let htmlSecundario = '';
+        if (productosNuevos.length > 0) {
+            htmlSecundario += `
+                <div class="mt-16 pt-8 border-t border-slate-200">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center gap-2">
+                            <span class="bg-blue-100 text-blue-700 p-2 rounded-xl text-xs"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+                            <h3 class="text-base font-extrabold text-slate-900">✨ Mira lo Nuevo de Fajas Isabella</h3>
                         </div>
                     </div>
-                `;
-            }
-
-            // 2. Renglón seguido: SECCIÓN OFERTAS
-            if (productosOfertas.length > 0) {
-                htmlSecundario += `
-                    <div class="mt-12 pt-8 border-t border-slate-200">
-                        <div class="flex items-center justify-between mb-6">
-                            <div class="flex items-center gap-2">
-                                <span class="bg-amber-100 text-amber-700 p-2 rounded-xl text-xs"><i class="fa-solid fa-tags"></i></span>
-                                <h3 class="text-base font-extrabold text-slate-900">🏷️ ¡Aprovecha nuestras Ofertas Especiales!</h3>
-                            </div>
-                            <span class="text-xs text-amber-600 font-bold cursor-pointer hover:underline" onclick="filtrarCategoria('OFERTAS')">Ver todas las ofertas →</span>
-                        </div>
-                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                            ${productosOfertas.map(p => generarHTMLTarjetaProducto(p)).join('')}
-                        </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                        ${productosNuevos.map(p => generarHTMLTarjetaProducto(p)).join('')}
                     </div>
-                `;
-            }
-
-            contenedorSeccionesSecundarias.innerHTML = htmlSecundario;
-        } else {
-            contenedorSeccionesSecundarias.innerHTML = ''; 
+                </div>
+            `;
         }
+
+        if (productosOfertas.length > 0) {
+            htmlSecundario += `
+                <div class="mt-12 pt-8 border-t border-slate-200">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center gap-2">
+                            <span class="bg-amber-100 text-amber-700 p-2 rounded-xl text-xs"><i class="fa-solid fa-tags"></i></span>
+                            <h3 class="text-base font-extrabold text-slate-900">🏷️ ¡Aprovecha nuestras Ofertas Especiales!</h3>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                        ${productosOfertas.map(p => generarHTMLTarjetaProducto(p)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        contenedorSeccionesSecundarias.innerHTML = htmlSecundario;
     }
 }
 
@@ -227,6 +257,11 @@ function abrirModal(productoId) {
     cantidadSeleccionada = 1;
 
     const imgSrcModal = obtenerRutaImagenProducto(productoSeleccionado.imagen_url);
+    const primerPrecio = variantes[0] ? variantes[0].precio : 0;
+    const descuento = Number(productoSeleccionado.descuento_oferta || 0);
+    const precioFinalModal = (productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0 
+        ? primerPrecio * (1 - (descuento / 100)) 
+        : primerPrecio;
 
     const contenido = `
         <div class="flex gap-4 items-start mb-4">
@@ -234,7 +269,7 @@ function abrirModal(productoId) {
             <div>
                 <span class="text-[10px] font-bold text-rose-600 tracking-wider uppercase">${productoSeleccionado.categoria}</span>
                 <h3 class="text-base font-extrabold text-slate-900 leading-snug">${productoSeleccionado.nombre}</h3>
-                <p id="modal-precio" class="text-xl font-black text-rose-600 mt-1">$${variantes[0] ? variantes[0].precio.toFixed(2) : '0.00'}</p>
+                <p id="modal-precio" class="text-xl font-black text-rose-600 mt-1">$${precioFinalModal.toFixed(2)}</p>
             </div>
         </div>
 
@@ -243,8 +278,8 @@ function abrirModal(productoId) {
                 <label class="text-xs font-bold text-slate-800 block mb-1.5">Talla:</label>
                 <div class="flex gap-2 flex-wrap" id="selector-tallas">
                     ${tallas.map((t, idx) => `
-                        <button onclick="seleccionarTalla('${t}')" id="btn-talla-${t}" 
-                            class="btn-talla px-3.5 py-1.5 text-xs rounded-xl font-bold border ${idx === 0 ? 'bg-rose-600 text-white border-rose-600 shadow-xs' : 'bg-white text-slate-700 border-slate-300'} transition">
+                        <button onclick="seleccionarTalla('${t}')" id="btn-talla-${t}" type="button"
+                            class="btn-talla px-3.5 py-1.5 text-xs rounded-xl font-bold border ${idx === 0 ? 'bg-rose-600 text-white border-rose-600 shadow-xs' : 'bg-white text-slate-700 border-slate-300'} transition cursor-pointer">
                             ${t}
                         </button>
                     `).join('')}
@@ -255,8 +290,8 @@ function abrirModal(productoId) {
                 <label class="text-xs font-bold text-slate-800 block mb-1.5">Color:</label>
                 <div class="flex gap-2 flex-wrap" id="selector-colores">
                     ${colores.map((c, idx) => `
-                        <button onclick="seleccionarColor('${c}')" id="btn-color-${c}" 
-                            class="btn-color px-3.5 py-1.5 text-xs rounded-xl font-bold border ${idx === 0 ? 'bg-slate-900 text-white border-slate-900 shadow-xs' : 'bg-white text-slate-700 border-slate-300'} transition">
+                        <button onclick="seleccionarColor('${c}')" id="btn-color-${c}" type="button"
+                            class="btn-color px-3.5 py-1.5 text-xs rounded-xl font-bold border ${idx === 0 ? 'bg-slate-900 text-white border-slate-900 shadow-xs' : 'bg-white text-slate-700 border-slate-300'} transition cursor-pointer">
                             ${c}
                         </button>
                     `).join('')}
@@ -280,9 +315,9 @@ function abrirModal(productoId) {
                     <div class="flex justify-between items-center pt-1">
                         <span class="text-slate-700 font-bold">Cantidad:</span>
                         <div class="flex items-center border border-slate-300 rounded-lg bg-white overflow-hidden shadow-2xs">
-                            <button onclick="cambiarCantidadModal(-1)" type="button" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold transition">-</button>
+                            <button onclick="cambiarCantidadModal(-1)" type="button" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold transition cursor-pointer">-</button>
                             <input id="modal-cantidad-input" type="number" value="1" min="1" class="w-10 text-center text-xs font-black border-none outline-none bg-transparent" readonly>
-                            <button onclick="cambiarCantidadModal(1)" type="button" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold transition">+</button>
+                            <button onclick="cambiarCantidadModal(1)" type="button" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold transition cursor-pointer">+</button>
                         </div>
                     </div>
 
@@ -294,14 +329,14 @@ function abrirModal(productoId) {
             </div>
 
             <div class="grid grid-cols-2 gap-2 mt-2">
-                <button onclick="agregarAlCarrito(false)" 
-                    class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs py-3 rounded-xl flex items-center justify-center gap-1.5 transition">
+                <button onclick="agregarAlCarrito(false)" type="button"
+                    class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs py-3 rounded-xl flex items-center justify-center gap-1.5 transition cursor-pointer">
                     <i class="fa-solid fa-plus"></i>
                     <span>Seguir Comprando</span>
                 </button>
 
-                <button onclick="agregarAlCarrito(true)" 
-                    class="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-3 rounded-xl flex items-center justify-center gap-1.5 shadow-md shadow-rose-600/20 transition">
+                <button onclick="agregarAlCarrito(true)" type="button"
+                    class="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-3 rounded-xl flex items-center justify-center gap-1.5 shadow-md shadow-rose-600/20 transition cursor-pointer">
                     <i class="fa-solid fa-cart-shopping"></i>
                     <span>Ir al Carrito</span>
                 </button>
@@ -309,8 +344,12 @@ function abrirModal(productoId) {
         </div>
     `;
 
-    document.getElementById("modal-contenido").innerHTML = contenido;
-    document.getElementById("modal-producto").classList.remove("hidden");
+    const modalContenido = document.getElementById("modal-contenido");
+    const modalProducto = document.getElementById("modal-producto");
+    
+    if (modalContenido) modalContenido.innerHTML = contenido;
+    if (modalProducto) modalProducto.classList.remove("hidden");
+    
     actualizarDetalleVariante();
 }
 
@@ -367,9 +406,15 @@ function seleccionarColor(color) {
 function actualizarDetalleVariante() {
     const variante = obtenerVarianteActual();
 
-    if (variante) {
-        const totalLinea = variante.precio * cantidadSeleccionada;
-        document.getElementById("modal-precio").innerText = `$${variante.precio.toFixed(2)}`;
+    if (variante && productoSeleccionado) {
+        let precioUnitario = variante.precio;
+        const descuento = Number(productoSeleccionado.descuento_oferta || 0);
+        if ((productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0) {
+            precioUnitario = precioUnitario * (1 - (descuento / 100));
+        }
+
+        const totalLinea = precioUnitario * cantidadSeleccionada;
+        document.getElementById("modal-precio").innerText = `$${precioUnitario.toFixed(2)}`;
         document.getElementById("resumen-talla").innerText = tallaSeleccionada;
         document.getElementById("resumen-color").innerText = colorSeleccionado;
         document.getElementById("modal-stock").innerText = `Stock: ${variante.stock} disp. (${variante.sku})`;
@@ -428,6 +473,11 @@ function buscarProducto() {
 function agregarAlCarrito(abrirCarritoDrawer = false) {
     const variante = obtenerVarianteActual();
     const cantAgregar = cantidadSeleccionada > 0 ? cantidadSeleccionada : 1;
+    let precioFinalUnitario = variante.precio;
+    const descuento = Number(productoSeleccionado.descuento_oferta || 0);
+    if ((productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0) {
+        precioFinalUnitario = precioFinalUnitario * (1 - (descuento / 100));
+    }
 
     const itemExistente = carrito.find(item => item.sku === variante.sku);
     if (itemExistente) {
@@ -438,7 +488,7 @@ function agregarAlCarrito(abrirCarritoDrawer = false) {
             sku: variante.sku,
             talla: tallaSeleccionada,
             color: colorSeleccionado,
-            precio: variante.precio,
+            precio: precioFinalUnitario,
             imagen_url: productoSeleccionado.imagen_url || SVG_FALLBACK,
             categoria: productoSeleccionado.categoria,
             cantidad: cantAgregar
@@ -478,7 +528,7 @@ function actualizarCarritoUI() {
                         <span class="text-xs font-black text-rose-600">$${item.precio.toFixed(2)} x ${item.cantidad}</span>
                     </div>
                 </div>
-                <button onclick="eliminarDelCarrito(${index})" class="text-slate-400 hover:text-rose-600 text-xs p-1">
+                <button onclick="eliminarDelCarrito(${index})" class="text-slate-400 hover:text-rose-600 text-xs p-1 cursor-pointer">
                     <i class="fa-solid fa-trash-can"></i>
                 </button>
             </div>

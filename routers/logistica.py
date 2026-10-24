@@ -1,119 +1,71 @@
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
-from typing import Optional
-import os
-import psycopg2
-from psycopg2.extras import RealDictCursor
-import json
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from database import get_db, Factura
 
-router = APIRouter(prefix="/api/despachos", tags=["Logística y Despachos"])
-
-# Conexión a PostgreSQL (usando la variable de entorno de Railway o local)
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-def get_db_connection():
-    if not DATABASE_URL:
-        raise HTTPException(status_code=500, detail="DATABASE_URL no configurada en el entorno.")
-    return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
-
-class DespachoUpdate(BaseModel):
-    factura_id: Optional[int] = None
-    numero_factura: str
-    courier: Optional[str] = "Servientrega"
-    repartidor: Optional[str] = "N/D"
-    numero_guia: Optional[str] = "SIN GUÍA"
-    numero_control: Optional[str] = "SIN CONTROL"
-    estado_despacho: Optional[str] = "PENDIENTE"
+# Usamos el prefijo /api/logistica para que coincida con las peticiones de Streamlit
+router = APIRouter(prefix="/api/logistica", tags=["Logística y Despachos"])
 
 @router.get("/reporte")
-def obtener_reporte_despachos():
-    """Obtiene todas las facturas/órdenes con sus datos de logística, control, estado y sus ítems."""
-    conn = get_db_connection()
-    cur = conn.cursor()
-    try:
-        cur.execute("""
-            SELECT 
-                id, 
-                numero_factura, 
-                cliente, 
-                ruc_cedula, 
-                telefono, 
-                provincia, 
-                ciudad, 
-                direccion, 
-                referencia, 
-                fecha,
-                COALESCE(courier, 'Servientrega') as courier,
-                COALESCE(repartidor, 'N/D') as repartidor,
-                COALESCE(numero_guia, 'SIN GUÍA') as numero_guia,
-                COALESCE(numero_control, 'SIN CONTROL') as numero_control,
-                COALESCE(estado_despacho, 'PENDIENTE') as estado_despacho,
-                detalles as items
-            FROM facturas
-            ORDER BY id DESC;
-        """)
-        filas = cur.fetchall()
-        
-        resultado = []
-        for fila in filas:
-            f_dict = dict(fila)
-            # Asegurar que los items vengan en formato de lista si están guardados como JSON text
-            items_raw = f_dict.get("items")
-            if isinstance(items_raw, str):
-                try:
-                    f_dict["items"] = json.loads(items_raw)
-                except:
-                    f_dict["items"] = []
-            elif not items_raw:
-                f_dict["items"] = []
-            resultado.append(f_dict)
-            
-        return resultado
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error en base de datos: {str(e)}")
-    finally:
-        cur.close()
-        conn.close()
+def obtener_reporte_logistica(db: Session = Depends(get_db)):
+    facturas = db.query(Factura).filter(Factura.tipo_factura == "VENTA").all()
+    resultado = []
+    for f in facturas:
+        val_nc = f.numero_control
+        ctrl_str = str(val_nc).strip() if (val_nc is not None and str(val_nc).strip() not in ["None", "null", "", "SIN CONTROL", "nan", "NaN"]) else "SIN CONTROL"
+
+        val_g = f.numero_guia
+        guia_str = str(val_g).strip() if (val_g is not None and str(val_g).strip() not in ["None", "null", "", "SIN GUÍA", "nan", "NaN"]) else "SIN GUÍA"
+
+        val_rep = f.repartidor
+        rep_str = str(val_rep).strip() if (val_rep is not None and str(val_rep).strip() not in ["None", "null", "", "N/D", "nan", "NaN"]) else "N/D"
+
+        resultado.append({
+            "factura_id": f.id,
+            "numero_factura": f.numero_factura,
+            "fecha": str(f.fecha_factura),
+            "ruc_cedula": f.entidad_ruc,
+            "cliente": f.entidad_nombre,
+            "total_norm": f.total_factura,
+            "provincia": f.provincia or "Guayas",
+            "ciudad": f.ciudad or "Guayaquil",
+            "direccion": f.direccion_entrega or "",
+            "referencia": f.referencia_direccion or "",
+            "courier_nombre": f.courier_nombre or "Servientrega",
+            "courier": f.courier_nombre or "Servientrega",
+            "repartidor": rep_str,
+            "numero_guia": guia_str,
+            "numero_control": ctrl_str,
+            "estado_despacho": f.estado_despacho or "PENDIENTE",
+            "items": []
+        })
+    return resultado
 
 @router.post("/actualizar")
-def actualizar_despacho(data: DespachoUpdate):
-    """Actualiza el estado de embalaje, número de control, courier, chofer y guía en la base de datos."""
-    conn = get_db_connection()
-    cur = conn.cursor()
-    try:
-        if data.factura_id:
-            cur.execute("SELECT id FROM facturas WHERE id = %s;", (data.factura_id,))
-        else:
-            cur.execute("SELECT id FROM facturas WHERE numero_factura = %s;", (data.numero_factura,))
-        
-        row = cur.fetchone()
-        if not row:
-            raise HTTPException(status_code=404, detail=f"Orden de venta #{data.numero_factura} no encontrada.")
-        
-        f_id = row["id"]
+def actualizar_estado_logistica(data: dict, db: Session = Depends(get_db)):
+    factura_id = data.get("factura_id")
+    numero_control = data.get("numero_control")
+    courier = data.get("courier")
+    repartidor = data.get("repartidor")
+    numero_guia = data.get("numero_guia")
+    estado_despacho = data.get("estado_despacho")
 
-        cur.execute("""
-            UPDATE facturas 
-            SET courier = %s,
-                repartidor = %s,
-                numero_guia = %s,
-                numero_control = %s,
-                estado_despacho = %s
-            WHERE id = %s;
-        """, (
-            data.courier,
-            data.repartidor or "N/D",
-            data.numero_guia or "SIN GUÍA",
-            data.numero_control or "SIN CONTROL",
-            data.estado_despacho or "PENDIENTE",
-            f_id
-        ))
-        
-        conn.commit()
-        return {"status": "success", "message": f"Orden #{data.numero_factura} actualizada correctamente a {data.estado_despacho}"}
-    except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=500, detail=f"Error al actualizar despacho: {str(e)}")
-    finally:
-        cur.close()
-        conn.close()
+    factura = db.query(Factura).filter(Factura.id == factura_id).first()
+    if not factura:
+        raise HTTPException(status_code=404, detail="Factura no encontrada.")
+
+    if numero_control:
+        factura.numero_control = numero_control.strip()
+    if courier:
+        factura.courier_nombre = courier.strip()
+    if repartidor:
+        factura.repartidor = repartidor.strip()
+    if numero_guia:
+        factura.numero_guia = numero_guia.strip()
+    if estado_despacho:
+        factura.estado_despacho = estado_despacho.strip().upper()
+    
+    db.commit()
+    return {
+        "status": "success", 
+        "message": f"Orden Nº {factura.numero_factura} actualizada correctamente a {factura.estado_despacho}."
+    }

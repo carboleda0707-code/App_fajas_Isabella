@@ -1,5 +1,6 @@
 import sys
 import os
+import socket
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
@@ -24,9 +25,29 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CONFIGURACIÓN GLOBAL Y CENTRALIZADA DE LA API (NUBE) ---
-default_cloud_url = "https://fajasisabella-production.up.railway.app"
-base_url = os.getenv("API_BASE_URL", default_cloud_url).rstrip("/")
+# --- BLINDAJE Y AUTO-DETECCIÓN INTELIGENTE DE ENTORNO ---
+def obtener_url_api():
+    # 1. Prioridad máxima: Si configuras una variable manual, se respeta siempre
+    if os.getenv("API_BASE_URL"):
+        return os.getenv("API_BASE_URL").strip()
+    
+    # 2. Detección estricta de entorno cloud (Railway, Render, etc.)
+    es_nube = os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("PORT")
+    if es_nube:
+        return "https://fajasisabella-production.up.railway.app"
+    
+    # 3. Detección local segura
+    try:
+        hostname = socket.gethostname().lower()
+        if "localhost" in hostname or "desktop" in hostname or os.getenv("USERNAME") or os.getenv("USER"):
+            return "http://localhost:8000"
+    except Exception:
+        pass
+    
+    # 4. Fallback por defecto absoluto para desarrollo local
+    return "http://localhost:8000"
+
+base_url = obtener_url_api().rstrip("/")
 st.session_state["API_URL"] = f"{base_url}/api" if not base_url.endswith("/api") else base_url
 
 # --- ESTADOS DE SESIÓN ---
@@ -45,6 +66,10 @@ if not st.session_state["autenticado"]:
 # --- INFORMACIÓN Y CERRAR SESIÓN EN SIDEBAR ---
 st.sidebar.markdown(f"👤 **Usuario:** {st.session_state['usuario_actual']}")
 st.sidebar.markdown(f"🛡️ **Rol:** `{st.session_state['rol_actual']}`")
+
+# 🕵️‍♂️ Chivato visual del entorno activo en la barra lateral
+st.sidebar.caption(f"🔌 **API Activa:** `{st.session_state['API_URL']}`")
+
 if st.sidebar.button("🔒 Cerrar Sesión", use_container_width=True):
     st.session_state["autenticado"] = False
     st.session_state["usuario_actual"] = None
@@ -77,7 +102,19 @@ elif rol == "Despacho":
 else:
     modulos_disponibles = ["📦 Inventario"]
 
-seccion = st.sidebar.radio("Seleccione el Módulo de Trabajo:", modulos_disponibles)
+# 🧠 Inicializar el estado del menú si no existe
+if "menu_modulo_activo" not in st.session_state:
+    st.session_state["menu_modulo_activo"] = modulos_disponibles[0]
+
+# 🛡️ Asegurar que si cambia el rol, la sección seleccionada siga siendo válida
+if st.session_state["menu_modulo_activo"] not in modulos_disponibles:
+    st.session_state["menu_modulo_activo"] = modulos_disponibles[0]
+
+seccion = st.sidebar.radio(
+    "Seleccione el Módulo de Trabajo:", 
+    modulos_disponibles, 
+    key="menu_modulo_activo"
+)
 
 # --- ENCABEZADO SUPERIOR EN 2 NIVELES ---
 col_head1, col_head2 = st.columns([2.5, 1.5])

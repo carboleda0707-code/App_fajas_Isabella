@@ -1,0 +1,12 @@
+# Entorno virtual y caché
+venv/
+__pycache__/
+.env
+
+# Configuración privada de la empresa y base de datos local
+config.ini
+*.db
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db

@@ -189,6 +189,7 @@
         </div>
     </div>
 
+    <!-- DRAWER DEL CARRITO -->
     <div id="drawer-carrito" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs hidden transition-opacity">
         <div class="fixed top-0 right-0 h-full max-w-md w-full bg-white shadow-2xl flex flex-col justify-between p-5 transform transition-transform">
             <div>
@@ -207,7 +208,8 @@
                     <span id="carrito-total" class="text-rose-600 text-xl">$0.00</span>
                 </div>
                 <div class="grid grid-cols-1 gap-2">
-                    <button onclick="enviarPedidoFinalWhatsApp()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition">
+                    <!-- BOTÓN CON ID ASIGNADO PARA ABRIR EL MODAL DE CHECKOUT -->
+                    <button id="btnPedidoWapp" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition cursor-pointer">
                         <i class="fa-brands fa-whatsapp text-xl"></i><span>Pedido y Pago por WhatsApp</span>
                     </button>
                     <button onclick="iniciarPagoPaymentez()" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-rose-600/20 transition">
@@ -218,6 +220,76 @@
                     </button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE CHECKOUT / DATOS DE ENVÍO Y FACTURACIÓN CON COMPROBANTE -->
+    <div id="modalWhatsAppCheckout" style="display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center;">
+        <div style="background:white; padding:25px; border-radius:12px; width:90%; max-width:500px; max-height:90vh; overflow-y:auto; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h3 style="margin:0; color:#1e293b; font-size:16px; font-weight:800;">📦 Finalizar Pedido por WhatsApp</h3>
+                <button onclick="cerrarModalCheckout()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#64748b;">&times;</button>
+            </div>
+            
+            <form id="formCheckoutWapp" onsubmit="procesarPedidoWapp(event)">
+                <h4 style="margin:0 0 8px 0; color:#334155; font-size:13px; font-weight:bold; border-bottom:1px solid #e2e8f0; padding-bottom:4px;">1. Datos Personales</h4>
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:12px; font-weight:bold; color:#475569;">Nombre Completo:</label>
+                    <input type="text" id="wapp_nombre" required style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none;">
+                </div>
+                <div style="margin-bottom:10px; display:flex; gap:10px;">
+                    <div style="flex:1;">
+                        <label style="font-size:12px; font-weight:bold; color:#475569;">Teléfono / WhatsApp:</label>
+                        <input type="text" id="wapp_telefono" required style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none;">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:12px; font-weight:bold; color:#475569;">Correo:</label>
+                        <input type="email" id="wapp_correo" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none;">
+                    </div>
+                </div>
+
+                <h4 style="margin:15px 0 8px 0; color:#334155; font-size:13px; font-weight:bold; border-bottom:1px solid #e2e8f0; padding-bottom:4px;">2. Datos de Facturación</h4>
+                <div style="margin-bottom:10px; display:flex; gap:10px;">
+                    <div style="flex:1;">
+                        <label style="font-size:12px; font-weight:bold; color:#475569;">RUC o Cédula:</label>
+                        <input type="text" id="wapp_ruc" required style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none;">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:12px; font-weight:bold; color:#475569;">Razón Social / Nombre:</label>
+                        <input type="text" id="wapp_razon" required style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none;">
+                    </div>
+                </div>
+
+                <h4 style="margin:15px 0 8px 0; color:#334155; font-size:13px; font-weight:bold; border-bottom:1px solid #e2e8f0; padding-bottom:4px;">3. Datos de Envío</h4>
+                <div style="margin-bottom:10px; display:flex; gap:10px;">
+                    <div style="flex:1;">
+                        <label style="font-size:12px; font-weight:bold; color:#475569;">Provincia:</label>
+                        <input type="text" id="wapp_provincia" required style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none;">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:12px; font-weight:bold; color:#475569;">Ciudad:</label>
+                        <input type="text" id="wapp_ciudad" required style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none;">
+                    </div>
+                </div>
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:12px; font-weight:bold; color:#475569;">Dirección de Entrega:</label>
+                    <input type="text" id="wapp_direccion" required style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none;">
+                </div>
+                <div style="margin-bottom:12px;">
+                    <label style="font-size:12px; font-weight:bold; color:#475569;">Referencia:</label>
+                    <input type="text" id="wapp_referencia" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none;">
+                </div>
+
+                <div style="margin-bottom:15px; background:#f8fafc; padding:12px; border-radius:8px; border:1px dashed #cbd5e1;">
+                    <label style="font-size:12px; font-weight:bold; color:#1e293b; display:block; margin-bottom:4px;">📸 Subir Comprobante de Pago (Transferencia / Depósito):</label>
+                    <input type="file" id="wapp_comprobante" accept="image/*,application/pdf" style="width:100%; font-size:11px; color:#475569;">
+                    <small style="color:#64748b; font-size:10px; display:block; margin-top:3px;">Adjunta la foto del voucher o el PDF de la transferencia bancaria.</small>
+                </div>
+
+                <button type="submit" style="width:100%; background:#16a34a; color:white; border:none; padding:12px; font-size:14px; font-weight:bold; border-radius:8px; cursor:pointer; transition:background 0.2s;">
+                    ✅ Registrar y Enviar Pedido por WhatsApp
+                </button>
+            </form>
         </div>
     </div>
 
@@ -285,6 +357,69 @@
             </div>
         </div>
     </div>
+
+    <!-- SCRIPT DE INTERACCIÓN MODAL Y ENVÍO DE CHECKOUT -->
+    <script>
+        document.addEventListener('click', function(e) {
+            if (e.target && (e.target.id === 'btnPedidoWapp' || e.target.closest('#btnPedidoWapp'))) {
+                e.preventDefault();
+                
+                // Usamos la variable 'carrito' que define tienda.js de forma segura
+                const productosCarrito = (typeof carrito !== 'undefined' && carrito.length > 0) ? carrito : [];
+
+                if (productosCarrito.length === 0) {
+                    alert("Tu carrito está vacío.");
+                    return;
+                }
+                document.getElementById('modalWhatsAppCheckout').style.display = 'flex';
+            }
+        });
+
+        function cerrarModalCheckout() {
+            document.getElementById('modalWhatsAppCheckout').style.display = 'none';
+        }
+
+        async function procesarPedidoWapp(e) {
+            e.preventDefault();
+            
+            const productosCarrito = (typeof carrito !== 'undefined' && carrito.length > 0) ? carrito : [];
+
+            const formData = new FormData();
+            formData.append('nombre', document.getElementById('wapp_nombre').value);
+            formData.append('telefono', document.getElementById('wapp_telefono').value);
+            formData.append('correo', document.getElementById('wapp_correo').value);
+            formData.append('ruc_cedula', document.getElementById('wapp_ruc').value);
+            formData.append('razon_social', document.getElementById('wapp_razon').value);
+            formData.append('provincia', document.getElementById('wapp_provincia').value);
+            formData.append('ciudad', document.getElementById('wapp_ciudad').value);
+            formData.append('direccion', document.getElementById('wapp_direccion').value);
+            formData.append('referencia', document.getElementById('wapp_referencia').value);
+            formData.append('items', JSON.stringify(productosCarrito));
+
+            const inputFile = document.getElementById('wapp_comprobante');
+            if (inputFile.files[0]) {
+                formData.append('comprobante', inputFile.files[0]);
+            }
+
+            try {
+                const response = await fetch('/api/web/auth/checkout-whatsapp', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const resultado = await response.json();
+                
+                if (response.ok) {
+                    window.open(resultado.whatsapp_url, '_blank');
+                    cerrarModalCheckout();
+                } else {
+                    alert("Error al procesar el pedido: " + (resultado.detail || "Error desconocido"));
+                }
+            } catch (err) {
+                alert("Error de conexión con el servidor.");
+            }
+        }
+    </script>
 
     <!-- ENLACE AL ARCHIVO JS EXTERNO -->
     <script src="tienda.js"></script>

@@ -120,6 +120,36 @@ def eliminar_cliente(cliente_id: int, db: Session = Depends(get_db)):
     return {"status": "success", "mensaje": f"Cliente ID {cliente_id} eliminado correctamente."}
 
 
+# --- ENDPOINT DE REPORTE Y LISTADO DE VENTAS CON RECÁLCULO ROBUSTO ---
+
+@router.get("/ventas/reporte")
+def obtener_reporte_ventas(db: Session = Depends(get_db)):
+    facturas = db.query(Factura).filter(Factura.tipo_factura == "VENTA").all()
+    resultado = []
+    for f in facturas:
+        # Recálculo robusto: si total_factura es 0 o nulo, sumamos los pagos asociados
+        total_real = f.total_factura
+        if not total_real or total_real == 0.0:
+            total_real = sum(p.monto for p in f.pagos) if f.pagos else 0.0
+            
+        resultado.append({
+            "id": f.id,
+            "numero_factura": f.numero_factura,
+            "fecha": str(f.fecha_factura),
+            "ruc_cedula": f.entidad_ruc,
+            "cliente": f.entidad_nombre,
+            "total_factura": float(total_real),
+            "provincia": f.provincia or "Guayas",
+            "ciudad": f.ciudad or "Guayaquil",
+            "direccion_entrega": f.direccion_entrega or "",
+            "referencia_direccion": f.referencia_direccion or "",
+            "courier": f.courier_nombre or "Servientrega",
+            "numero_guia": f.numero_guia or "",
+            "estado_despacho": f.estado_despacho or "PENDIENTE"
+        })
+    return resultado
+
+
 # --- ENDPOINT REGISTRO DE VENTA ---
 
 @router.post("/ventas-factura")
@@ -173,7 +203,6 @@ def registrar_venta(venta: VentaFacturaSchema, db: Session = Depends(get_db)):
             entidad_ruc=venta.ruc_cliente, 
             entidad_nombre=venta.nombre_cliente,
             total_factura=total_calculado,
-            # Datos específicos de envío para este pedido
             provincia=venta.provincia.strip().title() if venta.provincia else "Guayas",
             ciudad=venta.ciudad.strip().title() if venta.ciudad else "Guayaquil",
             direccion_entrega=venta.direccion_entrega.strip() if venta.direccion_entrega else (venta.direccion_cliente or ""),
@@ -210,7 +239,7 @@ def registrar_venta(venta: VentaFacturaSchema, db: Session = Depends(get_db)):
         db.commit()
         return {
             "status": "success", 
-            "message": "Venta, pago y datos de despacho registrados exitosamente.",
+            "message": "Venta, pago y datos logísticos registrados exitosamente.",
             "factura_id": nueva_factura.id
         }
     except Exception as e:
@@ -223,7 +252,7 @@ def registrar_venta(venta: VentaFacturaSchema, db: Session = Depends(get_db)):
 
 # --- ENDPOINT PARA ACTUALIZAR GUÍA Y ESTADO DE COURIER ---
 @router.put("/pedidos/{factura_id}/guia")
-def actualizar_guia_despacho(
+def actualizar_guia_logistica(
     factura_id: int, 
     numero_guia: str, 
     courier_nombre: Optional[str] = None,
@@ -247,44 +276,7 @@ def actualizar_guia_despacho(
     }
 
 
-# --- ENDPOINT PARA OBTENER REPORTE DE DESPACHOS AGRUPADO ---
-@router.get("/despachos/reporte")
-def obtener_reporte_despachos(
-    estado: Optional[str] = None, 
-    provincia: Optional[str] = None,
-    db: Session = Depends(get_db)
-):
-    query = db.query(Factura).filter(Factura.tipo_factura == "VENTA")
-    
-    if estado:
-        query = query.filter(Factura.estado_despacho == estado.upper())
-    if provincia:
-        query = query.filter(Factura.provincia.ilike(f"%{provincia}%"))
-        
-    pedidos = query.order_by(Factura.provincia.asc(), Factura.ciudad.asc(), Factura.id.desc()).all()
-    
-    reporte = []
-    for p in pedidos:
-        reporte.append({
-            "factura_id": p.id,
-            "numero_factura": p.numero_factura,
-            "fecha": str(p.fecha_factura) if p.fecha_factura else "N/A",
-            "cliente": p.entidad_nombre,
-            "ruc_cedula": p.entidad_ruc,
-            "provincia": getattr(p, 'provincia', 'N/A'),
-            "ciudad": getattr(p, 'ciudad', 'N/A'),
-            "direccion": getattr(p, 'direccion_entrega', 'N/A'),
-            "referencia": getattr(p, 'referencia_direccion', ''),
-            "courier": getattr(p, 'courier_nombre', 'Servientrega'),
-            "numero_guia": getattr(p, 'numero_guia', None) or "SIN GUÍA",
-            "estado_despacho": getattr(p, 'estado_despacho', 'PENDIENTE'),
-            "total": float(p.total_factura) if p.total_factura else 0.0
-        })
-        
-    return reporte
-
-
-# --- ENDPOINTS DE PAGOS Y PASARELA (PAYMENTEZ / NUVEI) ---
+# --- ENDPOINTS DE PAGOS Y PASARELA ---
 
 PAYMENTEZ_APP_CODE = os.getenv("PAYMENTEZ_APP_CODE", "test_app_code")
 PAYMENTEZ_APP_KEY = os.getenv("PAYMENTEZ_APP_KEY", "test_app_key")
@@ -304,7 +296,7 @@ def iniciar_transaccion_paymentez(data: dict, db: Session = Depends(get_db)):
                 "mode": "sandbox_simulado",
                 "total": total_pedido,
                 "checkout_url": "#",
-                "mensaje": f"Simulación de pago exitosa por ${total_pedido:.2f}. Conecte sus credenciales de Paymentez cuando estén listas."
+                "mensaje": f"Simulación de pago exitosa por ${total_pedido:.2f}."
             }
             
         return {"status": "success", "checkout_url": "URL_OFICIAL_PAYMENTEZ"}
@@ -313,18 +305,13 @@ def iniciar_transaccion_paymentez(data: dict, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Error en pasarela de pagos: {str(e)}")
 
 
-@router.post("/pagos/webhook-paymentez")
-async def webhook_paymentez(request: Request, db: Session = Depends(get_db)):
-    try:
-        evento = await request.json()
-        tipo_evento = evento.get("type") or evento.get("status")
-        
-        if tipo_evento in ["transaction.success", "success"]:
-            transaccion = evento.get("transaction", {})
-            referencia = transaccion.get("dev_reference", "WEB-001")
-            
-            return {"status": "received", "message": "Pago procesado y stock actualizado."}
-            
-        return {"status": "ignored"}
-    except Exception as e:
-        return {"status": "error", "detail": str(e)}
+@router.get("/debug/db-info")
+def debug_db_info(db: Session = Depends(get_db)):
+    from database import DATABASE_URL
+    total_facturas = db.query(Factura).count()
+    facturas_lista = [f.numero_factura for f in db.query(Factura).all()]
+    return {
+        "database_url": DATABASE_URL,
+        "total_facturas": total_facturas,
+        "numeros_facturas": facturas_lista
+    }

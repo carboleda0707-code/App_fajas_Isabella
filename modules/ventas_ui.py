@@ -5,9 +5,41 @@ import pandas as pd
 import io
 from datetime import date, datetime
 
-# Conexión estricta de Producción en Nube
-API_BASE = os.getenv("API_BASE_URL", "https://fajasisabella-production.up.railway.app").rstrip("/")
-API_URL = f"{API_BASE}/api" if not API_BASE.endswith("/api") else API_BASE
+# --- CONEXIÓN DINÁMICA LOCAL / NUBE ---
+API_URL = st.session_state.get("API_URL", "http://localhost:8000/api")
+
+
+def generar_siguiente_numero_orden():
+    """
+    Genera automáticamente el siguiente número de orden secuencial con formato AAMM[secuencial]
+    basado en las órdenes existentes en la base de datos (ej: 261001 para Octubre 2026).
+    """
+    ahora = datetime.now()
+    prefijo_aamm = ahora.strftime("%y%m")  # Ej: "2610" para Octubre 2026
+    
+    siguiente_secuencial = 1
+    try:
+        res = requests.get(f"{API_URL}/logistica/reporte", timeout=3)
+        if res.status_code != 200:
+            res = requests.get(f"{API_URL}/facturas", timeout=3)
+            
+        if res.status_code == 200:
+            facturas = res.json()
+            secuenciales_mes = []
+            for f in facturas:
+                num_ord = str(f.get("numero_factura", "")).strip()
+                if num_ord.startswith(prefijo_aamm):
+                    sufijo = num_ord[len(prefijo_aamm):]
+                    if sufijo.isdigit():
+                        secuenciales_mes.append(int(sufijo))
+            
+            if secuenciales_mes:
+                siguiente_secuencial = max(secuenciales_mes) + 1
+    except Exception:
+        pass
+        
+    return f"{prefijo_aamm}{siguiente_secuencial:02d}"
+
 
 def generar_excel_contifico(data_facturas):
     """
@@ -24,7 +56,6 @@ def generar_excel_contifico(data_facturas):
         direccion = f.get("direccion", f.get("direccion_entrega", "Guayaquil, Ecuador"))
         forma_pago = f.get("metodo_pago", "Efectivo")
         
-        # Tipo Identificación Contifico: 04 = RUC, 05 = Cédula, 07 = Consumidor Final
         tipo_id = "05"
         if len(str(ruc)) == 13:
             tipo_id = "04"
@@ -73,7 +104,7 @@ def generar_excel_contifico(data_facturas):
 
 
 def render_ventas():
-    st.markdown("<p style='color: black; font-weight: bold;'>💳 Ventas y Órdenes de Venta</p>", unsafe_allow_html=True)        
+    st.markdown("<p style='color: black; font-weight: bold;'>💳 Ventas y Órdenes de Venta</p>", unsafe_allow_html=True)           
     accion = st.radio("Acción: ", ["Registrar Nueva Orden de Venta", "Consultar Órdenes de Venta"], horizontal=True)
     
     if accion == "Consultar Órdenes de Venta":
@@ -85,7 +116,7 @@ def render_ventas():
         st.subheader("📋 Consulta y Control General de Órdenes de Venta")
         
         try:
-            res = requests.get(f"{API_URL}/despachos/reporte", timeout=3)
+            res = requests.get(f"{API_URL}/logistica/reporte", timeout=3)
             if res.status_code != 200:
                 res = requests.get(f"{API_URL}/facturas", timeout=3)
                 
@@ -113,7 +144,7 @@ def render_ventas():
                 with col_f2:
                     f_estado = st.selectbox(
                         "Estado Despacho:",
-                        ["TODOS", "PENDIENTE", "EMPACADO", "EN TRÁNSITO", "ENTREGADO"]
+                        ["TODOS", "POR APROBAR", "PENDIENTE", "EMPACADO", "EN TRÁNSITO", "ENTREGADO"]
                     )
                 
                 with col_f3:
@@ -150,16 +181,16 @@ def render_ventas():
                 cant_facturas = len(df_filtrado)
                 
                 col_est_estado = "estado_despacho" if "estado_despacho" in df_filtrado.columns else "estado"
-                pendientes = len(df_filtrado[df_filtrado[col_est_estado].astype(str).str.upper() == "PENDIENTE"]) if col_est_estado in df_filtrado.columns else 0
+                pendientes = len(df_filtrado[df_filtrado[col_est_estado].astype(str).str.upper().isin(["PENDIENTE", "POR APROBAR"])]) if col_est_estado in df_filtrado.columns else 0
 
                 kpi1, kpi2, kpi3 = st.columns(3)
                 kpi1.metric("💰 Total Ventas ($)", f"${total_monto:,.2f}")
                 kpi2.metric("📄 Órdenes Encontradas", f"{cant_facturas}")
-                kpi3.metric("⏳ Pendientes de Entrega", f"{pendientes}")
+                kpi3.metric("⏳ Pendientes / Por Aprobar", f"{pendientes}")
 
                 st.markdown("---")
 
-                # --- BOTONES DE EXPORTACIÓN (EXCEL GENERAL Y CONTIFICO) ---
+                # --- BOTONES DE EXPORTACIÓN ---
                 col_exp1, col_exp2 = st.columns(2)
                 with col_exp1:
                     try:
@@ -221,7 +252,7 @@ def render_ventas():
                     fact_info = df_filtrado[df_filtrado["numero_factura"] == factura_sel].iloc[0]
                     monto_factura_tot = float(fact_info.get("total_norm", 0.0))
                     
-                    with st.expander(f"📦 Ver información completa y productos de la Orden Nº {factura_sel}", expanded=True):
+                    with st.expander(f"📦 Ver información completa, comprobante y productos de la Orden Nº {factura_sel}", expanded=True):
                         c1, c2, c3 = st.columns(3)
                         with c1:
                             st.write(f"**Cliente:** {fact_info.get('cliente', fact_info.get('entidad_nombre', 'N/A'))}")
@@ -234,12 +265,81 @@ def render_ventas():
                         with c3:
                             st.write(f"**Courier:** {fact_info.get('courier', fact_info.get('courier_nombre', 'Servientrega'))}")
                             st.write(f"**Nº Guía:** {fact_info.get('numero_guia', 'SIN GUÍA')}")
-                            st.write(f"**Estado Despacho:** `{fact_info.get('estado_despacho', 'PENDIENTE')}`")
+                            st.write(f"**Nº Control:** {fact_info.get('numero_control', 'SIN CONTROL')}")
+                            estado_actual = str(fact_info.get('estado_despacho', 'PENDIENTE')).upper()
+                            st.write(f"**Estado Despacho:** `{estado_actual}`")
+
+                        st.markdown("---")
+
+                        # --- SECCIÓN DE COMPROBANTE DE PAGO Y APROBACIÓN ---
+                        col_pago1, col_pago2 = st.columns([1, 1])
+                        
+                        with col_pago1:
+                            st.markdown("##### 📎 Comprobante de Pago Subido")
+                            codigo_trans = str(fact_info.get("codigo_transferencia", "")).strip()
+                            
+                            # Obtener ruta desde la API de pagos si no viene directo en el reporte de facturas
+                            if not codigo_trans or codigo_trans in ["None", "nan", "", "Sin comprobante adjunto"]:
+                                try:
+                                    res_pagos = requests.get(f"{API_URL}/pagos", timeout=3)
+                                    if res_pagos.status_code == 200:
+                                        pagos_list = res_pagos.json()
+                                        f_id_target = fact_info.get("factura_id") if fact_info.get("factura_id") is not None else fact_info.get("id")
+                                        for p in pagos_list:
+                                            if str(p.get("factura_id")) == str(f_id_target):
+                                                codigo_trans = str(p.get("codigo_transferencia", "")).strip()
+                                                break
+                                except Exception:
+                                    pass
+
+                            ruta_encontrada = None
+                            if codigo_trans and codigo_trans not in ["Sin comprobante adjunto", "None", "nan", ""]:
+                                posibles_rutas = [
+                                    codigo_trans,
+                                    os.path.join("web", codigo_trans),
+                                    os.path.join("comprobantes", os.path.basename(codigo_trans)),
+                                    os.path.join("web", "comprobantes", os.path.basename(codigo_trans))
+                                ]
+                                for pr in posibles_rutas:
+                                    if os.path.exists(pr) and os.path.isfile(pr):
+                                        ruta_encontrada = pr
+                                        break
+
+                            # Renderizar la imagen si el archivo físico existe (disponible para POR APROBAR, PENDIENTE, etc.)
+                            if ruta_encontrada and os.path.isfile(ruta_encontrada):
+                                st.image(ruta_encontrada, caption=f"Comprobante - Orden #{factura_sel}", use_container_width=True)
+                            else:
+                                st.info("ℹ️ Esta orden no tiene un comprobante de pago adjunto.")
+
+                        with col_pago2:
+                            st.markdown("##### ⚙️ Gestión y Aprobación de Orden")
+                            if estado_actual == "POR APROBAR":
+                                st.warning("⚠️ Esta orden está en espera de validación de pago.")
+                                if st.button(f"✅ Aprobar y Pasar a PENDIENTE (Orden #{factura_sel})", type="primary", use_container_width=True, key=f"btn_aprobar_{factura_sel}"):
+                                    raw_fid = fact_info.get("factura_id") if fact_info.get("factura_id") is not None else fact_info.get("id")
+                                    fid_clean = int(raw_fid) if raw_fid is not None and str(raw_fid).isdigit() else None
+
+                                    payload_aprobar = {
+                                        "factura_id": fid_clean,
+                                        "numero_factura": str(factura_sel),
+                                        "estado_despacho": "PENDIENTE"
+                                    }
+                                    try:
+                                        res_aprob = requests.post(f"{API_URL}/logistica/actualizar", json=payload_aprobar, timeout=8)
+                                        if res_aprob.status_code in [200, 201]:
+                                            st.success(f"🎉 ¡Orden #{factura_sel} aprobada exitosamente y pasada a PENDIENTE!")
+                                            st.rerun()
+                                        else:
+                                            st.error(f"Error al aprobar: {res_aprob.text}")
+                                    except Exception as ex:
+                                        st.error(f"Error de conexión: {str(ex)}")
+                            else:
+                                st.success(f"✔️ Orden ya validada (Estado: {estado_actual})")
 
                         st.markdown("---")
                         st.markdown("##### 🛍️ Detalle de Ítems / Fajas Vendidas")
 
-                        items_factura = fact_info.get("items", [])
+                        items_factura = fact_info.get("items") or fact_info.get("detalles") or fact_info.get("productos") or []
                         num_fact_str = str(factura_sel).strip()
 
                         if not items_factura:
@@ -258,7 +358,7 @@ def render_ventas():
                         if items_factura:
                             tabla_items = []
                             for idx, it in enumerate(items_factura, 1):
-                                sku = it.get("sku", it.get("sku_producto", it.get("codigo_producto", "N/A")))
+                                sku = it.get("sku") or it.get("sku_producto") or it.get("codigo_producto") or "N/A"
                                 cant = abs(int(it.get("cantidad", it.get("cant", 1))))
                                 
                                 prec_bruto = (
@@ -277,7 +377,7 @@ def render_ventas():
                                 
                                 tabla_items.append({
                                     "Item #": idx,
-                                    "SKU": sku,
+                                    "SKU / Producto": sku,
                                     "Cantidad": cant,
                                     "Precio Unit. ($)": f"${prec:,.2f}",
                                     "Subtotal ($)": f"${subtotal:,.2f}"
@@ -285,7 +385,7 @@ def render_ventas():
                             
                             st.dataframe(pd.DataFrame(tabla_items), use_container_width=True, hide_index=True)
                         else:
-                            st.info(f"⚠️ No se encontraron ítems desglosados en el Kardex para la Orden Nº {factura_sel}.")
+                            st.info(f"ℹ️ Pedido registrado desde la Tienda Web por un total de ${monto_factura_tot:,.2f}.")
             else:
                 st.error("No se pudo obtener el historial de ventas desde el servidor.")
         except Exception as e:
@@ -418,12 +518,28 @@ def render_ventas():
             st.session_state.form_reset_counter = 0
         rc = st.session_state.form_reset_counter
 
+        # --- GENERACIÓN AUTOMÁTICA DEL SIGUIENTE NÚMERO DE ORDEN ---
+        num_orden_sugerido = generar_siguiente_numero_orden()
+
+        # --- CONFIGURACIÓN DE ÍTEMS FUERA DEL FORMULARIO PARA EVITAR REINICIOS EN PARPADEO ---
+        st.markdown("---")
+        st.markdown("#### 🛍️ Configuración de Ítems")
+        col_ci1, _ = st.columns([1, 3])
+        with col_ci1:
+            n_items = st.number_input(
+                "Cantidad de Ítems / Fajas a ingresar:", 
+                min_value=1, 
+                max_value=20, 
+                value=3, 
+                key=f"num_items_input_{rc}"
+            )
+
         # --- INICIO DEL FORMULARIO DE ORDEN DE VENTA ---
         with st.form(f"form_venta_mod_{rc}"):
             st.markdown("#### 📄 Datos de la Orden de Venta y Pago")
             c1, c2, c3 = st.columns(3)
             with c1:
-                num_f = st.text_input("Nº de Orden de Venta", key=f"input_num_fact_{rc}").strip()
+                num_f = st.text_input("Nº de Orden de Venta", value=num_orden_sugerido, key=f"input_num_fact_{rc}").strip()
             with c2:
                 num_aut = st.text_input("Nº de Referencia / Autorización", key=f"input_num_aut_{rc}").strip()
             with c3:
@@ -455,33 +571,37 @@ def render_ventas():
                 ref_env = st.text_input("Referencia de Dirección", value=def_ref, key=f"input_ref_{rc}").strip()
 
             st.markdown("---")
-            st.markdown("#### 🛍️ Configuración de Ítems")
-            col_ci1, _ = st.columns([1, 3])
-            with col_ci1:
-                n_items = st.number_input("Cantidad de Ítems / Fajas a ingresar:", min_value=1, max_value=20, value=1, key=f"num_items_input_{rc}")
-
             st.markdown("#### 📋 Detalle de Productos a Vender")
-            items_lista = []
+            
+            # Formulario de lectura dinámica de fajas
+            temp_items = []
             if lista_desc:
+                opciones_fajas = ["-- Seleccionar Faja --"] + lista_desc
+                
                 for i in range(int(n_items)):
                     ic1, ic2, ic3 = st.columns([3, 1, 1])
                     with ic1:
-                        p_sel = st.selectbox(f"Faja #{i+1}", lista_desc, key=f"mv_sku_{rc}_{i}")
-                        info = dict_skus[p_sel]
+                        p_sel = st.selectbox(f"Faja #{i+1}", opciones_fajas, key=f"mv_sku_{rc}_{i}")
                     
-                    precio_base = float(info.get('Precio ($)', 0.0))
-                    precio_sugerido = precio_base * (1.0 - (desc_porcentaje_c / 100.0)) if desc_porcentaje_c > 0 else precio_base
+                    if p_sel != "-- Seleccionar Faja --":
+                        info = dict_skus[p_sel]
+                        precio_base = float(info.get('Precio ($)', 0.0))
+                        precio_sugerido = precio_base * (1.0 - (desc_porcentaje_c / 100.0)) if desc_porcentaje_c > 0 else precio_base
+                    else:
+                        info = {}
+                        precio_sugerido = 0.0
 
                     with ic2:
                         cant = st.number_input(f"Cant #{i+1}", min_value=1, value=1, key=f"mv_cant_{rc}_{i}")
                     with ic3:
                         prec = st.number_input(f"Precio ($) #{i+1}", min_value=0.0, value=float(precio_sugerido), key=f"mv_prec_{rc}_{i}")
                     
-                    items_lista.append({
-                        "sku": str(info.get('SKU', '')),
-                        "cantidad": int(cant),
-                        "precio_unitario": float(prec)
-                    })
+                    if p_sel != "-- Seleccionar Faja --":
+                        temp_items.append({
+                            "sku": str(info.get('SKU', '')),
+                            "cantidad": int(cant),
+                            "precio_unitario": float(prec)
+                        })
             else:
                 st.warning("⚠️ No se encontraron productos en el inventario.")
                     
@@ -497,8 +617,8 @@ def render_ventas():
             elif not num_f or not ruc_c:
                 st.session_state.mensaje_alerta_venta = "⚠️ Complete los campos obligatorios de la orden y cliente."
                 st.rerun()
-            elif not lista_desc:
-                st.session_state.mensaje_alerta_venta = "❌ No hay productos disponibles en el inventario."
+            elif not temp_items:
+                st.session_state.mensaje_alerta_venta = "⚠️ Debe seleccionar al menos una faja para registrar la venta."
                 st.rerun()
             else:
                 payload = {
@@ -516,7 +636,7 @@ def render_ventas():
                     "direccion_entrega": dir_env or "", 
                     "referencia_direccion": ref_env or "",
                     "courier_nombre": courier_env or "Servientrega",
-                    "items": items_lista
+                    "items": temp_items
                 }
                 
                 try:

@@ -2,8 +2,30 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db, Producto, Categoria
 from typing import Optional
+from config import (
+    NOMBRE_EMPRESA, TELEFONO_WHATSAPP, CORREO_EMPRESA, DIRECCION_EMPRESA,
+    INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL, WHATSAPP_LINK
+)
 
 router = APIRouter()
+
+@router.get("/config/empresa")
+def obtener_info_empresa():
+    """
+    Retorna la información corporativa, redes sociales y contacto configurada en config.ini.
+    """
+    return {
+        "nombre": NOMBRE_EMPRESA,
+        "telefono_whatsapp": TELEFONO_WHATSAPP,
+        "correo": CORREO_EMPRESA,
+        "direccion": DIRECCION_EMPRESA,
+        "redes": {
+            "instagram": INSTAGRAM_URL,
+            "facebook": FACEBOOK_URL,
+            "tiktok": TIKTOK_URL,
+            "whatsapp": WHATSAPP_LINK
+        }
+    }
 
 @router.get("/web/inventario")
 def listar_inventario_publico(categoria: Optional[str] = Query(None), db: Session = Depends(get_db)):
@@ -22,6 +44,7 @@ def listar_inventario_publico(categoria: Optional[str] = Query(None), db: Sessio
             variantes_data = []
             for v in variantes:
                 variantes_data.append({
+                    "id": v.id,
                     "sku": v.sku,
                     "talla": v.talla,
                     "color": v.color,
@@ -29,17 +52,19 @@ def listar_inventario_publico(categoria: Optional[str] = Query(None), db: Sessio
                     "stock": v.stock_actual
                 })
             
-            # Formatear la URL de la imagen limpia preservando el nombre original del archivo
+            # Formatear la URL de la imagen limpia preservando el nombre original
             img_clean = getattr(prod, 'imagen_url', '') or ''
-            if img_clean:
-                img_clean = img_clean.split('/')[-1]
-
+            
             resultado.append({
                 "id": prod.id,
                 "nombre": prod.nombre,
+                "modelo": getattr(prod, 'modelo', prod.nombre),
                 "categoria": prod.categoria,
                 "imagen_url": img_clean,
-                "en_liquidacion": getattr(prod, 'en_liquidacion', False),
+                "en_liquidacion": bool(getattr(prod, 'en_liquidacion', False)),
+                "es_nuevo": bool(getattr(prod, 'es_nuevo', False)),
+                "en_oferta": bool(getattr(prod, 'en_oferta', False)),
+                "descuento_oferta": float(getattr(prod, 'descuento_oferta', 0.0) or 0.0),
                 "variantes": variantes_data
             })
             

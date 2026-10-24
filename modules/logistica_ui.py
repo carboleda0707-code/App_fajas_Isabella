@@ -4,14 +4,46 @@ import os
 import pandas as pd
 from datetime import date
 
-API_BASE = os.getenv("API_BASE_URL", "https://fajasisabella-production-ea5a.up.railway.app").rstrip("/")
-API_URL = f"{API_BASE}/api" if not API_BASE.endswith("/api") else API_BASE
+API_URL = st.session_state.get("API_URL", "http://localhost:8000/api")
+
+
+def obtener_items_orden(ord_sel):
+    items = (
+        ord_sel.get("items") or 
+        ord_sel.get("detalles") or 
+        ord_sel.get("productos") or 
+        []
+    )
+    
+    if items:
+        return items
+
+    num_fact_str = str(ord_sel.get("numero_factura", "")).strip()
+    f_id_str = str(ord_sel.get("factura_id", ord_sel.get("id", ""))).strip()
+
+    if num_fact_str or f_id_str:
+        try:
+            res_mov = requests.get(f"{API_URL}/movimientos", timeout=4)
+            if res_mov.status_code == 200:
+                movs = res_mov.json()
+                items_kardex = []
+                for m in movs:
+                    ref_f = str(m.get('referencia_factura', '')).strip()
+                    num_m = str(m.get('numero_factura', '')).strip()
+                    
+                    if (num_fact_str and (num_fact_str in ref_f or num_fact_str in num_m or ref_f.lstrip('0') == num_fact_str.lstrip('0'))) or \
+                       (f_id_str and f_id_str in ref_f):
+                        items_kardex.append(m)
+                return items_kardex
+        except Exception:
+            pass
+
+    return []
+
 
 def render_logistica():
-    # --- TÍTULO PROPIO DEL MÓDULO (ENCABEZADO GLOBAL YA EN RENDER_APP) ---
-    st.title("📦 Gestión de Logística y Despachos")
-
-    # Botones principales en estilo Radio Horizontal (Consistente con Inventario/Ventas)
+    st.markdown("<p style='color: black; font-weight: bold;'>📦 Gestión de Logística y Despachos</p>", unsafe_allow_html=True)   
+     
     accion = st.radio(
         "Acción:",
         ["📦 1. Embalaje", "🚚 2. Envío", "🖨️ 3. Imprimir Membrete"],
@@ -21,9 +53,8 @@ def render_logistica():
 
     st.divider()
 
-    # Obtener reporte general de ventas/despachos desde la API
     try:
-        response = requests.get(f"{API_URL}/despachos/reporte", timeout=8)
+        response = requests.get(f"{API_URL}/logistica/reporte", timeout=8)
         data_despachos = response.json() if response.status_code == 200 else []
     except Exception as e:
         st.error(f"❌ Error al conectar con la API: {str(e)}")
@@ -31,25 +62,22 @@ def render_logistica():
 
     df_raw = pd.DataFrame(data_despachos) if data_despachos else pd.DataFrame()
 
-    # =========================================================================
-    # BOTÓN 1: EMBALAJE (Órdenes PENDIENTES -> EMPACADO)
-    # =========================================================================
+    # --- BOTÓN 1: EMBALAJE ---
     if accion == "📦 1. Embalaje":
-        st.markdown("### 📦 1. Embalaje de Pedidos")
-        st.caption("Filtra órdenes pendientes, revisa el detalle de items e ingresa el Número de Control para pasar a estado EMPACADO.")
+        st.markdown("##### 📦 1. Embalaje de Pedidos")
+        st.caption("Filtra órdenes pendientes o por aprobar, revisa el detalle exacto de ítems e ingresa el Número de Control para pasar a EMPACADO.")
 
         if df_raw.empty:
-            st.info("No hay órdenes registradas.")
+            st.info("No hay órdenes registradas en la base de datos.")
             return
 
         col_est = "estado_despacho" if "estado_despacho" in df_raw.columns else "estado"
-        df_pendientes = df_raw[df_raw[col_est].astype(str).str.upper() == "PENDIENTE"].copy()
+        df_pendientes = df_raw[df_raw[col_est].astype(str).str.upper().isin(["PENDIENTE", "POR APROBAR"])].copy()
 
         if df_pendientes.empty:
-            st.success("🎉 No hay órdenes pendientes de embalaje.")
+            st.success("🎉 No hay órdenes pendientes ni por aprobar de embalaje.")
             return
 
-        # Filtros de búsqueda (Ciudad, RUC/Cédula, Orden)
         col_f1, col_f2, col_f3 = st.columns(3)
         with col_f1:
             f_ciudad = st.text_input("Filtrar por Ciudad:", placeholder="Ej: Guayaquil", key="emb_f_ciudad").strip()
@@ -67,11 +95,11 @@ def render_logistica():
             df_filtered = df_filtered[df_filtered.get("numero_factura", "").astype(str).str.contains(f_orden, case=False, na=False)]
 
         if df_filtered.empty:
-            st.warning("No se encontraron órdenes pendientes con los filtros ingresados.")
+            st.warning("No se encontraron órdenes con los filtros ingresados.")
             return
 
         opts_emb = {
-            f"Orden #{r.get('numero_factura')} - {r.get('cliente', 'N/A')} ({r.get('ciudad', 'Guayaquil')})": r
+            f"Orden #{r.get('numero_factura')} - {r.get('cliente', 'N/A')} ({r.get('ciudad', 'Guayaquil')}) [{r.get('estado_despacho', 'PENDIENTE')}]": r
             for _, r in df_filtered.iterrows()
         }
         ord_sel_label = st.selectbox("Seleccione Orden de Venta a Embalar:", list(opts_emb.keys()), key="emb_sel_ord")
@@ -79,33 +107,52 @@ def render_logistica():
 
         st.markdown("---")
         
-        c_det1, c_det2 = st.columns([0.6, 0.4])
+        c_det1, c_det2 = st.columns([0.65, 0.35])
         with c_det1:
-            st.markdown("#### 📄 Detalle de la Orden e Items")
+            st.markdown("##### 📄 Detalle del Cliente y Destino")
             st.write(f"**Cliente:** {ord_sel.get('cliente', 'N/A')}")
             st.write(f"**CI/RUC:** {ord_sel.get('ruc_cedula', 'N/A')} | **Teléfono:** {ord_sel.get('telefono', 'N/A')}")
             st.write(f"**Destino:** {ord_sel.get('provincia', 'Guayas')} - {ord_sel.get('ciudad', 'Guayaquil')}")
             st.write(f"**Dirección:** {ord_sel.get('direccion', 'N/A')}")
             st.write(f"**Referencia:** {ord_sel.get('referencia', 'Sin referencia')}")
+            st.write(f"**Estado Actual:** `{ord_sel.get('estado_despacho', 'PENDIENTE')}`")
 
-            items = ord_sel.get("items", ord_sel.get("detalles", []))
-            if items:
-                st.markdown("**Ítems a Empacar:**")
-                st.dataframe(pd.DataFrame(items), use_container_width=True, hide_index=True)
+            st.markdown("---")
+            st.markdown("##### 🛍️ Ítems a Empacar (Solo SKU y Cantidad)")
+            
+            items_factura = obtener_items_orden(ord_sel)
+
+            if items_factura:
+                tabla_items = []
+                for idx, it in enumerate(items_factura, 1):
+                    sku = it.get("sku") or it.get("sku_producto") or it.get("codigo_producto") or "N/A"
+                    cant = abs(int(it.get("cantidad", it.get("cant", 1))))
+                    
+                    tabla_items.append({
+                        "Item #": idx,
+                        "SKU": sku,
+                        "Cantidad": cant
+                    })
+                
+                st.dataframe(pd.DataFrame(tabla_items), use_container_width=True, hide_index=True)
+            else:
+                st.warning("⚠️ No se encontraron registros de ítems en esta orden o el Kardex está vacío.")
 
         with c_det2:
-            st.markdown("#### 🔢 Registrar Número de Control")
+            st.markdown("##### 🔢 Registrar Número de Control")
             f_id = ord_sel.get("factura_id", ord_sel.get("id"))
             num_fact = ord_sel.get("numero_factura")
 
             ctrl_actual = str(ord_sel.get("numero_control", "")).strip()
-            ctrl_actual = "" if ctrl_actual in ["None", "null", "SIN CONTROL", "nan"] else ctrl_actual
+            if ctrl_actual in ["None", "null", "SIN CONTROL", "nan", ""]:
+                ctrl_actual = ""
 
             num_control_input = st.text_input("Número de Control:", value=ctrl_actual, placeholder="Digite Nº de Control...", key=f"emb_ctrl_{num_fact}").strip()
 
+            st.markdown("<br>", unsafe_allow_html=True)
             if st.button("💾 Guardar y Pasar a EMPACADO", type="primary", use_container_width=True, key=f"btn_emb_save_{num_fact}"):
                 if not num_control_input:
-                    st.error("⚠️ Debe digitar un Número de Control para pasar a estado EMPACADO.")
+                    st.error("⚠️ Debe digitar obligatoriamente un Número de Control real para pasar a estado EMPACADO.")
                 else:
                     payload = {
                         "factura_id": f_id,
@@ -114,7 +161,7 @@ def render_logistica():
                         "estado_despacho": "EMPACADO"
                     }
                     try:
-                        res = requests.post(f"{API_URL}/despachos/actualizar", json=payload, timeout=8)
+                        res = requests.post(f"{API_URL}/logistica/actualizar", json=payload, timeout=8)
                         if res.status_code in [200, 201]:
                             st.success(f"✅ Orden #{num_fact} guardada y cambiada a estado EMPACADO.")
                             st.rerun()
@@ -123,12 +170,10 @@ def render_logistica():
                     except Exception as ex:
                         st.error(f"Error de conexión: {str(ex)}")
 
-    # =========================================================================
-    # BOTÓN 2: ENVÍO (Órdenes EMPACADO -> EN TRÁNSITO)
-    # =========================================================================
+    # --- BOTÓN 2: ENVÍO ---
     elif accion == "🚚 2. Envío":
         st.markdown("### 🚚 2. Gestión de Envío")
-        st.caption("Filtra órdenes empacadas, asigna courier, repartidor y número de guía para pasar a estado EN TRÁNSITO.")
+        st.caption("Filtra órdenes empacadas, asigna courier, repartidor y número de guía real para pasar a EN TRÁNSITO.")
 
         if df_raw.empty:
             st.info("No hay órdenes registradas.")
@@ -141,7 +186,6 @@ def render_logistica():
             st.info("ℹ️ No hay órdenes con estado EMPACADO listas para envío.")
             return
 
-        # Filtros de búsqueda (Ciudad, RUC/Cédula, Orden)
         col_f1, col_f2, col_f3 = st.columns(3)
         with col_f1:
             f_ciudad = st.text_input("Filtrar por Ciudad:", placeholder="Ej: Guayaquil", key="env_f_ciudad").strip()
@@ -180,13 +224,34 @@ def render_logistica():
             st.write(f"**Dirección:** {ord_sel.get('direccion', 'N/A')}")
             st.write(f"**Referencia:** {ord_sel.get('referencia', 'Sin referencia')}")
 
-            items = ord_sel.get("items", ord_sel.get("detalles", []))
-            if items:
-                st.markdown("**Ítems:**")
-                st.dataframe(pd.DataFrame(items), use_container_width=True, hide_index=True)
+            items_factura = obtener_items_orden(ord_sel)
+            if items_factura:
+                tabla_items = []
+                for idx, it in enumerate(items_factura, 1):
+                    sku = it.get("sku") or it.get("sku_producto") or it.get("codigo_producto") or "N/A"
+                    cant = abs(int(it.get("cantidad", it.get("cant", 1))))
+                    prec_bruto = (
+                        it.get("precio_unitario") or 
+                        it.get("precio") or 
+                        it.get("precio_venta") or 
+                        it.get("costo_unitario") or 
+                        0.0
+                    )
+                    prec = float(prec_bruto)
+                    subtotal = cant * prec
+                    
+                    tabla_items.append({
+                        "Item #": idx,
+                        "SKU": sku,
+                        "Cantidad": cant,
+                        "Precio Unit. ($)": f"${prec:,.2f}",
+                        "Subtotal ($)": f"${subtotal:,.2f}"
+                    })
+                
+                st.dataframe(pd.DataFrame(tabla_items), use_container_width=True, hide_index=True)
 
         with c_det2:
-            st.markdown("#### 📝 Asignar Datos de Envío")
+            st.markdown("#### 📝 Asignar Datos de Envío Reales")
             f_id = ord_sel.get("factura_id", ord_sel.get("id"))
             num_fact = ord_sel.get("numero_factura")
 
@@ -201,23 +266,19 @@ def render_logistica():
 
             cour_actual = ord_sel.get("courier", "Servientrega")
 
-            # Configuración limpia de sesión para el número de control
-            ctrl_key_env = f"env_ctrl_{num_fact}"
-            if ctrl_key_env not in st.session_state or not st.session_state[ctrl_key_env]:
-                st.session_state[ctrl_key_env] = val_c
-
-            num_control = st.text_input("Número de Control (Ver/Modificar):", key=ctrl_key_env).strip()
+            num_control = st.text_input("Número de Control:", value=val_c, key=f"env_ctrl_{num_fact}").strip()
             
             couriers_opt = ["Servientrega", "Tame Cargo", "Cooperativa", "Uber/Moto", "Retiro en Local", "Otro"]
             c_idx = couriers_opt.index(cour_actual) if cour_actual in couriers_opt else 0
             courier_sel = st.selectbox("Seleccionar Courier / Transporte:", couriers_opt, index=c_idx, key=f"env_cour_{num_fact}")
 
             repartidor = st.text_input("Nombre Repartidor / Chofer:", value=val_r, placeholder="Ej: Carlos Moto 02", key=f"env_rep_{num_fact}").strip()
-            num_guia = st.text_input("Número de Guía:", value=val_g, placeholder="Digite Nº de Guía...", key=f"env_guia_{num_fact}").strip()
+            
+            num_guia = st.text_input("Número de Guía (Real del Courier):", value=val_g, placeholder="Digite Nº de Guía real...", key=f"env_guia_{num_fact}").strip()
 
             if st.button("💾 Guardar y Pasar a EN TRÁNSITO", type="primary", use_container_width=True, key=f"btn_env_save_{num_fact}"):
                 if not num_control or not num_guia:
-                    st.error("⚠️ Tanto el Número de Control como el Número de Guía son obligatorios para enviar la orden.")
+                    st.error("⚠️ REGLA DE ORO: Tanto el Número de Control como el Número de Guía real son obligatorios para pasar a EN TRÁNSITO.")
                 else:
                     payload = {
                         "factura_id": f_id,
@@ -229,7 +290,7 @@ def render_logistica():
                         "estado_despacho": "EN TRÁNSITO"
                     }
                     try:
-                        res = requests.post(f"{API_URL}/despachos/actualizar", json=payload, timeout=8)
+                        res = requests.post(f"{API_URL}/logistica/actualizar", json=payload, timeout=8)
                         if res.status_code in [200, 201]:
                             st.success(f"✅ Orden #{num_fact} asignada a courier y pasada a EN TRÁNSITO.")
                             st.rerun()
@@ -238,12 +299,10 @@ def render_logistica():
                     except Exception as ex:
                         st.error(f"Error de conexión: {str(ex)}")
 
-    # =========================================================================
-    # BOTÓN 3: IMPRIMIR MEMBRETE (Solo EN TRÁNSITO -> 1 a 3 por Hoja A4)
-    # =========================================================================
+    # --- BOTÓN 3: IMPRIMIR MEMBRETE ---
     elif accion == "🖨️ 3. Imprimir Membrete":
-        st.markdown("### 🖨️ 3. Impresión de Membretes de Envío")
-        st.caption("Selecciona de 1 a 3 órdenes en estado EN TRÁNSITO para generar la hoja A4 de membretes lista para imprimir.")
+        st.markdown("### 🖨️ 3. Impresión de Membretes de Envío (Formato 3x2 Ampliado)")
+        st.caption("Selecciona órdenes en estado EN TRÁNSITO que posean su guía real registrada para generar la cuadrícula A4.")
 
         if df_raw.empty:
             st.info("No hay órdenes registradas.")
@@ -257,15 +316,15 @@ def render_logistica():
             return
 
         opts_imp = {
-            f"Orden #{r.get('numero_factura')} - {r.get('cliente', 'N/A')} ({r.get('ciudad', 'Guayaquil')})": r
+            f"Orden #{r.get('numero_factura')} - {r.get('cliente', 'N/A')} (Guía: {r.get('numero_guia', 'SIN GUÍA')})": r
             for _, r in df_transito.iterrows()
         }
 
         ordenes_seleccionadas = st.multiselect(
-            "Seleccione las órdenes a imprimir (Máximo 3 por hoja A4):",
+            "Seleccione las órdenes a imprimir (Máximo 6 por hoja A4):",
             options=list(opts_imp.keys()),
-            max_selections=3,
-            key="ms_imprimir_a4"
+            max_selections=6,
+            key="ms_imprimir_a4_3x2_grande"
         )
 
         if ordenes_seleccionadas:
@@ -276,28 +335,32 @@ def render_logistica():
             <html lang="es">
             <head>
                 <meta charset="UTF-8">
-                <title>Membretes de Envío A4</title>
+                <title>Membretes de Envío 3x2 A4</title>
                 <style>
-                    @page { size: A4 portrait; margin: 10mm; }
+                    @page { size: A4 portrait; margin: 6mm; }
                     body { font-family: Arial, sans-serif; margin: 0; background: #fff; }
+                    .no-print { text-align: center; margin: 15px; }
                     .hoja-a4 {
-                        height: 275mm;
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: space-around;
+                        width: 198mm;
+                        height: 285mm;
+                        display: grid;
+                        grid-template-columns: repeat(2, 1fr);
+                        grid-template-rows: repeat(3, 1fr);
+                        gap: 3mm;
                         box-sizing: border-box;
                     }
                     .membrete-card {
                         border: 2px dashed #1e293b;
-                        padding: 14px 18px;
-                        border-radius: 8px;
+                        padding: 10px 12px;
+                        border-radius: 6px;
                         background-color: #ffffff;
                         color: #000000;
                         box-sizing: border-box;
-                        height: 85mm;
                         display: flex;
                         flex-direction: column;
                         justify-content: space-between;
+                        font-size: 0.85rem;
+                        overflow: hidden;
                     }
                     .header {
                         display: flex;
@@ -305,23 +368,27 @@ def render_logistica():
                         align-items: center;
                         border-bottom: 2px solid #000;
                         padding-bottom: 4px;
+                        font-weight: bold;
+                        font-size: 0.95rem;
                     }
                     .remitente-box {
                         background-color: #f1f5f9;
-                        padding: 6px;
-                        border-radius: 4px;
-                        font-size: 0.8rem;
+                        padding: 4px 6px;
+                        border-radius: 3px;
+                        font-size: 0.75rem;
                     }
                     .destinatario-box {
-                        border: 1px solid #cbd5e1;
-                        padding: 8px;
+                        border: 1.5px solid #cbd5e1;
+                        padding: 6px 8px;
                         border-radius: 4px;
-                        font-size: 0.85rem;
+                        font-size: 0.82rem;
+                        line-height: 1.3;
                     }
                     .footer-info {
                         font-size: 0.8rem;
-                        display: flex;
-                        justify-content: space-between;
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 4px;
                         font-weight: bold;
                     }
                     @media print {
@@ -330,9 +397,9 @@ def render_logistica():
                 </style>
             </head>
             <body>
-                <div class="no-print" style="text-align: center; margin: 15px;">
+                <div class="no-print">
                     <button onclick="window.print()" style="padding: 10px 25px; font-size: 16px; background: #2563eb; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
-                        🖨️ Click Aquí para Imprimir Hoja A4
+                        🖨️ Imprimir Cuadrícula A4 (3x2)
                     </button>
                 </div>
                 <div class="hoja-a4">
@@ -353,31 +420,31 @@ def render_logistica():
                 re_rep = str(raw_rep).strip() if (raw_rep is not None and str(raw_rep).strip() not in ["None", "null", "", "N/D"]) else "N/D"
 
                 raw_guia = ped.get('numero_guia')
-                gu_g = str(raw_guia).strip() if (raw_guia is not None and str(raw_guia).strip() not in ["None", "null", "", "SIN GUÍA"]) else "SIN GUÍA"
+                gu_g = str(raw_guia).strip() if (raw_guia is not None and str(raw_guia).strip() not in ["None", "null", "", "SIN GUÍA"]) else "PENDIENTE GUÍA"
 
                 raw_ctrl = ped.get('numero_control')
-                co_c = str(raw_ctrl).strip() if (raw_ctrl is not None and str(raw_ctrl).strip() not in ["None", "null", "", "SIN CONTROL"]) else "SIN CONTROL"
+                co_c = str(raw_ctrl).strip() if (raw_ctrl is not None and str(raw_ctrl).strip() not in ["None", "null", "", "SIN CONTROL"]) else "PENDIENTE CONTROL"
 
                 html_a4 += f"""
                 <div class="membrete-card">
                     <div class="header">
-                        <span style="font-weight: bold; font-size: 1.1rem;">🛍️ FAJAS ISABELLA</span>
-                        <span style="font-size: 0.85rem; font-weight: bold;">ENVÍO: {co_cur}</span>
+                        <span>🛍️ FAJAS ISABELLA</span>
+                        <span>ENVÍO: {co_cur}</span>
                     </div>
                     <div class="remitente-box">
-                        <strong>DE (REMITENTE):</strong> FAJAS ISABELLA | Guayaquil, Ecuador | Tel: +593 99 999 9999
+                        <strong>DE:</strong> FAJAS ISABELLA | Guayaquil | Tel: +593 99 999 9999
                     </div>
                     <div class="destinatario-box">
-                        <strong style="color: #2563eb;">PARA (DESTINATARIO):</strong> {c_cli}<br>
-                        <strong>CI/RUC:</strong> {r_ruc} | <strong>Teléfono:</strong> {t_tel}<br>
+                        <strong style="color: #2563eb;">PARA:</strong> {c_cli}<br>
+                        <strong>CI/RUC:</strong> {r_ruc} | <strong>Tel:</strong> {t_tel}<br>
                         <strong>Destino:</strong> {p_pro} - {c_ciu}<br>
-                        <strong>Dirección:</strong> {d_dir} | <strong>Ref:</strong> {r_ref}
+                        <strong>Dir:</strong> {d_dir} | <strong>Ref:</strong> {r_ref}
                     </div>
                     <div class="footer-info">
-                        <span>Orden #: {n_ord}</span>
-                        <span>Guía #: {gu_g}</span>
-                        <span>Control #: {co_c}</span>
-                        <span>Chofer: {re_rep}</span>
+                        <div>Orden #: {n_ord}</div>
+                        <div>Chofer: {re_rep}</div>
+                        <div>Guía #: {gu_g}</div>
+                        <div>Control #: {co_c}</div>
                     </div>
                 </div>
                 """
@@ -388,12 +455,12 @@ def render_logistica():
             </html>
             """
 
-            st.components.v1.html(html_a4, height=600, scrolling=True)
+            st.components.v1.html(html_a4, height=680, scrolling=True)
 
             st.download_button(
-                label="📥 Descargar Hoja A4 en HTML",
+                label="📥 Descargar Hoja A4 3x2 en HTML",
                 data=html_a4,
-                file_name=f"Membretes_A4_{date.today()}.html",
+                file_name=f"Membretes_3x2_{date.today()}.html",
                 mime="text/html",
                 use_container_width=True
             )

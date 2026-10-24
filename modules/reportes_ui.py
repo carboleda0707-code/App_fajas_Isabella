@@ -3,9 +3,8 @@ import requests
 import os
 from datetime import date
 
-# Conexión estricta de Producción en Nube
-API_BASE = os.getenv("API_BASE_URL", "https://fajasisabella-production.up.railway.app").rstrip("/")
-API_URL = f"{API_BASE}/api" if not API_BASE.endswith("/api") else API_BASE
+# --- CONEXIÓN DINÁMICA LOCAL / NUBE ---
+API_URL = st.session_state.get("API_URL", "http://localhost:8000/api")
 
 # Importar los submódulos de reportes existentes
 from modules.report_ventas import render_reporte_ventas
