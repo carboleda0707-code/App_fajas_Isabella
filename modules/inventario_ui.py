@@ -4,8 +4,18 @@ import os
 import pandas as pd
 import json
 
-# --- CONEXIÓN DINÁMICA A LA API SEGÚN EL ENTORNO (LOCAL / NUBE) ---
-API_URL = st.session_state.get("API_URL", "http://localhost:8000/api")
+# --- CONEXIÓN DINÁMICA INTELIGENTE (LOCAL / NUBE) ---
+if "API_URL" not in st.session_state:
+    env_api = os.getenv("API_BASE_URL")
+    if env_api:
+        base = env_api.strip().rstrip("/")
+        if not base.startswith("http"):
+            base = f"https://{base}"
+        st.session_state["API_URL"] = f"{base}/api"
+    else:
+        st.session_state["API_URL"] = "http://localhost:8000/api"
+
+API_URL = st.session_state["API_URL"]
 API_BASE = API_URL.removesuffix("/api")
 
 def render_inventario():
