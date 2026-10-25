@@ -153,6 +153,7 @@ class Usuario(Base):
     rol = Column(String(20), nullable=False, default="Ventas")
     activo = Column(Boolean, default=True)
     fecha_creacion = Column(DateTime, default=datetime.now)
+    fecha_actualizacion = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 def get_db():
     db = SessionLocal()

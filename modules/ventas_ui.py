@@ -73,7 +73,7 @@ def generar_excel_contifico(data_facturas):
                 "Número Orden Venta": num_orden,
                 "Código Producto": "FAJA-GEN",
                 "Cantidad": 1,
-                "Precio Unitario": float(f.get("total_norm", f.get("total", 0.0))),
+                "Precio Unitario": float(f.get("total_norm", f.get("total_factura", 0.0))),
                 "Forma de Pago": forma_pago
             })
         else:
@@ -131,7 +131,8 @@ def render_ventas():
 
                 df_raw = pd.DataFrame(facturas_data)
                 
-                col_total_key = "total" if "total" in df_raw.columns else ("total_factura" if "total_factura" in df_raw.columns else None)
+                # --- CAMPO OFICIAL DE LA BASE DE DATOS: total_factura ---
+                col_total_key = "total_factura" if "total_factura" in df_raw.columns else ("total" if "total" in df_raw.columns else None)
                 df_raw["total_norm"] = pd.to_numeric(df_raw[col_total_key], errors="coerce").fillna(0.0) if col_total_key else 0.0
                 
                 # --- SECCIÓN DE FILTROS Y BÚSQUEDA ---
@@ -278,7 +279,6 @@ def render_ventas():
                             st.markdown("##### 📎 Comprobante de Pago Subido")
                             codigo_trans = str(fact_info.get("codigo_transferencia", "")).strip()
                             
-                            # Obtener ruta desde la API de pagos si no viene directo en el reporte de facturas
                             if not codigo_trans or codigo_trans in ["None", "nan", "", "Sin comprobante adjunto"]:
                                 try:
                                     res_pagos = requests.get(f"{API_URL}/pagos", timeout=3)
@@ -305,7 +305,6 @@ def render_ventas():
                                         ruta_encontrada = pr
                                         break
 
-                            # Renderizar la imagen si el archivo físico existe (disponible para POR APROBAR, PENDIENTE, etc.)
                             if ruta_encontrada and os.path.isfile(ruta_encontrada):
                                 st.image(ruta_encontrada, caption=f"Comprobante - Orden #{factura_sel}", use_container_width=True)
                             else:
@@ -573,7 +572,6 @@ def render_ventas():
             st.markdown("---")
             st.markdown("#### 📋 Detalle de Productos a Vender")
             
-            # Formulario de lectura dinámica de fajas
             temp_items = []
             if lista_desc:
                 opciones_fajas = ["-- Seleccionar Faja --"] + lista_desc

@@ -122,10 +122,10 @@ def render_inventario():
             st.markdown("---")
             st.markdown("###### 🏷️ Estado y Promociones")
 
-            en_liquidacion = st.checkbox("🔥 Marcar como En Liquidación", key="reg_liq")
-            es_nuevo = st.checkbox("✨ Marcar como Nuevo (New)", key="reg_new")
+            en_liquidacion = st.checkbox("🔥 En Liquidación", key="reg_liq")
+            es_nuevo = st.checkbox("✨ Nuevo (New)", key="reg_new")
+            en_oferta = st.checkbox("🏷️ En Oferta", key="reg_ofe")
             
-            en_oferta = st.checkbox("🏷️ Marcar como Oferta", key="reg_ofe")
             porcentaje_oferta = 0.0
             if en_oferta:
                 porcentaje_oferta = st.number_input(
@@ -201,7 +201,7 @@ def render_inventario():
                         st.error(f"Error de conexión con la API: {e}")
 
     elif accion == "Mantenimiento Inventario":
-        st.markdown("##### 📋 Mantenimiento de Inventario")
+        st.markdown("##### 📋 Mantenimiento y Edición de Inventario")
         try:
             res = requests.get(f"{API_URL}/inventario")
             if res.status_code == 200:
@@ -230,11 +230,11 @@ def render_inventario():
                     
                     df_inventario = pd.DataFrame(data_tabla)
 
+                    # Filtros directos para alimentar el selector sin necesidad de mostrar la tabla grande
                     col_f1, col_f2 = st.columns(2)
-                    
                     opciones_filtro = ["TODAS"] + categorias_disponibles
-                    filtro_cat = col_f1.selectbox("🔍 Filtrar por Categoría:", options=opciones_filtro)
-                    filtro_texto = col_f2.text_input("🔍 Buscar por Nombre o SKU:", placeholder="Escribe para buscar...")
+                    filtro_cat = col_f1.selectbox("🔍 Filtrar por Categoría:", options=opciones_filtro, key="filtro_cat_select")
+                    filtro_texto = col_f2.text_input("🔍 Buscar por Nombre o SKU:", placeholder="Escribe para buscar...", key="filtro_texto_select")
 
                     df_filtrado = df_inventario.copy()
                     if filtro_cat != "TODAS":
@@ -244,15 +244,24 @@ def render_inventario():
                                df_filtrado["SKU"].str.contains(filtro_texto, case=False, na=False)
                         df_filtrado = df_filtrado[mask]
 
-                    st.markdown("##### 📊 Listado de Variantes")
-                    st.dataframe(df_filtrado, use_container_width=True)
-
                     st.divider()
                     st.markdown("##### 🛠️ Corrección de Variante y Estados")
-                    st.caption("Ingresa el ID de la Variante - Visualiza - Modifica Atributos, Promociones, Stock Mín/Máx o Reemplaza su imagen.")
+                    st.caption("Filtra arriba por categoría o nombre, selecciona la variante y edita sus atributos, stock o imagen.")
 
-                    col_id_sel, _ = st.columns([1.5, 2.5])
-                    var_id_input = col_id_sel.number_input("ID Variante a Editar", min_value=1, step=1, value=int(df_filtrado.iloc[0]["ID Var"]) if not df_filtrado.empty else 1)
+                    col_id_sel, _ = st.columns([3.0, 1.0])
+                    
+                    if not df_filtrado.empty:
+                        opciones_selectbox = {}
+                        for _, row in df_filtrado.iterrows():
+                            v_id = row["ID Var"]
+                            label_desc = f"ID {v_id} — {row['Producto']} [Talla: {row['Talla']} | Color: {row['Color']} | SKU: {row['SKU']}]"
+                            opciones_selectbox[label_desc] = v_id
+                        
+                        sel_var_label = col_id_sel.selectbox("Seleccionar Variante a Editar", options=list(opciones_selectbox.keys()))
+                        var_id_input = opciones_selectbox[sel_var_label]
+                    else:
+                        st.warning("⚠️ No se encontraron variantes con los filtros seleccionados.")
+                        var_id_input = 1
                     
                     variante_encontrada = mapa_variantes.get(var_id_input)
                     cat_defecto = 0
