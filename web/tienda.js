@@ -208,7 +208,9 @@ function renderizarCatalogo() {
         const productosOfertas = productos.filter(p => p.en_oferta === true);
 
         let htmlSecundario = '';
-        if (productosNuevos.length > 0) {
+
+        // Si estamos viendo "NEW", no volvemos a mostrar la sección de nuevos abajo
+        if (categoriaSeleccionadaActual !== 'NEW' && productosNuevos.length > 0) {
             htmlSecundario += `
                 <div class="mt-16 pt-8 border-t border-slate-200">
                     <div class="flex items-center justify-between mb-6">
@@ -224,7 +226,8 @@ function renderizarCatalogo() {
             `;
         }
 
-        if (productosOfertas.length > 0) {
+        // Si estamos viendo "OFERTAS", no volvemos a mostrar la sección de ofertas abajo
+        if (categoriaSeleccionadaActual !== 'OFERTAS' && categoriaSeleccionadaActual !== 'LIQUIDACION' && productosOfertas.length > 0) {
             htmlSecundario += `
                 <div class="mt-12 pt-8 border-t border-slate-200">
                     <div class="flex items-center justify-between mb-6">
@@ -239,6 +242,7 @@ function renderizarCatalogo() {
                 </div>
             `;
         }
+        
         contenedorSeccionesSecundarias.innerHTML = htmlSecundario;
     }
 }
