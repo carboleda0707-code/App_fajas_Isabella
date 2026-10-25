@@ -143,7 +143,7 @@ class Usuario(Base):
     username = Column(String(50), unique=True, index=True, nullable=False)
     email = Column(String(100), unique=True, index=True, nullable=False)
     password = Column(String(255), nullable=False)
-    rol = Column(String(20), nullable=False, default="Ventas")
+    rol = Column(String(100), nullable=False, default="Ventas")  # 👈 Ampliado a 100 caracteres para múltiples roles
     activo = Column(Boolean, default=True)
     fecha_creacion = Column(DateTime, default=datetime.now)
     fecha_actualizacion = Column(DateTime, default=datetime.now, onupdate=datetime.now)
@@ -186,6 +186,9 @@ def asegurar_columnas_logistica():
         conn.execute(text("ALTER TABLE variantes_producto ADD COLUMN IF NOT EXISTS stock_maximo INTEGER DEFAULT 20;"))
         conn.execute(text("ALTER TABLE variantes_producto ADD COLUMN IF NOT EXISTS fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
         conn.execute(text("ALTER TABLE variantes_producto ADD COLUMN IF NOT EXISTS fecha_ultima_venta TIMESTAMP;"))
+        
+        # 👈 Ampliar dinámicamente la columna rol si ya fue creada como VARCHAR(20)
+        conn.execute(text("ALTER TABLE usuarios ALTER COLUMN rol TYPE VARCHAR(100);"))
 
 try:
     asegurar_columnas_logistica()

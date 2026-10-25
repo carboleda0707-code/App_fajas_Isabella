@@ -128,10 +128,10 @@
                         Especialistas en prendas reductoras, moldeadoras y de uso posquirúrgico con estándares de alta calidad. Resalta tu belleza con total comodidad.
                     </p>
                     <div class="flex items-center gap-3 pt-2">
-                        <a href="https://instagram.com" target="_blank" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-rose-600 text-white flex items-center justify-center transition"><i class="fa-brands fa-instagram text-sm"></i></a>
-                        <a href="https://facebook.com" target="_blank" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-blue-600 text-white flex items-center justify-center transition"><i class="fa-brands fa-facebook-f text-sm"></i></a>
-                        <a href="https://tiktok.com" target="_blank" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-black text-white flex items-center justify-center transition"><i class="fa-brands fa-tiktok text-sm"></i></a>
-                        <a href="https://wa.me/593983870398" target="_blank" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-emerald-600 text-white flex items-center justify-center transition"><i class="fa-brands fa-whatsapp text-sm"></i></a>
+                        <a id="footer-instagram" href="https://instagram.com" target="_blank" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-rose-600 text-white flex items-center justify-center transition"><i class="fa-brands fa-instagram text-sm"></i></a>
+                        <a id="footer-facebook" href="https://facebook.com" target="_blank" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-blue-600 text-white flex items-center justify-center transition"><i class="fa-brands fa-facebook-f text-sm"></i></a>
+                        <a id="footer-tiktok" href="https://tiktok.com" target="_blank" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-black text-white flex items-center justify-center transition"><i class="fa-brands fa-tiktok text-sm"></i></a>
+                        <a id="footer-whatsapp" href="https://wa.me/593983870398" target="_blank" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-emerald-600 text-white flex items-center justify-center transition"><i class="fa-brands fa-whatsapp text-sm"></i></a>
                     </div>
                 </div>
 
@@ -158,9 +158,9 @@
                 <div>
                     <h4 class="text-white font-bold text-xs uppercase tracking-wider mb-4 border-l-2 border-rose-500 pl-2">Contacto y Envíos</h4>
                     <ul class="space-y-2 text-xs text-slate-400">
-                        <li class="flex items-center gap-2"><i class="fa-solid fa-location-dot text-rose-500"></i> Guayaquil, Ecuador</li>
+                        <li class="flex items-center gap-2"><i class="fa-solid fa-location-dot text-rose-500"></i> <span id="footer-direccion">Guayaquil, Ecuador</span></li>
                         <li class="flex items-center gap-2"><i class="fa-solid fa-phone text-emerald-500"></i> +593 98 387 0398</li>
-                        <li class="flex items-center gap-2"><i class="fa-solid fa-envelope text-blue-500"></i> ventas@fajasisabella.com</li>
+                        <li class="flex items-center gap-2"><i class="fa-solid fa-envelope text-blue-500"></i> <span id="footer-correo">ventas@fajasisabella.com</span></li>
                     </ul>
                     <div class="mt-4 pt-3 border-t border-slate-800">
                         <span class="text-[10px] font-bold text-slate-400 uppercase block mb-1.5">Aceptamos:</span>
@@ -381,7 +381,7 @@
         </div>
     </div>
 
-    <!-- SCRIPT DE INTERACCIÓN MODAL Y ENVÍO DE CHECKOUT -->
+    <!-- SCRIPT DE INTERACCIÓN MODAL Y ENVÍO DE CHECKOUT CON AUTOCOMPLETADO -->
     <script>
         document.addEventListener('click', function(e) {
             if (e.target && (e.target.id === 'btnPedidoWapp' || e.target.closest('#btnPedidoWapp'))) {
@@ -391,6 +391,31 @@
                     alert("Tu carrito está vacío.");
                     return;
                 }
+
+                // --- AUTOCOMPLETAR DATOS SI EL USUARIO HA INICIADO SESIÓN ---
+                const usuarioStr = localStorage.getItem('usuario_fajas');
+                if (usuarioStr) {
+                    try {
+                        const usuario = JSON.parse(usuarioStr);
+                        if (usuario) {
+                            if (document.getElementById('wapp_nombre') && usuario.nombre) {
+                                document.getElementById('wapp_nombre').value = usuario.nombre;
+                            }
+                            if (document.getElementById('wapp_telefono') && usuario.telefono) {
+                                document.getElementById('wapp_telefono').value = usuario.telefono;
+                            }
+                            if (document.getElementById('wapp_correo') && usuario.correo) {
+                                document.getElementById('wapp_correo').value = usuario.correo;
+                            }
+                            if (document.getElementById('wapp_direccion') && usuario.direccion) {
+                                document.getElementById('wapp_direccion').value = usuario.direccion;
+                            }
+                        }
+                    } catch (err) {
+                        console.error("Error al leer datos del usuario logueado", err);
+                    }
+                }
+
                 document.getElementById('modalWhatsAppCheckout').style.display = 'flex';
             }
         });

@@ -11,9 +11,7 @@ let colorSeleccionado = "";
 let cantidadSeleccionada = 1;
 let carrito = [];
 let categoriaSeleccionadaActual = "TODAS";
-
-// Variable global para el número/enlace de WhatsApp corporativo (dinámico)
-let whatsappUrlGlobal = "https://wa.me/593983870398"; 
+let whatsappUrlGlobal = "https://wa.me/593983870398";
 
 async function inicializarTienda() {
     await cargarConfiguracionEmpresa();
@@ -26,15 +24,9 @@ async function cargarConfiguracionEmpresa() {
         const res = await fetch("/config/empresa");
         if (res.ok) {
             const data = await res.json();
-            
-            // Asignar WhatsApp dinámico
             if (data.redes && data.redes.whatsapp) {
                 whatsappUrlGlobal = data.redes.whatsapp;
-            } else if (data.telefono_whatsapp) {
-                whatsappUrlGlobal = `https://wa.me/${data.telefono_whatsapp.replace(/\s+/g, '')}`;
             }
-
-            // Actualizar Footer y Redes Sociales automáticamente si existen en el HTML
             if (data.redes) {
                 if (document.getElementById("footer-instagram")) document.getElementById("footer-instagram").href = data.redes.instagram;
                 if (document.getElementById("footer-facebook")) document.getElementById("footer-facebook").href = data.redes.facebook;
@@ -45,7 +37,7 @@ async function cargarConfiguracionEmpresa() {
             if (document.getElementById("footer-correo")) document.getElementById("footer-correo").innerText = data.correo || "";
         }
     } catch (e) {
-        console.warn("Usando configuración de respaldo para WhatsApp y redes.");
+        console.warn("No se pudo cargar la configuración de empresa.");
     }
 }
 
@@ -589,6 +581,37 @@ function toggleCarrito() {
     if (drawer) drawer.classList.toggle("hidden");
 }
 
+// --- FUNCIÓN MEJORADA: AUTOCOMPLETA SI HAY SESIÓN ACTIVA ---
+function abrirModalCheckoutWhatsApp() {
+    if (carrito.length === 0) {
+        alert("Tu carrito está vacío. Agrega una prenda antes de proceder al pago.");
+        return;
+    }
+
+    // Comprobar si el usuario ya inició sesión (ej. Enrique)
+    const usuarioLogueado = obtenerUsuarioLogueado();
+
+    if (usuarioLogueado) {
+        // Autocompletar inputs si ya están en el DOM del modal de WhatsApp
+        const inputNombre = document.getElementById("checkout-nombre");
+        const inputCorreo = document.getElementById("checkout-correo");
+        const inputTelefono = document.getElementById("checkout-telefono");
+
+        if (inputNombre) inputNombre.value = usuarioLogueado.nombre || "";
+        if (inputCorreo) inputCorreo.value = usuarioLogueado.correo || "";
+        if (inputTelefono) inputTelefono.value = usuarioLogueado.telefono || "";
+    }
+
+    // Mostrar el modal de checkout de WhatsApp
+    const modalCheckout = document.getElementById("modal-checkout-whatsapp");
+    if (modalCheckout) {
+        modalCheckout.classList.remove("hidden");
+    } else {
+        // Si no usa modal intermedio y envía directo o maneja otra vista
+        enviarPedidoFinalWhatsApp();
+    }
+}
+
 function enviarPedidoFinalWhatsApp() {
     if (carrito.length === 0) {
         alert("Tu carrito está vacío. Agrega una prenda antes de enviar tu pedido.");
@@ -601,12 +624,11 @@ function enviarPedidoFinalWhatsApp() {
     carrito.forEach((item, idx) => {
         const subtotal = item.precio * item.cantidad;
         total += subtotal;
-        detalleText += `${idx + 1}. *{item.nombre}*%0A   - Talla: ${item.talla} | Color: ${item.color}%0A   - SKU: ${item.sku}%0A   - Cantidad: ${item.cantidad} x $${item.precio.toFixed(2)} = $${subtotal.toFixed(2)}%0A%0A`;
+        detalleText += `${idx + 1}. *${item.nombre}*%0A   - Talla: ${item.talla} | Color: ${item.color}%0A   - SKU: ${item.sku}%0A   - Cantidad: ${item.cantidad} x $${item.precio.toFixed(2)} = $${subtotal.toFixed(2)}%0A%0A`;
     });
 
     const mensaje = `¡Hola Fajas Isabella! 👋 Deseo realizar la compra de las siguientes prendas de mi carrito:%0A%0A${detalleText}💰 *Total a Pagar:* $${total.toFixed(2)}%0A%0A¿Me ayudan a confirmar el pedido y coordinar el envío?`;
     
-    // Uso de la URL de WhatsApp dinámica cargada desde el config.ini del backend
     window.open(`${whatsappUrlGlobal}?text=${mensaje}`, '_blank');
 
     // --- LIMPIAR EL CARRITO Y PONER CONTADOR A 0 ---
@@ -703,8 +725,8 @@ function cambiarTabAuth(tipo) {
     } else {
         btnReg.className = "flex-1 pb-2 font-bold text-sm text-rose-600 border-b-2 border-rose-600";
         btnLogin.className = "flex-1 pb-2 font-bold text-sm text-slate-400";
-        boxReg.classList.remove('hidden');
-        boxLogin.classList.add('hidden');
+        boxReg.classList.add('hidden');
+        boxLogin.classList.remove('hidden');
     }
 }
 
@@ -784,6 +806,7 @@ async function ejecutarRegistro(event) {
         }
 
         if (res.ok && data.status === 'success') {
+            localStorage.setItem('usuario_fajas', JSON.stringify(data.create));
             localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
             cerrarModalAuth();
             actualizarBotonCuentaNav();
@@ -854,5 +877,4 @@ function cerrarSesion() {
     alert("Has cerrado sesión correctamente.");
 }
 
-// Inicializar la tienda al cargar la página
 inicializarTienda();
