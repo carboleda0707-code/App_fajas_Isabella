@@ -125,12 +125,6 @@ def render_ventas():
             if res.status_code == 200:
                 facturas_data = res.json()
                 
-                # --- 🕵️‍♂️ CHIVATO / DEPURACIÓN DE DATOS ---
-                with st.expander("🕵️‍♂️ Chivato: Inspeccionar Datos Crudos del Servidor"):
-                    st.write(f"Endpoint consultado exitosamente: `{endpoint_usado}`")
-                    st.write(f"Total registros obtenidos: {len(facturas_data) if isinstance(facturas_data, list) else 'No es lista'}")
-                    st.json(facturas_data[:3] if isinstance(facturas_data, list) else facturas_data)
-
                 if not facturas_data:
                     st.info("No hay órdenes de venta registradas en el sistema.")
                     return
