@@ -107,7 +107,7 @@ function generarHTMLTarjetaProducto(p) {
         const preciosCalculados = variantes.map(v => {
             let precioV = Number(v.precio || 0);
             if ((p.en_oferta || p.en_liquidacion) && descuento > 0) {
-                precioV = precioV * (1 - (descuento / 100));
+                precioV = Math.max(0, precioV - descuento);
             }
             return precioV;
         });
@@ -150,7 +150,7 @@ function generarHTMLTarjetaProducto(p) {
     if (p.en_liquidacion) {
         badgePromo = `<span class="absolute top-2 left-2 bg-rose-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md animate-pulse">🔥 LIQUIDACIÓN</span>`;
     } else if (p.en_oferta) {
-        const descTxt = descuento > 0 ? ` -${descuento}%` : '';
+        const descTxt = descuento > 0 ? ` -$${descuento.toFixed(2)}` : '';
         badgePromo = `<span class="absolute top-2 left-2 bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md">🏷️ OFERTA${descTxt}</span>`;
     } else if (p.es_nuevo) {
         badgePromo = `<span class="absolute top-2 left-2 bg-blue-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md">✨ NUEVO</span>`;
@@ -202,7 +202,6 @@ function renderizarCatalogo() {
         container.innerHTML = productosFiltrados.map(p => generarHTMLTarjetaProducto(p)).join('');
     }
 
-    // Mostrar siempre las secciones de Nuevos y Ofertas debajo de cualquier categoría seleccionada
     const contenedorSeccionesSecundarias = document.getElementById("secciones-secundarias-container");
     if (contenedorSeccionesSecundarias) {
         const productosNuevos = productos.filter(p => p.es_nuevo === true);
@@ -260,7 +259,7 @@ function abrirModal(productoId) {
     const primerPrecio = variantes[0] ? variantes[0].precio : 0;
     const descuento = Number(productoSeleccionado.descuento_oferta || 0);
     const precioFinalModal = (productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0 
-        ? primerPrecio * (1 - (descuento / 100)) 
+        ? Math.max(0, primerPrecio - descuento) 
         : primerPrecio;
 
     const contenido = `
@@ -410,7 +409,7 @@ function actualizarDetalleVariante() {
         let precioUnitario = variante.precio;
         const descuento = Number(productoSeleccionado.descuento_oferta || 0);
         if ((productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0) {
-            precioUnitario = precioUnitario * (1 - (descuento / 100));
+            precioUnitario = Math.max(0, precioUnitario - descuento);
         }
 
         const totalLinea = precioUnitario * cantidadSeleccionada;
@@ -476,7 +475,7 @@ function agregarAlCarrito(abrirCarritoDrawer = false) {
     let precioFinalUnitario = variante.precio;
     const descuento = Number(productoSeleccionado.descuento_oferta || 0);
     if ((productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0) {
-        precioFinalUnitario = precioFinalUnitario * (1 - (descuento / 100));
+        precioFinalUnitario = Math.max(0, precioFinalUnitario - descuento);
     }
 
     const itemExistente = carrito.find(item => item.sku === variante.sku);

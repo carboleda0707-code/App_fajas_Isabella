@@ -131,10 +131,10 @@ def render_inventario():
                 porcentaje_oferta = st.number_input(
                     "Porcentaje de Oferta (%):",
                     min_value=1.0,
-                    max_value=100.0,
+                    max_value=50.0,  # TOPE MÁXIMO DE 50%
                     value=10.0,
                     step=1.0,
-                    help="Ingrese el porcentaje de descuento a aplicar para esta oferta"
+                    help="Ingrese el porcentaje de descuento a aplicar para esta oferta (Máximo 50%)"
                 )
 
         st.divider()
@@ -154,6 +154,9 @@ def render_inventario():
             elif df_variantes_editado.empty:
                 with col_msg:
                     st.error("Debe existir al menos una variante en la tabla.")
+            elif en_oferta and porcentaje_oferta > 50.0:
+                with col_msg:
+                    st.error("⚠️ El porcentaje de descuento no puede ser mayor al 50%.")
             else:
                 try:
                     lista_variantes = []
@@ -180,7 +183,7 @@ def render_inventario():
                         "en_liquidacion": str(en_liquidacion).lower(),
                         "es_nuevo": str(es_nuevo).lower(),
                         "en_oferta": str(en_oferta).lower(),
-                        "descuento_oferta": str(porcentaje_oferta),
+                        "descuento_oferta": str(min(porcentaje_oferta, 50.0)),
                         "variantes": json.dumps(lista_variantes)
                     }
 
@@ -283,6 +286,7 @@ def render_inventario():
                         nuevo_def = bool(p_info.get("es_nuevo", False))
                         oferta_def = bool(p_info.get("en_oferta", False))
                         desc_oferta_def = float(p_info.get("descuento_oferta", 0.0) or 0.0)
+                        desc_oferta_def = min(desc_oferta_def, 50.0) # Asegurar tope al cargar
                         stock_min_def = int(variante_encontrada.get("Stock Mínimo", 2))
                         stock_max_def = int(variante_encontrada.get("Stock Máximo", 20))
 
@@ -311,10 +315,10 @@ def render_inventario():
                             edit_descuento_oferta = st.number_input(
                                 "Porcentaje de Oferta (%)",
                                 min_value=0.0,
-                                max_value=100.0,
+                                max_value=50.0,  # TOPE MÁXIMO DE 50%
                                 value=desc_oferta_def,
                                 step=1.0,
-                                help="Porcentaje de descuento asignado a la oferta"
+                                help="Porcentaje de descuento asignado a la oferta (Máximo 50%)"
                             )
 
                         with col_form_der:
@@ -343,6 +347,8 @@ def render_inventario():
                                     if archivo_nueva_imagen is not None:
                                         files = {"imagen": (archivo_nueva_imagen.name, archivo_nueva_imagen.getvalue(), archivo_nueva_imagen.type)}
 
+                                    descuento_final = min(float(edit_descuento_oferta), 50.0)
+
                                     data_payload = {
                                         "categoria": nueva_cat,
                                         "talla": nueva_talla,
@@ -353,7 +359,7 @@ def render_inventario():
                                         "en_liquidacion": str(edit_liquidacion).lower(),
                                         "es_nuevo": str(edit_es_nuevo).lower(),
                                         "en_oferta": str(edit_en_oferta).lower(),
-                                        "descuento_oferta": str(edit_descuento_oferta)
+                                        "descuento_oferta": str(descuento_final)
                                     }
 
                                     res_upd = requests.put(f"{API_URL}/variantes/{var_id_input}", data=data_payload, files=files if files else None)
