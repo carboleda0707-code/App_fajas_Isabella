@@ -104,7 +104,7 @@ def login_cliente_web(data: LoginWebSchema, db: Session = Depends(get_db)):
         if not cliente:
             raise HTTPException(status_code=401, detail="Correo no registrado en el sistema.")
         
-        # Si realizó compra por transferencia y aún no configura su contraseña
+        # 🟢 RETORNAR RESPUESTA 200 LIMPIA CUANDO REQUIERE CONTRASEÑA
         if not cliente.password:
             return {
                 "status": "requiere_password",
@@ -115,6 +115,22 @@ def login_cliente_web(data: LoginWebSchema, db: Session = Depends(get_db)):
         password_hash = generar_hash_sha256(data.password)
         if cliente.password != password_hash:
             raise HTTPException(status_code=401, detail="Contraseña incorrecta.")
+        
+        return {
+            "status": "success",
+            "mensaje": f"¡Bienvenido de nuevo, {cliente.nombre}!",
+            "cliente": {
+                "id": cliente.id,
+                "nombre": cliente.nombre,
+                "correo": cliente.correo,
+                "telefono": cliente.telefono,
+                "direccion": cliente.direccion
+            }
+        }
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error en login: {str(e)}")
         
         return {
             "status": "success",

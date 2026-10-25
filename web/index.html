@@ -427,6 +427,10 @@
         async function procesarPedidoWapp(e) {
             e.preventDefault();
             const productosCarrito = (typeof carrito !== 'undefined' && carrito.length > 0) ? carrito : [];
+            if (productosCarrito.length === 0) {
+                alert("Tu carrito está vacío.");
+                return;
+            }
 
             const formData = new FormData();
             formData.append('nombre', document.getElementById('wapp_nombre').value);
@@ -451,9 +455,27 @@
                     body: formData
                 });
                 const resultado = await response.json();
+                
                 if (response.ok) {
+                    // 1. Abrir WhatsApp con el mensaje del pedido
                     window.open(resultado.whatsapp_url, '_blank');
+                    
+                    // 2. Limpiar el carrito de compras y actualizar contadores
+                    carrito = [];
+                    if (typeof actualizarCarritoUI === 'function') {
+                        actualizarCarritoUI();
+                    }
+                    
+                    // 3. Resetear formulario y cerrar modales / drawer del carrito
+                    document.getElementById('formCheckoutWapp').reset();
                     cerrarModalCheckout();
+                    
+                    const drawer = document.getElementById('drawer-carrito');
+                    if (drawer) {
+                        drawer.classList.add('hidden');
+                    }
+
+                    alert("¡Pedido registrado con éxito! Redirigiendo a WhatsApp...");
                 } else {
                     alert("Error al procesar el pedido: " + (resultado.detail || "Error desconocido"));
                 }
@@ -464,50 +486,59 @@
 
         // --- Funciones auxiliares para el manejo de primer ingreso / login ---
         async function ejecutarLogin(event) {
-    event.preventDefault();
-    const correo = document.getElementById('login-correo').value;
-    const password = document.getElementById('login-password').value;
+            event.preventDefault();
+            const correo = document.getElementById('login-correo').value;
+            const password = document.getElementById('login-password').value;
 
-    try {
-        const res = await fetch('/api/web/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ correo, password })
-        });
-        const data = await res.json();
+            try {
+                const res = await fetch('/api/web/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ correo, password })
+                });
+                const data = await res.json();
 
-        // 1. Evaluar si requiere configurar contraseña (independientemente del código HTTP)
-        if (data.status === 'requiere_password') {
-            cerrarModalAuth();
-            if (document.getElementById('config-correo')) {
-                document.getElementById('config-correo').value = data.correo || correo;
+                // 1. Extraer el estado real sin importar si FastAPI usó HTTPException (detail) o respuesta directa 200
+                const statusReal = data.status || (data.detail && data.detail.status);
+                const correoReal = data.correo || (data.detail && data.detail.correo) || correo;
+
+                // 2. Si el estado es requiere_password -> abrir modal de configuración de contraseña inmediatamente
+                if (statusReal === 'requiere_password') {
+                    cerrarModalAuth();
+                    if (document.getElementById('config-correo')) {
+                        document.getElementById('config-correo').value = correoReal;
+                    }
+                    const modalConfig = document.getElementById('modal-config-password');
+                    if (modalConfig) {
+                        modalConfig.classList.remove('hidden');
+                    }
+                    return;
+                }
+
+                // 3. Inicio de sesión exitoso
+                if (res.ok && statusReal === 'success') {
+                    localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
+                    cerrarModalAuth();
+                    if (typeof actualizarBotonCuentaNav === 'function') {
+                        actualizarBotonCuentaNav();
+                    }
+                    alert(data.mensaje || "¡Bienvenido!");
+                    return;
+                }
+
+                // 4. Mensaje de error formateado para otros casos (credenciales incorrectas)
+                let msgError = "Credenciales incorrectas";
+                if (typeof data.detail === 'string') {
+                    msgError = data.detail;
+                } else if (data.mensaje) {
+                    msgError = data.mensaje;
+                }
+                alert("Error: " + msgError);
+
+            } catch (e) {
+                alert("Error de conexión con el servidor.");
             }
-            const modalConfig = document.getElementById('modal-config-password');
-            if (modalConfig) {
-                modalConfig.classList.remove('hidden');
-            }
-            return;
         }
-
-        // 2. Evaluamos inicio de sesión exitoso
-        if (res.ok && data.status === 'success') {
-            localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
-            cerrarModalAuth();
-            if (typeof actualizarBotonCuentaNav === 'function') {
-                actualizarBotonCuentaNav();
-            }
-            alert(data.mensaje || "¡Bienvenido!");
-            return;
-        }
-
-        // 3. Manejo de errores de credenciales u otros mensajes del servidor
-        const mensajeError = data.detail || data.mensaje || "Credenciales incorrectas";
-        alert("Error: " + (typeof mensajeError === 'object' ? JSON.stringify(mensajeError) : mensajeError));
-
-    } catch (e) {
-        alert("Error de conexión con el servidor.");
-    }
-}
 
         async function ejecutarConfigurarPassword(event) {
             event.preventDefault();
