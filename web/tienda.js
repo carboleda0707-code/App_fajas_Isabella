@@ -12,9 +12,41 @@ let cantidadSeleccionada = 1;
 let carrito = [];
 let categoriaSeleccionadaActual = "TODAS";
 
+// Variable global para el número/enlace de WhatsApp corporativo (dinámico)
+let whatsappUrlGlobal = "https://wa.me/593983870398"; 
+
 async function inicializarTienda() {
+    await cargarConfiguracionEmpresa();
     await cargarInventario();
     actualizarBotonCuentaNav();
+}
+
+async function cargarConfiguracionEmpresa() {
+    try {
+        const res = await fetch("/config/empresa");
+        if (res.ok) {
+            const data = await res.json();
+            
+            // Asignar WhatsApp dinámico
+            if (data.redes && data.redes.whatsapp) {
+                whatsappUrlGlobal = data.redes.whatsapp;
+            } else if (data.telefono_whatsapp) {
+                whatsappUrlGlobal = `https://wa.me/${data.telefono_whatsapp.replace(/\s+/g, '')}`;
+            }
+
+            // Actualizar Footer y Redes Sociales automáticamente si existen en el HTML
+            if (data.redes) {
+                if (document.getElementById("footer-instagram")) document.getElementById("footer-instagram").href = data.redes.instagram;
+                if (document.getElementById("footer-facebook")) document.getElementById("footer-facebook").href = data.redes.facebook;
+                if (document.getElementById("footer-tiktok")) document.getElementById("footer-tiktok").href = data.redes.tiktok;
+                if (document.getElementById("footer-whatsapp")) document.getElementById("footer-whatsapp").href = data.redes.whatsapp;
+            }
+            if (document.getElementById("footer-direccion")) document.getElementById("footer-direccion").innerText = data.direccion || "";
+            if (document.getElementById("footer-correo")) document.getElementById("footer-correo").innerText = data.correo || "";
+        }
+    } catch (e) {
+        console.warn("Usando configuración de respaldo para WhatsApp y redes.");
+    }
 }
 
 async function cargarInventario() {
@@ -59,6 +91,7 @@ function obtenerRutaImagenProducto(imagenUrl) {
 function cargarCategoriasWeb() {
     const contenedor = document.getElementById("categorias-scroll");
     const dropdownContainer = document.getElementById("dropdown-categorias-dinamico");
+    if (!contenedor) return;
     
     let htmlScroll = `
         <button onclick="filtrarCategoria('TODAS')" id="btn-cat-TODAS" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none">
@@ -192,6 +225,8 @@ function generarHTMLTarjetaProducto(p) {
 function renderizarCatalogo() {
     const container = document.getElementById("catalog-container");
     const contadorElem = document.getElementById("total-productos");
+    if (!container) return;
+
     if (contadorElem) {
         contadorElem.innerText = `${productosFiltrados.length} modelos`;
     }
@@ -209,7 +244,6 @@ function renderizarCatalogo() {
 
         let htmlSecundario = '';
 
-        // Si estamos viendo "NEW", no volvemos a mostrar la sección de nuevos abajo
         if (categoriaSeleccionadaActual !== 'NEW' && productosNuevos.length > 0) {
             htmlSecundario += `
                 <div class="mt-16 pt-8 border-t border-slate-200">
@@ -226,7 +260,6 @@ function renderizarCatalogo() {
             `;
         }
 
-        // Si estamos viendo "OFERTAS", no volvemos a mostrar la sección de ofertas abajo
         if (categoriaSeleccionadaActual !== 'OFERTAS' && categoriaSeleccionadaActual !== 'LIQUIDACION' && productosOfertas.length > 0) {
             htmlSecundario += `
                 <div class="mt-12 pt-8 border-t border-slate-200">
@@ -430,7 +463,8 @@ function actualizarDetalleVariante() {
 }
 
 function cerrarModal() {
-    document.getElementById("modal-producto").classList.add("hidden");
+    const modal = document.getElementById("modal-producto");
+    if (modal) modal.classList.add("hidden");
 }
 
 function scrollCategorias(distancia) {
@@ -464,7 +498,9 @@ function filtrarCategoria(cat) {
 }
 
 function buscarProducto() {
-    const query = document.getElementById("input-busqueda").value.toLowerCase();
+    const inputBusqueda = document.getElementById("input-busqueda");
+    if (!inputBusqueda) return;
+    const query = inputBusqueda.value.toLowerCase();
     productosFiltrados = productos.filter(p => 
         p.nombre.toLowerCase().includes(query) || 
         p.categoria.toLowerCase().includes(query) ||
@@ -510,10 +546,14 @@ function actualizarCarritoUI() {
     const count = carrito.reduce((acc, item) => acc + item.cantidad, 0);
     const total = carrito.reduce((acc, item) => acc + (item.precio * item.cantidad), 0);
 
-    document.getElementById("cart-count").innerText = count;
-    document.getElementById("carrito-total").innerText = `$${total.toFixed(2)}`;
+    const cartCountElem = document.getElementById("cart-count");
+    const carritoTotalElem = document.getElementById("carrito-total");
+    if (cartCountElem) cartCountElem.innerText = count;
+    if (carritoTotalElem) carritoTotalElem.innerText = `$${total.toFixed(2)}`;
 
     const container = document.getElementById("carrito-items");
+    if (!container) return;
+
     if (carrito.length === 0) {
         container.innerHTML = `<div class="text-center py-12 text-slate-400 text-xs">Tu carrito está vacío por el momento.</div>`;
         return;
@@ -546,7 +586,7 @@ function eliminarDelCarrito(index) {
 
 function toggleCarrito() {
     const drawer = document.getElementById("drawer-carrito");
-    drawer.classList.toggle("hidden");
+    if (drawer) drawer.classList.toggle("hidden");
 }
 
 function enviarPedidoFinalWhatsApp() {
@@ -561,14 +601,15 @@ function enviarPedidoFinalWhatsApp() {
     carrito.forEach((item, idx) => {
         const subtotal = item.precio * item.cantidad;
         total += subtotal;
-        detalleText += `${idx + 1}. *${item.nombre}*%0A   - Talla: ${item.talla} | Color: ${item.color}%0A   - SKU: ${item.sku}%0A   - Cantidad: ${item.cantidad} x $${item.precio.toFixed(2)} = $${subtotal.toFixed(2)}%0A%0A`;
+        detalleText += `${idx + 1}. *{item.nombre}*%0A   - Talla: ${item.talla} | Color: ${item.color}%0A   - SKU: ${item.sku}%0A   - Cantidad: ${item.cantidad} x $${item.precio.toFixed(2)} = $${subtotal.toFixed(2)}%0A%0A`;
     });
 
     const mensaje = `¡Hola Fajas Isabella! 👋 Deseo realizar la compra de las siguientes prendas de mi carrito:%0A%0A${detalleText}💰 *Total a Pagar:* $${total.toFixed(2)}%0A%0A¿Me ayudan a confirmar el pedido y coordinar el envío?`;
     
-    window.open(`https://wa.me/593983870398?text=${mensaje}`, '_blank');
+    // Uso de la URL de WhatsApp dinámica cargada desde el config.ini del backend
+    window.open(`${whatsappUrlGlobal}?text=${mensaje}`, '_blank');
 
-    // --- LIMPIAR EL CARRITO AUTOMÁTICAMENTE ---
+    // --- LIMPIAR EL CARRITO Y PONER CONTADOR A 0 ---
     carrito = [];
     actualizarCarritoUI();
     toggleCarrito();
@@ -619,6 +660,7 @@ function obtenerUsuarioLogueado() {
 function actualizarBotonCuentaNav() {
     const usuario = obtenerUsuarioLogueado();
     const nombreNav = document.getElementById('nombre-usuario-nav');
+    if (!nombreNav) return;
     if (usuario) {
         const primerNombre = usuario.nombre.split(' ')[0];
         nombreNav.innerText = primerNombre;
@@ -637,11 +679,13 @@ function gestionarClicCuenta() {
 }
 
 function abrirModalAuth() {
-    document.getElementById('modal-auth').classList.remove('hidden');
+    const modal = document.getElementById('modal-auth');
+    if (modal) modal.classList.remove('hidden');
 }
 
 function cerrarModalAuth() {
-    document.getElementById('modal-auth').classList.add('hidden');
+    const modal = document.getElementById('modal-auth');
+    if (modal) modal.classList.add('hidden');
 }
 
 function cambiarTabAuth(tipo) {
@@ -649,6 +693,7 @@ function cambiarTabAuth(tipo) {
     const btnReg = document.getElementById('tab-registro-btn');
     const boxLogin = document.getElementById('form-login-container');
     const boxReg = document.getElementById('form-registro-container');
+    if (!btnLogin || !btnReg || !boxLogin || !boxReg) return;
 
     if (tipo === 'login') {
         btnLogin.className = "flex-1 pb-2 font-bold text-sm text-rose-600 border-b-2 border-rose-600";
@@ -666,6 +711,7 @@ function cambiarTabAuth(tipo) {
 function toggleVisibilidadPassword(inputId, iconId) {
     const input = document.getElementById(inputId);
     const icon = document.getElementById(iconId);
+    if (!input || !icon) return;
     if (input.type === "password") {
         input.type = "text";
         icon.classList.remove("fa-eye");
@@ -797,7 +843,8 @@ async function abrirModalPerfil() {
 }
 
 function cerrarModalPerfil() {
-    document.getElementById('modal-perfil').classList.add('hidden');
+    const modal = document.getElementById('modal-perfil');
+    if (modal) modal.classList.add('hidden');
 }
 
 function cerrarSesion() {
@@ -807,4 +854,5 @@ function cerrarSesion() {
     alert("Has cerrado sesión correctamente.");
 }
 
+// Inicializar la tienda al cargar la página
 inicializarTienda();

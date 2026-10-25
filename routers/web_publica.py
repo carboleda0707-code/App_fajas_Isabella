@@ -145,7 +145,6 @@ def login_cliente(datos: LoginSchema, db: Session = Depends(get_db)):
     if not cliente:
         raise HTTPException(status_code=400, detail="Correo no registrado en el sistema.")
 
-    # Si realizó una compra previa por transferencia y aún no configura su contraseña
     if not cliente.password:
         return {
             "status": "requiere_password",
@@ -202,7 +201,6 @@ def registrar_cliente_web(
         if existente.password:
             raise HTTPException(status_code=400, detail="El correo ya está registrado en el sistema.")
         else:
-            # Si ya existía por transferencia, actualizamos sus datos y le seteamos la contraseña
             existente.nombre = nombre
             existente.password = generar_hash_sha256(password)
             existente.telefono = telefono or existente.telefono
@@ -217,7 +215,7 @@ def registrar_cliente_web(
             }
 
     nuevo_cliente = Cliente(
-        ruc_cedula=correo_limpio[:20], # Generación temporal si no provee cédula
+        ruc_cedula=correo_limpio[:20],
         nombre=nombre,
         correo=correo_limpio,
         password=generar_hash_sha256(password),
@@ -250,7 +248,6 @@ async def checkout_whatsapp(
     comprobante: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
-    # 1. Registrar o asociar en la tabla unificada 'clientes' con cliente_web = True
     cliente_db = None
     if correo:
         correo_limpio = correo.lower().strip()
@@ -277,13 +274,12 @@ async def checkout_whatsapp(
             direccion=direccion,
             ciudad=ciudad,
             cliente_web=True,
-            password=None # Sin contraseña hasta que la configure en su primer login
+            password=None
         )
         db.add(cliente_db)
         db.commit()
         db.refresh(cliente_db)
 
-    # 2. Procesar ítems y guardar factura
     lista_items = json.loads(items)
     total_pedido = sum(item['precio'] * item['cantidad'] for item in lista_items)
     
@@ -307,7 +303,6 @@ async def checkout_whatsapp(
     db.commit()
     db.refresh(nueva_factura)
 
-    # 3. Guardar comprobante si se adjuntó
     if comprobante:
         os.makedirs("static/comprobantes", exist_ok=True)
         file_path = f"static/comprobantes/{nueva_factura.id}_{comprobante.filename}"
@@ -323,14 +318,15 @@ async def checkout_whatsapp(
         db.add(pago)
         db.commit()
 
-    # 4. Construir mensaje de WhatsApp
     detalle_texto = ""
     for idx, item in enumerate(lista_items, 1):
         subtotal = item['precio'] * item['cantidad']
         detalle_texto += f"{idx}. *{item['nombre']}*%0A   - Talla: {item['talla']} | Color: {item['color']}%0A   - SKU: {item['sku']}%0A   - Cantidad: {item['cantidad']} x ${item['precio']:.2f} = ${subtotal:.2f}%0A%0A"
 
     mensaje_wapp = f"¡Hola Fajas Isabella! 👋 Acabo de realizar un pedido y transferencia:%0A%0A*Factura:* #{num_factura_str}%0A*Cliente:* {nombre}%0A*RUC/Cédula:* {ruc_cedula}%0A*Destino:* {provincia}, {ciudad} - {direccion}%0A%0A{detalle_texto}💰 *Total Pagado:* ${total_pedido:.2f}%0A%0AAdjunto mi comprobante para la verificación."
-    whatsapp_url = f"https://wa.me/593983870398?text={mensaje_wapp}"
+    
+    # Uso dinámico del teléfono importado desde config.ini
+    whatsapp_url = f"https://wa.me/{TELEFONO_WHATSAPP}?text={mensaje_wapp}"
 
     return {
         "status": "success",
