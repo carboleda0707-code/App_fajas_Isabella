@@ -37,7 +37,9 @@ class SetPasswordSchema(BaseModel):
 @router.post("/registro")
 def registrar_cliente_web(data: RegistroWebSchema, db: Session = Depends(get_db)):
     try:
-        existente = db.query(Cliente).filter(Cliente.correo == data.correo).first()
+        correo_limpio = data.correo.lower().strip()
+        existente = db.query(Cliente).filter(Cliente.correo == correo_limpio).first()
+        
         if existente:
             if existente.password:
                 raise HTTPException(status_code=400, detail="Este correo ya se encuentra registrado.")
@@ -65,9 +67,9 @@ def registrar_cliente_web(data: RegistroWebSchema, db: Session = Depends(get_db)
         hashed_password = generar_hash_sha256(data.password)
         
         nuevo_cliente = Cliente(
-            ruc_cedula=data.correo[:20], # Generación temporal si no provee cédula en registro directo
+            ruc_cedula=correo_limpio[:20],
             nombre=data.nombre,
-            correo=data.correo,
+            correo=correo_limpio,
             password=hashed_password,
             telefono=data.telefono,
             direccion=data.direccion,
@@ -92,19 +94,18 @@ def registrar_cliente_web(data: RegistroWebSchema, db: Session = Depends(get_db)
         raise he
     except Exception as e:
         db.rollback()
-        error_detallado = traceback.format_exc()
-        print("ERROR EN REGISTRO:", error_detallado)
-        raise HTTPException(status_code=400, detail=f"Error interno: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Error en registro: {str(e)}")
 
 @router.post("/login")
 def login_cliente_web(data: LoginWebSchema, db: Session = Depends(get_db)):
     try:
-        cliente = db.query(Cliente).filter(Cliente.correo == data.correo).first()
+        correo_limpio = data.correo.lower().strip()
+        cliente = db.query(Cliente).filter(Cliente.correo == correo_limpio).first()
         
         if not cliente:
             raise HTTPException(status_code=401, detail="Correo no registrado en el sistema.")
         
-        # 🟢 RETORNAR RESPUESTA 200 LIMPIA CUANDO REQUIERE CONTRASEÑA
+        # Si realizó compra por transferencia y aún no configura su contraseña
         if not cliente.password:
             return {
                 "status": "requiere_password",
@@ -131,22 +132,6 @@ def login_cliente_web(data: LoginWebSchema, db: Session = Depends(get_db)):
         raise he
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error en login: {str(e)}")
-        
-        return {
-            "status": "success",
-            "mensaje": f"¡Bienvenido de nuevo, {cliente.nombre}!",
-            "cliente": {
-                "id": cliente.id,
-                "nombre": cliente.nombre,
-                "correo": cliente.correo,
-                "telefono": cliente.telefono,
-                "direccion": cliente.direccion
-            }
-        }
-    except HTTPException as he:
-        raise he
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error en login: {str(e)}")
 
 @router.post("/configurar-password")
 def configurar_password_inicial(data: SetPasswordSchema, db: Session = Depends(get_db)):
@@ -154,7 +139,8 @@ def configurar_password_inicial(data: SetPasswordSchema, db: Session = Depends(g
         if data.password != data.password_confirm:
             raise HTTPException(status_code=400, detail="Las contraseñas no coinciden.")
 
-        cliente = db.query(Cliente).filter(Cliente.correo == data.correo).first()
+        correo_limpio = data.correo.lower().strip()
+        cliente = db.query(Cliente).filter(Cliente.correo == correo_limpio).first()
         if not cliente:
             raise HTTPException(status_code=404, detail="Cliente no encontrado.")
 
@@ -175,7 +161,6 @@ def configurar_password_inicial(data: SetPasswordSchema, db: Session = Depends(g
 @router.get("/pedidos/{cliente_id}")
 def obtener_historial_pedidos(cliente_id: int, db: Session = Depends(get_db)):
     facturas = db.query(Factura).filter(Factura.cliente_id == cliente_id).all()
-    
     resultado = []
     for f in facturas:
         val_nc = f.numero_control
@@ -191,7 +176,6 @@ def obtener_historial_pedidos(cliente_id: int, db: Session = Depends(get_db)):
             "numero_guia": f.numero_guia or "SIN GUÍA",
             "numero_control": ctrl_str
         })
-        
     return resultado
 
 @router.post("/checkout-whatsapp")
@@ -210,7 +194,6 @@ async def checkout_whatsapp(
     db: Session = Depends(get_db)
 ):
     try:
-        # 1. Registrar o actualizar automáticamente al cliente en la tabla unificada con cliente_web = True
         cliente = None
         if correo:
             cliente = db.query(Cliente).filter(Cliente.correo == correo.lower().strip()).first()
@@ -236,13 +219,12 @@ async def checkout_whatsapp(
                 ciudad=ciudad,
                 tipo_precio="REGULAR",
                 cliente_web=True,
-                password=None # Sin contraseña hasta que decida registrarse/loguearse
+                password=None
             )
             db.add(cliente)
             db.commit()
             db.refresh(cliente)
 
-        # 2. Guardar la imagen del comprobante de pago si fue adjuntada
         ruta_comprobante = None
         if comprobante and comprobante.filename:
             dir_comprobantes = os.path.join("web", "comprobantes")
@@ -252,16 +234,13 @@ async def checkout_whatsapp(
                 shutil.copyfileobj(comprobante.file, buffer)
             ruta_comprobante = f"comprobantes/{comprobante.filename}"
 
-        # 3. Parsear ítems y calcular el total de la orden
         lista_items = json.loads(items)
         total_pedido = sum(float(item.get("precio", 0)) * int(item.get("cantidad", 1)) for item in lista_items)
 
-        # 4. Generar número de orden interno
         prefijo_orden = datetime.now().strftime("%y%m")
         conteo = db.query(Factura).count() + 1
         numero_orden = f"{prefijo_orden}{conteo:03d}"
 
-        # 5. Crear la orden en la base de datos vinculada a cliente_id con estado "POR APROBAR"
         nueva_factura = Factura(
             tipo_factura="VENTA",
             numero_factura=numero_orden,
@@ -280,7 +259,6 @@ async def checkout_whatsapp(
         db.commit()
         db.refresh(nueva_factura)
 
-        # 5.1 Registrar cada ítem en la tabla movimientos_inventario
         for item in lista_items:
             sku_p = item.get("sku") or item.get("codigo") or item.get("name") or "FAJA-WEB"
             cant_p = int(item.get("cantidad", 1))
@@ -299,7 +277,6 @@ async def checkout_whatsapp(
             db.add(nuevo_mov)
         db.commit()
 
-        # 6. Registrar el pago asociado en la tabla Pagos
         nuevo_pago = Pago(
             factura_id=nueva_factura.id,
             metodo_pago="TRANSFERENCIA",
@@ -309,7 +286,6 @@ async def checkout_whatsapp(
         db.add(nuevo_pago)
         db.commit()
 
-        # 7. Construir mensaje estructurado para WhatsApp
         mensaje = f"¡Hola! 👋 Acabo de realizar un pedido en Fajas Isabella:\n\n"
         mensaje += f"📦 *Orden N°:* {numero_orden} (Por Aprobar)\n"
         mensaje += f"👤 *Cliente:* {nombre} ({razon_social})\n"

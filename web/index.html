@@ -485,7 +485,7 @@
         }
 
         // --- Funciones auxiliares para el manejo de primer ingreso / login ---
-        async function ejecutarLogin(event) {
+async function ejecutarLogin(event) {
             event.preventDefault();
             const correo = document.getElementById('login-correo').value;
             const password = document.getElementById('login-password').value;
@@ -498,11 +498,9 @@
                 });
                 const data = await res.json();
 
-                // 1. Extraer el estado real sin importar si FastAPI usó HTTPException (detail) o respuesta directa 200
                 const statusReal = data.status || (data.detail && data.detail.status);
                 const correoReal = data.correo || (data.detail && data.detail.correo) || correo;
 
-                // 2. Si el estado es requiere_password -> abrir modal de configuración de contraseña inmediatamente
                 if (statusReal === 'requiere_password') {
                     cerrarModalAuth();
                     if (document.getElementById('config-correo')) {
@@ -515,7 +513,6 @@
                     return;
                 }
 
-                // 3. Inicio de sesión exitoso
                 if (res.ok && statusReal === 'success') {
                     localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
                     cerrarModalAuth();
@@ -526,7 +523,6 @@
                     return;
                 }
 
-                // 4. Mensaje de error formateado para otros casos (credenciales incorrectas)
                 let msgError = "Credenciales incorrectas";
                 if (typeof data.detail === 'string') {
                     msgError = data.detail;
@@ -535,6 +531,46 @@
                 }
                 alert("Error: " + msgError);
 
+            } catch (e) {
+                alert("Error de conexión con el servidor.");
+            }
+        }
+
+        async function ejecutarRegistro(event) {
+            event.preventDefault();
+
+            const nombre = document.getElementById('reg-nombre').value;
+            const correo = document.getElementById('reg-correo').value;
+            const password = document.getElementById('reg-password').value;
+            const passwordConfirm = document.getElementById('reg-password-confirm').value;
+            const telefono = document.getElementById('reg-telefono').value;
+            const direccion = document.getElementById('reg-direccion').value;
+
+            if (password !== passwordConfirm) {
+                alert("⚠️ Las contraseñas no coinciden.");
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/web/auth/registro', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nombre, correo, password, telefono, direccion })
+                });
+                const data = await res.json();
+
+                if (res.ok && data.status === 'success') {
+                    localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
+                    cerrarModalAuth();
+                    if (typeof actualizarBotonCuentaNav === 'function') {
+                        actualizarBotonCuentaNav();
+                    }
+                    alert(data.mensaje || "¡Registro exitoso!");
+                } else {
+                    let msg = data.detail || "Error al registrarse";
+                    if (typeof msg === 'object') msg = JSON.stringify(msg);
+                    alert("Error: " + msg);
+                }
             } catch (e) {
                 alert("Error de conexión con el servidor.");
             }
