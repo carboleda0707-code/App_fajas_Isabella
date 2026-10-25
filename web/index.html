@@ -464,39 +464,50 @@
 
         // --- Funciones auxiliares para el manejo de primer ingreso / login ---
         async function ejecutarLogin(event) {
-            event.preventDefault();
-            const correo = document.getElementById('login-correo').value;
-            const password = document.getElementById('login-password').value;
+    event.preventDefault();
+    const correo = document.getElementById('login-correo').value;
+    const password = document.getElementById('login-password').value;
 
-            try {
-                const res = await fetch('/api/web/auth/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ correo, password })
-                });
-                const data = await res.json();
+    try {
+        const res = await fetch('/api/web/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ correo, password })
+        });
+        const data = await res.json();
 
-                // Verificamos si el servidor devuelve el status como JSON o como texto parseado
-                if (res.ok || data.status === 'requiere_password') {
-                    if (data.status === 'requiere_password') {
-                        cerrarModalAuth();
-                        document.getElementById('config-correo').value = data.correo || correo;
-                        document.getElementById('modal-config-password').classList.remove('hidden');
-                    } else if (data.status === 'success') {
-                        localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
-                        cerrarModalAuth();
-                        actualizarBotonCuentaNav();
-                        alert(data.mensaje || "¡Bienvenido!");
-                    } else {
-                        alert("Respuesta inesperada del servidor.");
-                    }
-                } else {
-                    alert("Error: " + (data.detail || data.mensaje || "Credenciales incorrectas"));
-                }
-            } catch (e) {
-                alert("Error de conexión con el servidor.");
+        // 1. Evaluar si requiere configurar contraseña (independientemente del código HTTP)
+        if (data.status === 'requiere_password') {
+            cerrarModalAuth();
+            if (document.getElementById('config-correo')) {
+                document.getElementById('config-correo').value = data.correo || correo;
             }
+            const modalConfig = document.getElementById('modal-config-password');
+            if (modalConfig) {
+                modalConfig.classList.remove('hidden');
+            }
+            return;
         }
+
+        // 2. Evaluamos inicio de sesión exitoso
+        if (res.ok && data.status === 'success') {
+            localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
+            cerrarModalAuth();
+            if (typeof actualizarBotonCuentaNav === 'function') {
+                actualizarBotonCuentaNav();
+            }
+            alert(data.mensaje || "¡Bienvenido!");
+            return;
+        }
+
+        // 3. Manejo de errores de credenciales u otros mensajes del servidor
+        const mensajeError = data.detail || data.mensaje || "Credenciales incorrectas";
+        alert("Error: " + (typeof mensajeError === 'object' ? JSON.stringify(mensajeError) : mensajeError));
+
+    } catch (e) {
+        alert("Error de conexión con el servidor.");
+    }
+}
 
         async function ejecutarConfigurarPassword(event) {
             event.preventDefault();
