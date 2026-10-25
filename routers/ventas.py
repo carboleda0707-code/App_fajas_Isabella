@@ -226,12 +226,15 @@ def registrar_venta(venta: VentaFacturaSchema, db: Session = Depends(get_db)):
             variante = db.query(VarianteProducto).filter(VarianteProducto.sku == item.sku).first()
             variante.stock_actual -= item.cantidad
             
+            # Subtotal exacto del renglón (Cantidad x Precio Unitario)
+            subtotal_renglon = item.cantidad * item.precio_unitario
+            
             movimiento = MovimientoInventario(
                 sku=variante.sku, 
                 tipo_movimiento="VENTA_LOCAL",
                 cantidad=-item.cantidad, 
                 referencia_factura=f"Fact Venta: {venta.numero_factura}",
-                valor_neto=item.precio_unitario, 
+                valor_neto=subtotal_renglon, # <--- Corregido: se guarda el subtotal total del renglón
                 entidad_asociada=venta.nombre_cliente
             )
             db.add(movimiento)

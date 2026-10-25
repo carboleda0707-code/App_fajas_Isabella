@@ -359,20 +359,22 @@ def render_ventas():
                             for idx, it in enumerate(items_factura, 1):
                                 sku = it.get("sku") or it.get("sku_producto") or it.get("codigo_producto") or "N/A"
                                 cant = abs(int(it.get("cantidad", it.get("cant", 1))))
+                                if cant == 0:
+                                    cant = 1
                                 
-                                prec_bruto = (
-                                    it.get("precio_unitario") or 
-                                    it.get("precio") or 
-                                    it.get("precio_venta") or 
-                                    it.get("costo_unitario") or 
-                                    0.0
-                                )
-                                prec = float(prec_bruto)
+                                # Si viene de movimientos_inventario, valor_neto es el subtotal del renglón
+                                val_neto_reg = float(it.get("valor_neto", 0.0))
                                 
+                                if val_neto_reg > 0:
+                                    subtotal = val_neto_reg
+                                    prec = subtotal / cant
+                                else:
+                                    prec = float(it.get("precio_unitario") or it.get("precio") or 0.0)
+                                    subtotal = cant * prec
+
                                 if prec == 0.0 and monto_factura_tot > 0 and len(items_factura) > 0:
-                                    prec = monto_factura_tot / len(items_factura) / cant
-                                
-                                subtotal = cant * prec
+                                    subtotal = monto_factura_tot / len(items_factura)
+                                    prec = subtotal / cant
                                 
                                 tabla_items.append({
                                     "Item #": idx,
