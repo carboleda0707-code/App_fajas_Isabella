@@ -208,7 +208,6 @@
                     <span id="carrito-total" class="text-rose-600 text-xl">$0.00</span>
                 </div>
                 <div class="grid grid-cols-1 gap-2">
-                    <!-- BOTÓN CON ID ASIGNADO PARA ABRIR EL MODAL DE CHECKOUT -->
                     <button id="btnPedidoWapp" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition cursor-pointer">
                         <i class="fa-brands fa-whatsapp text-xl"></i><span>Pedido y Pago por WhatsApp</span>
                     </button>
@@ -293,6 +292,7 @@
         </div>
     </div>
 
+    <!-- MODAL DE AUTENTICACIÓN (LOGIN / REGISTRO) -->
     <div id="modal-auth" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto no-scrollbar">
             <button onclick="cerrarModalAuth()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg"><i class="fa-solid fa-xmark"></i></button>
@@ -300,6 +300,7 @@
                 <button onclick="cambiarTabAuth('login')" id="tab-login-btn" class="flex-1 pb-2 font-bold text-sm text-rose-600 border-b-2 border-rose-600">Iniciar Sesión</button>
                 <button onclick="cambiarTabAuth('registro')" id="tab-registro-btn" class="flex-1 pb-2 font-bold text-sm text-slate-400">Registrarse</button>
             </div>
+            
             <div id="form-login-container">
                 <form onsubmit="ejecutarLogin(event)" class="space-y-3">
                     <div>
@@ -316,6 +317,7 @@
                     <button type="submit" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-3 rounded-xl shadow-md transition">Entrar a mi Cuenta</button>
                 </form>
             </div>
+
             <div id="form-registro-container" class="hidden">
                 <form onsubmit="ejecutarRegistro(event)" class="space-y-3">
                     <div><label class="text-xs font-bold text-slate-700 block mb-1">Nombre Completo</label><input type="text" id="reg-nombre" required class="w-full bg-slate-100 text-xs rounded-xl p-2.5 border border-slate-200 outline-none focus:border-rose-500"></div>
@@ -333,6 +335,27 @@
                     <button type="submit" class="w-full bg-slate-900 hover:bg-rose-600 text-white font-bold text-xs py-3 rounded-xl shadow-md transition">Crear Cuenta</button>
                 </form>
             </div>
+        </div>
+    </div>
+
+    <!-- NUEVO MODAL: CONFIGURAR CONTRASEÑA POR PRIMERA VEZ (COMPRAS POR TRANSFERENCIA) -->
+    <div id="modal-config-password" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl p-6 relative">
+            <h3 class="text-base font-extrabold text-slate-900 mb-1">🔒 Configurar tu Contraseña</h3>
+            <p class="text-xs text-slate-500 mb-4">Detectamos que realizaste compras por transferencia. Establece una contraseña para activar tu acceso web.</p>
+            <form onsubmit="ejecutarConfigurarPassword(event)" class="space-y-3">
+                <input type="hidden" id="config-correo">
+                <div>
+                    <label class="text-xs font-bold text-slate-700 block mb-1">Nueva Contraseña</label>
+                    <input type="password" id="config-pass" required class="w-full bg-slate-100 text-xs rounded-xl p-3 border border-slate-200 outline-none focus:border-rose-500">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-700 block mb-1">Confirmar Contraseña</label>
+                    <input type="password" id="config-pass-confirm" required class="w-full bg-slate-100 text-xs rounded-xl p-3 border border-slate-200 outline-none focus:border-rose-500">
+                </div>
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-3 rounded-xl shadow-md transition">Guardar y Activar Cuenta</button>
+                <button type="button" onclick="document.getElementById('modal-config-password').classList.add('hidden')" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs py-2.5 rounded-xl transition">Cancelar</button>
+            </form>
         </div>
     </div>
 
@@ -363,10 +386,7 @@
         document.addEventListener('click', function(e) {
             if (e.target && (e.target.id === 'btnPedidoWapp' || e.target.closest('#btnPedidoWapp'))) {
                 e.preventDefault();
-                
-                // Usamos la variable 'carrito' que define tienda.js de forma segura
                 const productosCarrito = (typeof carrito !== 'undefined' && carrito.length > 0) ? carrito : [];
-
                 if (productosCarrito.length === 0) {
                     alert("Tu carrito está vacío.");
                     return;
@@ -381,7 +401,6 @@
 
         async function procesarPedidoWapp(e) {
             e.preventDefault();
-            
             const productosCarrito = (typeof carrito !== 'undefined' && carrito.length > 0) ? carrito : [];
 
             const formData = new FormData();
@@ -406,9 +425,7 @@
                     method: 'POST',
                     body: formData
                 });
-
                 const resultado = await response.json();
-                
                 if (response.ok) {
                     window.open(resultado.whatsapp_url, '_blank');
                     cerrarModalCheckout();
@@ -417,6 +434,70 @@
                 }
             } catch (err) {
                 alert("Error de conexión con el servidor.");
+            }
+        }
+
+        // --- Funciones auxiliares para el manejo de primer ingreso / login ---
+        async function ejecutarLogin(event) {
+            event.preventDefault();
+            const correo = document.getElementById('login-correo').value;
+            const password = document.getElementById('login-password').value;
+
+            try {
+                const res = await fetch('/api/web/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ correo, password })
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    if (data.status === 'requiere_password') {
+                        cerrarModalAuth();
+                        document.getElementById('config-correo').value = data.correo;
+                        document.getElementById('modal-config-password').classList.remove('hidden');
+                    } else if (data.status === 'success') {
+                        localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
+                        cerrarModalAuth();
+                        actualizarBotonCuentaNav();
+                        alert(data.mensaje);
+                    }
+                } else {
+                    alert("Error: " + (data.detail || "Credenciales incorrectas"));
+                }
+            } catch (e) {
+                alert("Error de conexión.");
+            }
+        }
+
+        async function ejecutarConfigurarPassword(event) {
+            event.preventDefault();
+            const correo = document.getElementById('config-correo').value;
+            const password = document.getElementById('config-pass').value;
+            const password_confirm = document.getElementById('config-pass-confirm').value;
+
+            if (password !== password_confirm) {
+                alert("⚠️ Las contraseñas no coinciden.");
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/web/auth/configurar-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ correo, password, password_confirm })
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    alert("✅ Contraseña configurada exitosamente. Ya puede iniciar sesión.");
+                    document.getElementById('modal-config-password').classList.add('hidden');
+                    abrirModalAuth();
+                } else {
+                    alert("Error: " + (data.detail || "No se pudo configurar la contraseña"));
+                }
+            } catch (e) {
+                alert("Error de conexión.");
             }
         }
     </script>

@@ -31,24 +31,16 @@ class Cliente(Base):
     id = Column(Integer, primary_key=True, index=True)
     ruc_cedula = Column(String, unique=True, index=True, nullable=False)
     nombre = Column(String, nullable=False)
-    direccion = Column(String)
+    direccion = Column(String, nullable=True)
     ciudad = Column(String(100), nullable=True)
-    telefono = Column(String)
-    correo = Column(String, nullable=True)
+    telefono = Column(String, nullable=True)
+    correo = Column(String, unique=True, index=True, nullable=True)
+    password = Column(String(255), nullable=True)  # Contraseña en formato estricto SHA-256
+    cliente_web = Column(Boolean, default=False)   # Indicador si proviene o interactúa por la web
     tipo_precio = Column(String(50), default='REGULAR')
     descuento_porcentaje = Column(Float, default=0.0)
 
-class ClienteWeb(Base):
-    __tablename__ = "clientes_web"
-    id = Column(Integer, primary_key=True, index=True)
-    nombre = Column(String(150), nullable=False)
-    correo = Column(String(150), unique=True, index=True, nullable=False)
-    password_hash = Column(String(255), nullable=False)
-    telefono = Column(String(50), nullable=True)
-    direccion = Column(String(255), nullable=True)
-    fecha_registro = Column(DateTime, default=datetime.now)
-
-    facturas = relationship("Factura", back_populates="cliente_web")
+    facturas = relationship("Factura", back_populates="cliente")
 
 class Proveedor(Base):
     __tablename__ = "proveedores"
@@ -71,6 +63,7 @@ class Producto(Base):
     en_liquidacion = Column(Boolean, default=False)
     es_nuevo = Column(Boolean, default=False)
     en_oferta = Column(Boolean, default=False)
+    descuento_oferta = Column(Float, default=0.0)
     
     variantes = relationship("VarianteProducto", back_populates="producto", cascade="all, delete-orphan")
 
@@ -102,7 +95,7 @@ class Factura(Base):
     entidad_nombre = Column(String, nullable=False)
     total_factura = Column(Float, nullable=False, default=0.0)
     
-    cliente_web_id = Column(Integer, ForeignKey("clientes_web.id"), nullable=True)
+    cliente_id = Column(Integer, ForeignKey("clientes.id"), nullable=True)
     provincia = Column(String(100), nullable=True)
     ciudad = Column(String(100), nullable=True)
     direccion_entrega = Column(String, nullable=True)
@@ -113,7 +106,7 @@ class Factura(Base):
     numero_control = Column(String(100), nullable=True)
     estado_despacho = Column(String(30), default='PENDIENTE')
 
-    cliente_web = relationship("ClienteWeb", back_populates="facturas")
+    cliente = relationship("Cliente", back_populates="facturas")
     pagos = relationship("Pago", back_populates="factura", cascade="all, delete-orphan")
 
 class Pago(Base):
@@ -175,15 +168,20 @@ def asegurar_columnas_logistica():
         conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS numero_guia VARCHAR(100);"))
         conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS numero_control VARCHAR(100);"))
         conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS estado_despacho VARCHAR(30) DEFAULT 'PENDIENTE';"))
-        conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS cliente_web_id INTEGER;"))
+        conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS cliente_id INTEGER;"))
         conn.execute(text("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ciudad VARCHAR(100);"))
         conn.execute(text("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS correo VARCHAR;"))
+        conn.execute(text("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS password VARCHAR(255);"))
+        conn.execute(text("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS telefono VARCHAR(50);"))
+        conn.execute(text("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS direccion TEXT;"))
+        conn.execute(text("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS cliente_web BOOLEAN DEFAULT FALSE;"))
         conn.execute(text("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS tipo_precio VARCHAR(50) DEFAULT 'REGULAR';"))
         conn.execute(text("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS descuento_porcentaje FLOAT DEFAULT 0.0;"))
         conn.execute(text("ALTER TABLE movimientos_inventario ADD COLUMN IF NOT EXISTS valor_neto FLOAT;"))
         conn.execute(text("ALTER TABLE productos ADD COLUMN IF NOT EXISTS en_liquidacion BOOLEAN DEFAULT FALSE;"))
         conn.execute(text("ALTER TABLE productos ADD COLUMN IF NOT EXISTS es_nuevo BOOLEAN DEFAULT FALSE;"))
         conn.execute(text("ALTER TABLE productos ADD COLUMN IF NOT EXISTS en_oferta BOOLEAN DEFAULT FALSE;"))
+        conn.execute(text("ALTER TABLE productos ADD COLUMN IF NOT EXISTS descuento_oferta FLOAT DEFAULT 0.0;"))
         conn.execute(text("ALTER TABLE variantes_producto ADD COLUMN IF NOT EXISTS stock_minimo INTEGER DEFAULT 2;"))
         conn.execute(text("ALTER TABLE variantes_producto ADD COLUMN IF NOT EXISTS stock_maximo INTEGER DEFAULT 20;"))
         conn.execute(text("ALTER TABLE variantes_producto ADD COLUMN IF NOT EXISTS fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
