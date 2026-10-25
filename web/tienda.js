@@ -563,6 +563,11 @@ function enviarPedidoFinalWhatsApp() {
     const mensaje = `¡Hola Fajas Isabella! 👋 Deseo realizar la compra de las siguientes prendas de mi carrito:%0A%0A${detalleText}💰 *Total a Pagar:* $${total.toFixed(2)}%0A%0A¿Me ayudan a confirmar el pedido y coordinar el envío?`;
     
     window.open(`https://wa.me/593983870398?text=${mensaje}`, '_blank');
+
+    // --- LIMPIAR EL CARRITO AUTOMÁTICAMENTE ---
+    carrito = [];
+    actualizarCarritoUI();
+    toggleCarrito();
 }
 
 function iniciarPagoPaymentez() {
