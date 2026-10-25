@@ -1,415 +1,219 @@
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
 from sqlalchemy.orm import Session
-from typing import Optional, List
-import os
-import shutil
-import re
-import unicodedata
-import json
-import io
+from typing import Optional
+import os, shutil, re, unicodedata, json, io
 import pandas as pd
 from database import get_db, Producto, VarianteProducto, Categoria
 
 router = APIRouter()
 
-def generar_sku_compacto(nombre_producto: str, talla: str, color: str) -> str:
-    """
-    Genera SKU con formato: 4 letras del nombre - Talla - Color (ej: PACA-S-Ne)
-    """
-    nombre_clean = re.sub(r'[^a-zA-Z]', '', nombre_producto).upper()
-    prefix = nombre_clean[:4] if len(nombre_clean) >= 4 else nombre_clean.ljust(4, 'X')
-    
+def generar_sku_compacto(nombre: str, talla: str, color: str) -> str:
+    nombre_clean = re.sub(r'[^a-zA-Z]', '', nombre).upper()[:4].ljust(4, 'X')
     talla_clean = re.sub(r'[^a-zA-Z0-9]', '', talla).upper()
-    
     color_norm = unicodedata.normalize('NFD', color)
-    color_norm = "".join([c for c in color_norm if unicodedata.category(c) != 'Mn'])
-    color_clean = re.sub(r'[^a-zA-Z]', '', color_norm)
+    color_clean = re.sub(r'[^a-zA-Z]', '', "".join([c for c in color_norm if unicodedata.category(c) != 'Mn']))
     color_code = color_clean[:2].capitalize() if len(color_clean) >= 2 else color_clean.ljust(2, 'x').capitalize()
-    
-    return f"{prefix}-{talla_clean}-{color_code}"
+    return f"{nombre_clean}-{talla_clean}-{color_code}"
+
+def guardar_imagen(imagen: UploadFile) -> str:
+    if not imagen or not imagen.filename:
+        return ""
+    os.makedirs("web/img", exist_ok=True)
+    ruta = os.path.join("web/img", imagen.filename)
+    with open(ruta, "wb") as buffer:
+        shutil.copyfileobj(imagen.file, buffer)
+    return f"img/{imagen.filename}"
 
 @router.get("/inventario")
 def listar_inventario(db: Session = Depends(get_db)):
     resultados = db.query(VarianteProducto, Producto).outerjoin(Producto, VarianteProducto.producto_id == Producto.id).all()
-    
-    lista_salida = []
-    for variante, producto in resultados:
-        p_nombre = str(producto.nombre) if producto and producto.nombre else f"Producto #{variante.producto_id}"
-        p_cat = str(producto.categoria) if producto and producto.categoria else "GENERAL"
-        p_img = str(producto.imagen_url) if producto and producto.imagen_url else ""
-        p_liq = bool(producto.en_liquidacion) if producto else False
-        p_nuevo = bool(producto.es_nuevo) if producto else False
-        p_oferta = bool(producto.en_oferta) if producto else False
-        p_desc_oferta = float(producto.descuento_oferta) if producto and hasattr(producto, 'descuento_oferta') and producto.descuento_oferta else 0.0
+    lista = []
+    for v, p in resultados:
+        p_nom = p.nombre if p else f"Producto #{v.producto_id}"
+        p_cat = p.categoria if p else "GENERAL"
+        p_img = p.imagen_url if p else ""
+        v_img = v.imagen_url or p_img  # 🟢 Hereda la general si la variante no tiene una propia
         
-        lista_salida.append({
-            "id": int(variante.id),
-            "SKU": str(variante.sku) if variante.sku else "",
-            "Talla": str(variante.talla) if variante.talla else "",
-            "Color": str(variante.color) if variante.color else "",
-            "Precio ($)": float(variante.precio) if variante.precio else 0.0,
-            "Stock": int(variante.stock_actual) if variante.stock_actual is not None else 0,
-            
-            # --- CAMPOS DE INTELIGENCIA DE INVENTARIO ---
-            "Stock Mínimo": int(variante.stock_minimo) if variante.stock_minimo is not None else 2,
-            "Stock Máximo": int(variante.stock_maximo) if variante.stock_maximo is not None else 20,
-            "Fecha Creación": str(variante.fecha_creacion)[:10] if variante.fecha_creacion else "",
-            "Última Venta": str(variante.fecha_ultima_venta)[:10] if variante.fecha_ultima_venta else "Sin ventas",
-            
-            "nombre": p_nombre,
-            "categoria": p_cat,
-            "imagen_url": p_img,
-            "en_liquidacion": p_liq,
-            "es_nuevo": p_nuevo,
-            "en_oferta": p_oferta,
-            "descuento_oferta": p_desc_oferta,
-            "producto": {
-                "nombre": p_nombre,
-                "categoria": p_cat,
-                "imagen_url": p_img,
-                "en_liquidacion": p_liq,
-                "es_nuevo": p_nuevo,
-                "en_oferta": p_oferta,
-                "descuento_oferta": p_desc_oferta
-            }
+        prod_dict = {
+            "nombre": p_nom, "categoria": p_cat, "imagen_url": p_img,
+            "en_liquidacion": bool(p.en_liquidacion) if p else False,
+            "es_nuevo": bool(p.es_nuevo) if p else False,
+            "en_oferta": bool(p.en_oferta) if p else False,
+            "descuento_oferta": float(p.descuento_oferta or 0.0) if p else 0.0
+        }
+        lista.append({
+            "id": v.id, "SKU": v.sku or "", "Talla": v.talla or "", "Color": v.color or "",
+            "Precio ($)": float(v.precio or 0.0), "Stock": v.stock_actual or 0,
+            "Stock Mínimo": v.stock_minimo or 2, "Stock Máximo": v.stock_maximo or 20,
+            "Fecha Creación": str(v.fecha_creacion)[:10] if v.fecha_creacion else "",
+            "Última Venta": str(v.fecha_ultima_venta)[:10] if v.fecha_ultima_venta else "Sin ventas",
+            "imagen_url": v_img, **prod_dict, "producto": prod_dict
         })
-    return lista_salida
+    return lista
 
 @router.post("/inventario/importar-excel")
-async def importar_inventario_excel(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def importar_excel(file: UploadFile = File(...), db: Session = Depends(get_db)):
     if not file.filename.endswith(('.xlsx', '.xls')):
-        raise HTTPException(status_code=400, detail="El archivo debe ser un Excel válido (.xlsx o .xls)")
-    
+        raise HTTPException(status_code=400, detail="Formato de archivo inválido")
     try:
-        contenido = await file.read()
-        df = pd.read_excel(io.BytesIO(contenido))
-        
-        # Normalizar nombres de columnas a minúsculas y limpiar espacios
+        df = pd.read_excel(io.BytesIO(await file.read()))
         df.columns = [str(c).strip().lower() for c in df.columns]
+        if 'precio ($)' in df.columns: df.rename(columns={'precio ($)': 'precio'}, inplace=True)
         
-        # Mapear columnas flexibles
-        if 'precio ($)' in df.columns and 'precio' not in df.columns:
-            df.rename(columns={'precio ($)': 'precio'}, inplace=True)
-            
-        columnas_requeridas = ['nombre', 'talla', 'color', 'precio', 'stock']
-        for col in columnas_requeridas:
-            if col not in df.columns:
-                raise HTTPException(status_code=400, detail=f"Falta la columna obligatoria en el Excel: '{col}'")
+        for col in ['nombre', 'talla', 'color', 'precio', 'stock']:
+            if col not in df.columns: raise HTTPException(status_code=400, detail=f"Falta columna: {col}")
         
         procesados = 0
-        
-        for _, row in df.iterrows():
-            nombre = str(row.get('nombre', '')).strip()
-            if not nombre or nombre.lower() == 'nan':
-                continue
+        for _, r in df.iterrows():
+            nombre = str(r.get('nombre', '')).strip()
+            if not nombre or nombre.lower() == 'nan': continue
             
-            categoria = str(row.get('categoria', 'GENERAL')).strip().upper()
-            talla = str(row.get('talla', 'Única')).strip()
-            color = str(row.get('color', 'Único')).strip()
-            sku_excel = str(row.get('sku', '')).strip()
+            cat = str(r.get('categoria', 'GENERAL')).strip().upper()
+            talla = str(r.get('talla', 'Única')).strip()
+            color = str(r.get('color', 'Único')).strip()
+            sku_ex = str(r.get('sku', '')).strip()
             
-            try:
-                precio = float(row.get('precio', 0.0))
-            except:
-                precio = 0.0
-                
-            try:
-                stock = int(row.get('stock', 0))
-            except:
-                stock = 0
-
-            # --- CAPTURA OPCIONAL DE STOCK MÍNIMO Y MÁXIMO DESDE EXCEL ---
-            try:
-                stock_min = int(row.get('stock_minimo', 2))
-            except:
-                stock_min = 2
-
-            try:
-                stock_max = int(row.get('stock_maximo', 20))
-            except:
-                stock_max = 20
-
-            variante = None
+            precio = float(r.get('precio', 0.0) or 0.0)
+            stock = int(r.get('stock', 0) or 0)
+            s_min = int(r.get('stock_minimo', 2) or 2)
+            s_max = int(r.get('stock_maximo', 20) or 20)
             
-            # 1. Buscar por SKU exacto si viene en la plantilla
-            if sku_excel and sku_excel.lower() not in ['none', 'nan', '']:
-                variante = db.query(VarianteProducto).filter(VarianteProducto.sku == sku_excel).first()
-
-            # 2. Si no hay SKU, buscar o crear producto y variante
+            variante = db.query(VarianteProducto).filter(VarianteProducto.sku == sku_ex).first() if sku_ex and sku_ex.lower() not in ['none', 'nan', ''] else None
+            
             if not variante:
                 prod = db.query(Producto).filter(Producto.nombre.ilike(nombre)).first()
                 if not prod:
-                    prod = Producto(
-                        nombre=nombre,
-                        modelo=nombre,
-                        categoria=categoria or "GENERAL",
-                        imagen_url="img/logo.png",
-                        en_liquidacion=False,
-                        es_nuevo=False,
-                        en_oferta=False,
-                        descuento_oferta=0.0
-                    )
-                    db.add(prod)
-                    db.commit()
-                    db.refresh(prod)
-                else:
-                    if categoria and categoria != "NAN":
-                        prod.categoria = categoria
-                        db.commit()
-
+                    prod = Producto(nombre=nombre, modelo=nombre, categoria=cat or "GENERAL", imagen_url="img/logo.png")
+                    db.add(prod); db.commit(); db.refresh(prod)
+                elif cat and cat != "NAN":
+                    prod.categoria = cat; db.commit()
+                    
                 sku_limpio = generar_sku_compacto(nombre, talla, color)
-
-                variante = db.query(VarianteProducto).filter(
-                    VarianteProducto.producto_id == prod.id,
-                    VarianteProducto.talla == talla,
-                    VarianteProducto.color == color
-                ).first()
-
+                variante = db.query(VarianteProducto).filter_by(producto_id=prod.id, talla=talla, color=color).first()
+                
                 if variante:
-                    variante.stock_actual = stock
-                    variante.precio = precio
-                    variante.sku = sku_limpio
-                    variante.stock_minimo = stock_min
-                    variante.stock_maximo = stock_max
+                    variante.stock_actual, variante.precio, variante.sku = stock, precio, sku_limpio
+                    variante.stock_minimo, variante.stock_maximo = s_min, s_max
                 else:
-                    variante = VarianteProducto(
-                        sku=sku_limpio,
-                        producto_id=prod.id,
-                        talla=talla,
-                        color=color,
-                        stock_actual=stock,
-                        precio=precio,
-                        stock_minimo=stock_min,
-                        stock_maximo=stock_max
-                    )
+                    variante = VarianteProducto(sku=sku_limpio, producto_id=prod.id, talla=talla, color=color, stock_actual=stock, precio=precio, stock_minimo=s_min, stock_maximo=s_max)
                     db.add(variante)
             else:
-                # Actualizar datos directamente de la variante encontrada por SKU
-                variante.stock_actual = stock
-                variante.precio = precio
-                variante.stock_minimo = stock_min
-                variante.stock_maximo = stock_max
-                if variante.producto:
-                    variante.producto.nombre = nombre
-                    if categoria and categoria != "NAN":
-                        variante.producto.categoria = categoria
-
+                variante.stock_actual, variante.precio = stock, precio
+                variante.stock_minimo, variante.stock_maximo = s_min, s_max
+                if variante.producto and cat and cat != "NAN": variante.producto.categoria = cat
             procesados += 1
-
         db.commit()
-        return {
-            "status": "success", 
-            "message": f"Actualización masiva completada. Se procesaron {procesados} variantes correctamente."
-        }
-
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error al procesar el archivo Excel: {str(e)}")
-
-@router.put("/variantes/{var_id}")
-def actualizar_variante(
-    var_id: int,
-    categoria: str = Form(...),
-    talla: str = Form(...),
-    color: str = Form(...),
-    precio: float = Form(...),
-    stock_minimo: int = Form(2),
-    stock_maximo: int = Form(20),
-    en_liquidacion: bool = Form(False),
-    es_nuevo: bool = Form(False),
-    en_oferta: bool = Form(False),
-    descuento_oferta: float = Form(0.0),
-    imagen: Optional[UploadFile] = File(None),
-    db: Session = Depends(get_db)
-):
-    variante = db.query(VarianteProducto).filter(VarianteProducto.id == var_id).first()
-    if not variante:
-        raise HTTPException(status_code=404, detail="Variante no encontrada")
-    
-    variante.talla = talla.strip()
-    variante.color = color.strip()
-    variante.precio = float(precio)
-    variante.stock_minimo = stock_minimo
-    variante.stock_maximo = stock_maximo
-    
-    if variante.producto:
-        variante.sku = generar_sku_compacto(variante.producto.nombre, variante.talla, variante.color)
-        variante.producto.categoria = categoria.strip()
-        variante.producto.en_liquidacion = en_liquidacion
-        variante.producto.es_nuevo = es_nuevo
-        variante.producto.en_oferta = en_oferta
-        variante.producto.descuento_oferta = descuento_oferta
-        
-        if imagen and imagen.filename:
-            dir_destino = os.path.join("web", "img")
-            os.makedirs(dir_destino, exist_ok=True)
-            
-            ruta_fisica = os.path.join(dir_destino, imagen.filename)
-            with open(ruta_fisica, "wb") as buffer:
-                shutil.copyfileobj(imagen.file, buffer)
-            
-            variante.producto.imagen_url = f"img/{imagen.filename}"
-        
-    db.commit()
-    return {"status": "success", "message": f"Variante ID {var_id} y sus estados actualizados correctamente."}
-
-@router.post("/productos")
-def crear_o_actualizar_producto(
-    nombre: str = Form(...),
-    modelo: Optional[str] = Form(None),
-    categoria: str = Form("GENERAL"),
-    en_liquidacion: bool = Form(False),
-    es_nuevo: bool = Form(False),
-    en_oferta: bool = Form(False),
-    descuento_oferta: float = Form(0.0),
-    variantes: str = Form(...),
-    imagen: Optional[UploadFile] = File(None),
-    db: Session = Depends(get_db)
-):
-    try:
-        modelo_nombre = modelo or nombre
-        prod = db.query(Producto).filter(Producto.nombre == nombre).first()
-        
-        imagen_url_relativa = prod.imagen_url if prod and prod.imagen_url else "img/logo.png"
-        if imagen and imagen.filename:
-            dir_destino = os.path.join("web", "img")
-            os.makedirs(dir_destino, exist_ok=True)
-            
-            ruta_fisica = os.path.join(dir_destino, imagen.filename)
-            with open(ruta_fisica, "wb") as buffer:
-                shutil.copyfileobj(imagen.file, buffer)
-                
-            imagen_url_relativa = f"img/{imagen.filename}"
-
-        lista_variantes = json.loads(variantes)
-        
-        if prod:
-            prod.modelo = modelo_nombre
-            prod.categoria = categoria or prod.categoria
-            prod.imagen_url = imagen_url_relativa
-            prod.en_liquidacion = en_liquidacion
-            prod.es_nuevo = es_nuevo
-            prod.en_oferta = en_oferta
-            prod.descuento_oferta = descuento_oferta
-            db.commit()
-            db.refresh(prod)
-        else:
-            prod = Producto(
-                nombre=nombre, 
-                modelo=modelo_nombre, 
-                categoria=categoria or "GENERAL",
-                imagen_url=imagen_url_relativa,
-                en_liquidacion=en_liquidacion,
-                es_nuevo=es_nuevo,
-                en_oferta=en_oferta,
-                descuento_oferta=descuento_oferta
-            )
-            db.add(prod)
-            db.commit()
-            db.refresh(prod)
-
-        skus_procesados_lote = set()
-
-        for v in lista_variantes:
-            talla_val = str(v.get("talla", "")).strip()
-            color_val = str(v.get("color", "")).strip()
-            stock_val = int(v.get("stock_actual", 0))
-            precio_val = float(v.get("precio", 0.0))
-            
-            # --- CAPTURAR STOCK MÍNIMO Y MÁXIMO DESDE EL FORMULARIO ---
-            stock_min = int(v.get("stock_minimo", 2))
-            stock_max = int(v.get("stock_maximo", 20))
-            
-            sku_limpio = generar_sku_compacto(nombre, talla_val, color_val)
-
-            sku_candidate = sku_limpio
-            contador = 1
-            while sku_candidate in skus_procesados_lote:
-                sku_candidate = f"{sku_limpio}-{contador}"
-                contador += 1
-            
-            sku_limpio = sku_candidate
-            skus_procesados_lote.add(sku_limpio)
-
-            existe_sku = db.query(VarianteProducto).filter(VarianteProducto.sku == sku_limpio).first()
-            if existe_sku:
-                existe_sku.stock_actual = stock_val
-                existe_sku.precio = precio_val
-                existe_sku.talla = talla_val
-                existe_sku.color = color_val
-                existe_sku.stock_minimo = stock_min
-                existe_sku.stock_maximo = stock_max
-            else:
-                variante = VarianteProducto(
-                    sku=sku_limpio, 
-                    producto_id=prod.id, 
-                    talla=talla_val,
-                    color=color_val, 
-                    stock_actual=stock_val, 
-                    precio=precio_val,
-                    stock_minimo=stock_min,
-                    stock_maximo=stock_max
-                )
-                db.add(variante)
-                
-        db.commit()
-        return {"status": "success", "message": f"Producto '{nombre}' y sus variantes guardados exitosamente.", "imagen_url": imagen_url_relativa}
-
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error interno al guardar producto: {str(e)}")
-
-@router.delete("/variantes/{variante_id}")
-def eliminar_variante(variante_id: int, db: Session = Depends(get_db)):
-    variante = db.query(VarianteProducto).filter(VarianteProducto.id == variante_id).first()
-    if not variante:
-        raise HTTPException(status_code=404, detail="Variante no encontrada.")
-    db.delete(variante)
-    db.commit()
-    return {"status": "success", "message": "Variante eliminada."}
-
-@router.get("/categorias")
-def listar_categorias(db: Session = Depends(get_db)):
-    categorias = db.query(Categoria).all()
-    return [{"id": c.id, "nombre": c.nombre, "imagen_url": c.imagen_url} for c in categorias]
-
-@router.post("/categorias")
-def crear_o_actualizar_categoria(
-    nombre: str = Form(...),
-    imagen: UploadFile = File(...),
-    db: Session = Depends(get_db)
-):
-    try:
-        cat_nombre = nombre.strip().upper()
-        nombre_archivo = imagen.filename
-        
-        dir_destino = os.path.join("web", "img")
-        os.makedirs(dir_destino, exist_ok=True)
-        
-        ruta_fisica = os.path.join(dir_destino, nombre_archivo)
-        with open(ruta_fisica, "wb") as buffer:
-            shutil.copyfileobj(imagen.file, buffer)
-            
-        imagen_relativa = f"img/{nombre_archivo}"
-        
-        cat_db = db.query(Categoria).filter(Categoria.nombre == cat_nombre).first()
-        if cat_db:
-            cat_db.imagen_url = imagen_relativa
-        else:
-            cat_db = Categoria(nombre=cat_nombre, imagen_url=imagen_relativa)
-            db.add(cat_db)
-            
-        db.commit()
-        return {"status": "success", "message": f"Categoría '{cat_nombre}' guardada exitosamente."}
+        return {"status": "success", "message": f"Se procesaron {procesados} variantes correctamente."}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.delete("/categorias/{categoria_id}")
-def eliminar_categoria(categoria_id: int, db: Session = Depends(get_db)):
-    cat_db = db.query(Categoria).filter(Categoria.id == categoria_id).first()
-    if not cat_db:
-        raise HTTPException(status_code=404, detail="Categoría no encontrada.")
-    db.delete(cat_db)
+@router.put("/variantes/{var_id}")
+def actualizar_variante(
+    var_id: int, categoria: str = Form(...), talla: str = Form(...), color: str = Form(...),
+    precio: float = Form(...), stock_minimo: int = Form(2), stock_maximo: int = Form(20),
+    en_liquidacion: bool = Form(False), es_nuevo: bool = Form(False), en_oferta: bool = Form(False),
+    descuento_oferta: float = Form(0.0), imagen: Optional[UploadFile] = File(None), db: Session = Depends(get_db)
+):
+    v = db.query(VarianteProducto).filter(VarianteProducto.id == var_id).first()
+    if not v: raise HTTPException(status_code=404, detail="Variante no encontrada")
+    
+    v.talla, v.color, v.precio = talla.strip(), color.strip(), float(precio)
+    v.stock_minimo, v.stock_maximo = stock_minimo, stock_maximo
+    
+    img_url = guardar_imagen(imagen)
+    if img_url: v.imagen_url = img_url  # 🟢 Actualiza la foto específica de esta variante correctamente
+    
+    if v.producto:
+        v.sku = generar_sku_compacto(v.producto.nombre, v.talla, v.color)
+        v.producto.categoria = categoria.strip()
+        v.producto.en_liquidacion, v.producto.es_nuevo = en_liquidacion, es_nuevo
+        v.producto.en_oferta, v.producto.descuento_oferta = en_oferta, descuento_oferta
+        
     db.commit()
+    return {"status": "success", "message": f"Variante ID {var_id} actualizada correctamente."}
+
+@router.post("/productos")
+def crear_o_actualizar_producto(
+    nombre: str = Form(...), modelo: Optional[str] = Form(None), categoria: str = Form("GENERAL"),
+    en_liquidacion: bool = Form(False), es_nuevo: bool = Form(False), en_oferta: bool = Form(False),
+    descuento_oferta: float = Form(0.0), variantes: str = Form(...), imagen: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db)
+):
+    try:
+        prod = db.query(Producto).filter(Producto.nombre == nombre).first()
+        img_rel = guardar_imagen(imagen) or (prod.imagen_url if prod else "img/logo.png")
+        
+        if prod:
+            prod.modelo, prod.categoria = modelo or nombre, categoria or prod.categoria
+            prod.imagen_url, prod.en_liquidacion = img_rel, en_liquidacion
+            prod.es_nuevo, prod.en_oferta, prod.descuento_oferta = es_nuevo, en_oferta, descuento_oferta
+        else:
+            prod = Producto(nombre=nombre, modelo=modelo or nombre, categoria=categoria or "GENERAL",
+                            imagen_url=img_rel, en_liquidacion=en_liquidacion, es_nuevo=es_nuevo,
+                            en_oferta=en_oferta, descuento_oferta=descuento_oferta)
+            db.add(prod); db.commit(); db.refresh(prod)
+            
+        skus_lote = set()
+        for v_data in json.loads(variantes):
+            t_val = str(v_data.get("talla", "")).strip()
+            c_val = str(v_data.get("color", "")).strip()
+            s_val = int(v_data.get("stock_actual", 0))
+            p_val = float(v_data.get("precio", 0.0))
+            s_min = int(v_data.get("stock_minimo", 2))
+            s_max = int(v_data.get("stock_maximo", 20))
+            v_img = str(v_data.get("imagen_url", "")).strip()
+            
+            sku = generar_sku_compacto(nombre, t_val, c_val)
+            cnt = 1
+            while sku in skus_lote:
+                sku = f"{sku}-{cnt}"; cnt += 1
+            skus_lote.add(sku)
+            
+            existe = db.query(VarianteProducto).filter(VarianteProducto.sku == sku).first()
+            if existe:
+                existe.stock_actual, existe.precio = s_val, p_val
+                existe.talla, existe.color = t_val, c_val
+                existe.stock_minimo, existe.stock_maximo = s_min, s_max
+                if v_img: existe.imagen_url = v_img
+            else:
+                db.add(VarianteProducto(sku=sku, producto_id=prod.id, talla=t_val, color=c_val,
+                                        stock_actual=s_val, precio=p_val, stock_minimo=s_min,
+                                        stock_maximo=s_max, imagen_url=v_img or None))
+        db.commit()
+        return {"status": "success", "message": f"Producto '{nombre}' guardado exitosamente.", "imagen_url": img_rel}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/variantes/{var_id}")
+def eliminar_variante(var_id: int, db: Session = Depends(get_db)):
+    v = db.query(VarianteProducto).filter(VarianteProducto.id == var_id).first()
+    if not v: raise HTTPException(status_code=404, detail="Variante no encontrada.")
+    db.delete(v); db.commit()
+    return {"status": "success", "message": "Variante eliminada."}
+
+@router.get("/categorias")
+def listar_categorias(db: Session = Depends(get_db)):
+    return [{"id": c.id, "nombre": c.nombre, "imagen_url": c.imagen_url} for c in db.query(Categoria).all()]
+
+@router.post("/categorias")
+def crear_categoria(nombre: str = Form(...), imagen: UploadFile = File(...), db: Session = Depends(get_db)):
+    try:
+        cat_nom = nombre.strip().upper()
+        img_rel = guardar_imagen(imagen)
+        cat_db = db.query(Categoria).filter(Categoria.nombre == cat_nom).first()
+        if cat_db: cat_db.imagen_url = img_rel
+        else: db.add(Categoria(nombre=cat_nom, imagen_url=img_rel))
+        db.commit()
+        return {"status": "success", "message": f"Categoría '{cat_nom}' guardada."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/categorias/{cat_id}")
+def eliminar_categoria(cat_id: int, db: Session = Depends(get_db)):
+    c = db.query(Categoria).filter(Categoria.id == cat_id).first()
+    if not c: raise HTTPException(status_code=404, detail="Categoría no encontrada.")
+    db.delete(c); db.commit()
     return {"status": "success", "message": "Categoría eliminada."}
