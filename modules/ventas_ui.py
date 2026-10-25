@@ -19,7 +19,7 @@ def generar_siguiente_numero_orden():
     
     siguiente_secuencial = 1
     try:
-        res = requests.get(f"{API_URL}/logistica/reporte", timeout=3)
+        res = requests.get(f"{API_URL}/ventas/reporte", timeout=3)
         if res.status_code != 200:
             res = requests.get(f"{API_URL}/facturas", timeout=3)
             
@@ -116,12 +116,21 @@ def render_ventas():
         st.subheader("📋 Consulta y Control General de Órdenes de Venta")
         
         try:
-            res = requests.get(f"{API_URL}/logistica/reporte", timeout=3)
+            res = requests.get(f"{API_URL}/ventas/reporte", timeout=3)
+            endpoint_usado = "/ventas/reporte"
             if res.status_code != 200:
                 res = requests.get(f"{API_URL}/facturas", timeout=3)
+                endpoint_usado = "/facturas"
                 
             if res.status_code == 200:
                 facturas_data = res.json()
+                
+                # --- 🕵️‍♂️ CHIVATO / DEPURACIÓN DE DATOS ---
+                with st.expander("🕵️‍♂️ Chivato: Inspeccionar Datos Crudos del Servidor"):
+                    st.write(f"Endpoint consultado exitosamente: `{endpoint_usado}`")
+                    st.write(f"Total registros obtenidos: {len(facturas_data) if isinstance(facturas_data, list) else 'No es lista'}")
+                    st.json(facturas_data[:3] if isinstance(facturas_data, list) else facturas_data)
+
                 if not facturas_data:
                     st.info("No hay órdenes de venta registradas en el sistema.")
                     return
@@ -131,9 +140,12 @@ def render_ventas():
 
                 df_raw = pd.DataFrame(facturas_data)
                 
-                # --- CAMPO OFICIAL DE LA BASE DE DATOS: total_factura ---
+                # --- CAMPO OFICIAL DE LA BASE DE DATOS ---
                 col_total_key = "total_factura" if "total_factura" in df_raw.columns else ("total" if "total" in df_raw.columns else None)
-                df_raw["total_norm"] = pd.to_numeric(df_raw[col_total_key], errors="coerce").fillna(0.0) if col_total_key else 0.0
+                if col_total_key:
+                    df_raw["total_norm"] = pd.to_numeric(df_raw[col_total_key], errors="coerce").fillna(0.0)
+                else:
+                    df_raw["total_norm"] = 0.0
                 
                 # --- SECCIÓN DE FILTROS Y BÚSQUEDA ---
                 st.markdown("##### 🔍 Filtros de Búsqueda y Rango")
@@ -168,9 +180,9 @@ def render_ventas():
                     df_filtrado = df_filtrado[mask]
 
                 if f_estado != "TODOS":
-                    col_estado = "estado_despacho" if "estado_despacho" in df_filtrado.columns else "estado"
-                    if col_estado in df_filtrado.columns:
-                        df_filtrado = df_filtrado[df_filtrado[col_estado].astype(str).str.upper() == f_estado]
+                    col_estado = "estado_despacho" if "estado_despacho" in df_filtrado.columns else ("estado" if "estado" in df_filtrado.columns else None)
+                    if col_estado and col_estado in df_filtrado.columns:
+                        df_filtrado = df_filtrado[df_filtrado[col_estado].astype(str).str.strip().str.upper() == f_estado.strip().upper()]
 
                 col_fecha_name = "fecha" if "fecha" in df_filtrado.columns else ("fecha_factura" if "fecha_factura" in df_filtrado.columns else None)
                 if col_fecha_name:
@@ -181,8 +193,8 @@ def render_ventas():
                 total_monto = df_filtrado["total_norm"].sum()
                 cant_facturas = len(df_filtrado)
                 
-                col_est_estado = "estado_despacho" if "estado_despacho" in df_filtrado.columns else "estado"
-                pendientes = len(df_filtrado[df_filtrado[col_est_estado].astype(str).str.upper().isin(["PENDIENTE", "POR APROBAR"])]) if col_est_estado in df_filtrado.columns else 0
+                col_est_estado = "estado_despacho" if "estado_despacho" in df_filtrado.columns else ("estado" if "estado" in df_filtrado.columns else None)
+                pendientes = len(df_filtrado[df_filtrado[col_est_estado].astype(str).str.strip().str.upper().isin(["PENDIENTE", "POR APROBAR"])]) if col_est_estado and col_est_estado in df_filtrado.columns else 0
 
                 kpi1, kpi2, kpi3 = st.columns(3)
                 kpi1.metric("💰 Total Ventas ($)", f"${total_monto:,.2f}")
@@ -362,9 +374,7 @@ def render_ventas():
                                 if cant == 0:
                                     cant = 1
                                 
-                                # Si viene de movimientos_inventario, valor_neto es el subtotal del renglón
                                 val_neto_reg = float(it.get("valor_neto", 0.0))
-                                
                                 if val_neto_reg > 0:
                                     subtotal = val_neto_reg
                                     prec = subtotal / cant
