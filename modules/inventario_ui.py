@@ -145,18 +145,40 @@ def render_inventario():
             btn_guardar = st.button("💾 Guardar Producto y Todas sus Variantes", type="primary", use_container_width=True)
 
         if btn_guardar:
-            if not nombre_producto:
+            # --- VALIDACIÓN ROBUSTA DE CAMPOS OBLIGATORIOS ---
+            campos_faltantes = []
+            
+            if not nombre_producto or str(nombre_producto).strip() in ["", "None", "nan"]:
+                campos_faltantes.append("Nombre del Modelo / Producto")
+            
+            if archivo_imagen is None:
+                campos_faltantes.append("Imagen del Producto")
+                
+            if df_variantes_editado is None or df_variantes_editado.empty:
+                campos_faltantes.append("Al menos una variante en la tabla")
+            else:
+                for idx, row in df_variantes_editado.iterrows():
+                    talla_v = str(row.get("talla", "")).strip()
+                    color_v = str(row.get("color", "")).strip()
+                    
+                    if not talla_v or talla_v.lower() in ["none", "nan", ""]:
+                        campos_faltantes.append(f"Talla (Fila #{idx+1})")
+                    if not color_v or color_v.lower() in ["none", "nan", ""]:
+                        campos_faltantes.append(f"Color (Fila #{idx+1})")
+                        
+                    try:
+                        p_val = float(row.get("precio", 0))
+                        if p_val <= 0:
+                            campos_faltantes.append(f"Precio válido mayor a 0 (Fila #{idx+1})")
+                    except:
+                        campos_faltantes.append(f"Precio numérico (Fila #{idx+1})")
+
+            if en_oferta and porcentaje_oferta > 50.0:
+                campos_faltantes.append("Porcentaje de oferta (Máximo 50%)")
+
+            if campos_faltantes:
                 with col_msg:
-                    st.error("Debes ingresar el nombre del modelo.")
-            elif archivo_imagen is None:
-                with col_msg:
-                    st.error("Debes subir una imagen.")
-            elif df_variantes_editado.empty:
-                with col_msg:
-                    st.error("Debe existir al menos una variante en la tabla.")
-            elif en_oferta and porcentaje_oferta > 50.0:
-                with col_msg:
-                    st.error("⚠️ El porcentaje de descuento no puede ser mayor al 50%.")
+                    st.error(f"⚠️ **Campos incompletos o inválidos:** {', '.join(campos_faltantes)}. Por favor revísalos e incluye SKU, tallas y precios correctamente.")
             else:
                 try:
                     lista_variantes = []
@@ -172,8 +194,10 @@ def render_inventario():
                             "sku": sku_val,
                             "talla": talla,
                             "color": color,
-                            "stock_actual": int(row.get("stock_actual", 0)),
-                            "precio": float(row.get("precio", 0.0))
+                            "stock_actual": int(row.get("stock_actual", 0) or 0),
+                            "stock_minimo": int(row.get("stock_minimo", 2) or 2),
+                            "stock_maximo": int(row.get("stock_maximo", 20) or 20),
+                            "precio": float(row.get("precio", 0.0) or 0.0)
                         })
 
                     data_form = {
