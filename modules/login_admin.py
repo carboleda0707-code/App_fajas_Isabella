@@ -188,7 +188,8 @@ def render_login_admin():
                 if not usuarios_lista:
                     st.info("No hay otros usuarios registrados en el sistema para administrar.")
                 else:
-                    roles_disponibles = ["Administrador", "Ventas", "Logística", "Compras", "Bodega"]
+                    # 🟢 MÓDULOS OFICIALES ACTUALIZADOS (Sin Bodega)
+                    roles_disponibles = ["Administrador", "Inventario", "Ventas", "Logística", "Compras"]
                     
                     st.markdown("##### 📋 Listado de Colaboradores y Permisos")
                     for u in usuarios_lista:
