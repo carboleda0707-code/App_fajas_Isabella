@@ -284,8 +284,13 @@ function abrirModal(productoId) {
     colorSeleccionado = colores[0] || "Negro";
     cantidadSeleccionada = 1;
 
-    const imgSrcModal = obtenerRutaImagenProducto(productoSeleccionado.imagen_url);
-    const primerPrecio = variantes[0] ? variantes[0].precio : 0;
+    // Obtener la variante inicial para su imagen específica (si la tiene) o la general del producto
+    const varianteInicial = obtenerVarianteActual();
+    const imgSrcModal = (varianteInicial && varianteInicial.imagen_url) 
+        ? obtenerRutaImagenProducto(varianteInicial.imagen_url) 
+        : obtenerRutaImagenProducto(productoSeleccionado.imagen_url);
+
+    const primerPrecio = varianteInicial ? varianteInicial.precio : (variantes[0] ? variantes[0].precio : 0);
     const descuento = Number(productoSeleccionado.descuento_oferta || 0);
     const precioFinalModal = (productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0 
         ? Math.max(0, primerPrecio - descuento) 
@@ -293,9 +298,9 @@ function abrirModal(productoId) {
 
     const contenido = `
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-            <!-- COLUMNA IZQUIERDA: Foto Grande -->
+            <!-- COLUMNA IZQUIERDA: Foto Grande Dinámica -->
             <div class="flex flex-col items-center justify-center bg-slate-50 rounded-2xl p-4 border border-slate-100 h-full min-h-[300px]">
-                <img src="${imgSrcModal}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-72 object-contain rounded-xl">
+                <img id="modal-imagen-producto" src="${imgSrcModal}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-72 object-contain rounded-xl transition-all duration-300">
             </div>
 
             <!-- COLUMNA DERECHA: Información, Tallas, Colores y Resumen -->
@@ -381,6 +386,32 @@ function abrirModal(productoId) {
     if (modalContenido) modalContenido.innerHTML = contenido;
     if (modalProducto) modalProducto.classList.remove("hidden");
     
+    actualizarDetalleVariante();
+}
+
+function seleccionarColor(color) {
+    colorSeleccionado = color;
+    document.querySelectorAll(".btn-color").forEach(b => {
+        b.classList.remove("bg-slate-900", "text-white", "border-slate-900");
+        b.classList.add("bg-white", "text-slate-700", "border-slate-300");
+    });
+    const btn = document.getElementById(`btn-color-${color}`);
+    if (btn) {
+        btn.classList.remove("bg-white", "text-slate-700", "border-slate-300");
+        btn.classList.add("bg-slate-900", "text-white", "border-slate-900");
+    }
+
+    // 🟢 Cambio dinámico de imagen según la variante seleccionada
+    const variante = obtenerVarianteActual();
+    const imgElem = document.getElementById("modal-imagen-producto");
+    if (imgElem && productoSeleccionado) {
+        if (variante && variante.imagen_url && variante.imagen_url.trim() !== "") {
+            imgElem.src = obtenerRutaImagenProducto(variante.imagen_url);
+        } else {
+            imgElem.src = obtenerRutaImagenProducto(productoSeleccionado.imagen_url);
+        }
+    }
+
     actualizarDetalleVariante();
 }
 

@@ -87,12 +87,12 @@ def render_inventario():
             categoria = st.selectbox("Categoría del Producto", options=categorias_disponibles)
 
             st.markdown("###### 🏷️ Variantes (Tallas, Colores, Precios y Stock)")
-            st.caption("Puedes dejar el SKU vacío para que el sistema lo genere automáticamente de forma compacta (ej: id-talla-color), o escribir uno personalizado.")
+            st.caption("Puedes dejar el SKU vacío para que el sistema lo genere automáticamente. También puedes indicar el nombre del archivo de imagen específico para esa variante (opcional).")
 
             df_inicial = pd.DataFrame([
-                {"sku": "", "talla": "S", "color": "Negro", "precio": 45.0, "stock_actual": 10, "stock_minimo": 2, "stock_maximo": 20},
-                {"sku": "", "talla": "M", "color": "Negro", "precio": 45.0, "stock_actual": 15, "stock_minimo": 2, "stock_maximo": 20},
-                {"sku": "", "talla": "L", "color": "Negro", "precio": 55.0, "stock_actual": 8, "stock_minimo": 2, "stock_maximo": 20}
+                {"sku": "", "talla": "S", "color": "Negro", "precio": 45.0, "stock_actual": 10, "stock_minimo": 2, "stock_maximo": 20, "imagen_variante": ""},
+                {"sku": "", "talla": "M", "color": "Negro", "precio": 45.0, "stock_actual": 15, "stock_minimo": 2, "stock_maximo": 20, "imagen_variante": ""},
+                {"sku": "", "talla": "L", "color": "Negro", "precio": 55.0, "stock_actual": 8, "stock_minimo": 2, "stock_maximo": 20, "imagen_variante": ""}
             ])
 
             df_variantes_editado = st.data_editor(
@@ -106,18 +106,19 @@ def render_inventario():
                     "precio": st.column_config.NumberColumn("Precio ($)", format="$ %.2f", min_value=0.0, width="small"),
                     "stock_actual": st.column_config.NumberColumn("Stock", min_value=0, step=1, width="small"),
                     "stock_minimo": st.column_config.NumberColumn("Stock Mín.", min_value=0, step=1, width="small"),
-                    "stock_maximo": st.column_config.NumberColumn("Stock Máx.", min_value=0, step=1, width="small")
+                    "stock_maximo": st.column_config.NumberColumn("Stock Máx.", min_value=0, step=1, width="small"),
+                    "imagen_variante": st.column_config.TextColumn("Foto Variante (Opcional)", width="medium", help="Nombre del archivo de imagen si difiere de la principal")
                 }
             )
 
         with col_der:
-            st.markdown("##### Imagen del Producto")
-            archivo_imagen = st.file_uploader("Subir imagen:", type=["jpg", "jpeg", "png", "webp"], label_visibility="collapsed")
+            st.markdown("##### Imagen Principal del Producto")
+            archivo_imagen = st.file_uploader("Subir imagen general:", type=["jpg", "jpeg", "png", "webp"], label_visibility="collapsed")
             
             if archivo_imagen is not None:
                 st.image(archivo_imagen, use_container_width=True)
             else:
-                st.info("Sin imagen seleccionada")
+                st.info("Sin imagen general seleccionada")
 
             st.markdown("---")
             st.markdown("###### 🏷️ Estado y Promociones")
@@ -131,7 +132,7 @@ def render_inventario():
                 porcentaje_oferta = st.number_input(
                     "Porcentaje de Oferta (%):",
                     min_value=1.0,
-                    max_value=50.0,  # TOPE MÁXIMO DE 50%
+                    max_value=50.0,
                     value=10.0,
                     step=1.0,
                     help="Ingrese el porcentaje de descuento a aplicar para esta oferta (Máximo 50%)"
@@ -145,14 +146,13 @@ def render_inventario():
             btn_guardar = st.button("💾 Guardar Producto y Todas sus Variantes", type="primary", use_container_width=True)
 
         if btn_guardar:
-            # --- VALIDACIÓN ROBUSTA DE CAMPOS OBLIGATORIOS ---
             campos_faltantes = []
             
             if not nombre_producto or str(nombre_producto).strip() in ["", "None", "nan"]:
                 campos_faltantes.append("Nombre del Modelo / Producto")
             
             if archivo_imagen is None:
-                campos_faltantes.append("Imagen del Producto")
+                campos_faltantes.append("Imagen Principal del Producto")
                 
             if df_variantes_editado is None or df_variantes_editado.empty:
                 campos_faltantes.append("Al menos una variante en la tabla")
@@ -178,7 +178,7 @@ def render_inventario():
 
             if campos_faltantes:
                 with col_msg:
-                    st.error(f"⚠️ **Campos incompletos o inválidos:** {', '.join(campos_faltantes)}. Por favor revísalos e incluye SKU, tallas y precios correctamente.")
+                    st.error(f"⚠️ **Campos incompletos o inválidos:** {', '.join(campos_faltantes)}. Por favor revísalos.")
             else:
                 try:
                     lista_variantes = []
@@ -186,6 +186,7 @@ def render_inventario():
                         talla = str(row.get("talla", "")).strip()
                         color = str(row.get("color", "")).strip()
                         sku_val = str(row.get("sku", "")).strip() if pd.notna(row.get("sku")) else ""
+                        img_var_val = str(row.get("imagen_variante", "")).strip() if pd.notna(row.get("imagen_variante")) else ""
                         
                         if not sku_val or sku_val.lower() in ["none", "nan", ""]:
                             sku_val = ""
@@ -197,7 +198,8 @@ def render_inventario():
                             "stock_actual": int(row.get("stock_actual", 0) or 0),
                             "stock_minimo": int(row.get("stock_minimo", 2) or 2),
                             "stock_maximo": int(row.get("stock_maximo", 20) or 20),
-                            "precio": float(row.get("precio", 0.0) or 0.0)
+                            "precio": float(row.get("precio", 0.0) or 0.0),
+                            "imagen_url": img_var_val
                         })
 
                     data_form = {
@@ -257,7 +259,6 @@ def render_inventario():
                     
                     df_inventario = pd.DataFrame(data_tabla)
 
-                    # Filtros directos para alimentar el selector sin necesidad de mostrar la tabla grande
                     col_f1, col_f2 = st.columns(2)
                     opciones_filtro = ["TODAS"] + categorias_disponibles
                     filtro_cat = col_f1.selectbox("🔍 Filtrar por Categoría:", options=opciones_filtro, key="filtro_cat_select")
@@ -272,8 +273,8 @@ def render_inventario():
                         df_filtrado = df_filtrado[mask]
 
                     st.divider()
-                    st.markdown("##### 🛠️ Corrección de Variante y Estados")
-                    st.caption("Filtra arriba por categoría o nombre, selecciona la variante y edita sus atributos, stock o imagen.")
+                    st.markdown("##### 🛠️ Corrección de Variante, Estados y Foto Específica")
+                    st.caption("Selecciona la variante, edita sus atributos o sube una foto exclusiva para este color/talla.")
 
                     col_id_sel, _ = st.columns([3.0, 1.0])
                     
@@ -310,7 +311,7 @@ def render_inventario():
                         nuevo_def = bool(p_info.get("es_nuevo", False))
                         oferta_def = bool(p_info.get("en_oferta", False))
                         desc_oferta_def = float(p_info.get("descuento_oferta", 0.0) or 0.0)
-                        desc_oferta_def = min(desc_oferta_def, 50.0) # Asegurar tope al cargar
+                        desc_oferta_def = min(desc_oferta_def, 50.0)
                         stock_min_def = int(variante_encontrada.get("Stock Mínimo", 2))
                         stock_max_def = int(variante_encontrada.get("Stock Máximo", 20))
 
@@ -339,26 +340,29 @@ def render_inventario():
                             edit_descuento_oferta = st.number_input(
                                 "Porcentaje de Oferta (%)",
                                 min_value=0.0,
-                                max_value=50.0,  # TOPE MÁXIMO DE 50%
+                                max_value=50.0,
                                 value=desc_oferta_def,
                                 step=1.0,
                                 help="Porcentaje de descuento asignado a la oferta (Máximo 50%)"
                             )
 
                         with col_form_der:
-                            st.markdown("**Previsualización Actual**")
+                            st.markdown("**Foto Actual de la Variante**")
                             if variante_encontrada:
-                                img_url = p_info.get("imagen_url") or variante_encontrada.get("imagen_url")
-                                st.caption(f"**Mod.:** {p_info.get('nombre', 'N/D')}")
-                                if img_url:
-                                    url_imagen_completa = f"{API_BASE}/{img_url}"
-                                    st.image(url_imagen_completa, width=110)
+                                img_var_url = variante_encontrada.get("imagen_url")
+                                img_gen_url = p_info.get("imagen_url")
+                                
+                                if img_var_url:
+                                    st.image(f"{API_BASE}/{img_var_url}", width=110, caption="Foto Específica Variante")
+                                elif img_gen_url:
+                                    st.image(f"{API_BASE}/{img_gen_url}", width=110, caption="Usa Foto General")
                                 else:
-                                    st.info("Sin imagen registrada")
+                                    st.info("Sin imagen")
                             else:
                                 st.warning("ID no encontrado")
 
-                            archivo_nueva_imagen = st.file_uploader("Reemplazar foto", type=["jpg", "jpeg", "png", "webp"], label_visibility="collapsed")
+                            # 🟢 NUEVO: Subir foto exclusiva para esta variante
+                            archivo_nueva_imagen_variante = st.file_uploader("Subir foto para esta variante", type=["jpg", "jpeg", "png", "webp"], key="up_img_var")
 
                         btn_actualizar = st.form_submit_button("🔄 Actualizar Datos y Variante", type="primary", use_container_width=True)
                         
@@ -368,8 +372,8 @@ def render_inventario():
                             else:
                                 try:
                                     files = {}
-                                    if archivo_nueva_imagen is not None:
-                                        files = {"imagen": (archivo_nueva_imagen.name, archivo_nueva_imagen.getvalue(), archivo_nueva_imagen.type)}
+                                    if archivo_nueva_imagen_variante is not None:
+                                        files = {"imagen_variante": (archivo_nueva_imagen_variante.name, archivo_nueva_imagen_variante.getvalue(), archivo_nueva_imagen_variante.type)}
 
                                     descuento_final = min(float(edit_descuento_oferta), 50.0)
 
@@ -389,7 +393,7 @@ def render_inventario():
                                     res_upd = requests.put(f"{API_URL}/variantes/{var_id_input}", data=data_payload, files=files if files else None)
                                     
                                     if res_upd.status_code == 200:
-                                        st.success(f"✅ Variante ID {var_id_input} y estados actualizados correctamente.")
+                                        st.success(f"✅ Variante ID {var_id_input} y foto actualizadas correctamente.")
                                         st.rerun()
                                     else:
                                         st.error(f"No se pudo actualizar: {res_upd.text}")

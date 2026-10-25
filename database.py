@@ -77,6 +77,9 @@ class VarianteProducto(Base):
     stock_actual = Column(Integer, default=0)
     precio = Column(Float, nullable=False)
     
+    # 🟢 NUEVO CAMPO AÑADIDO:
+    imagen_url = Column(String(255), nullable=True)
+    
     stock_minimo = Column(Integer, default=2)
     stock_maximo = Column(Integer, default=20)
     fecha_creacion = Column(DateTime, default=datetime.now)
