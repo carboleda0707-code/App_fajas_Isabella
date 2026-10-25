@@ -476,22 +476,25 @@
                 });
                 const data = await res.json();
 
-                if (res.ok) {
+                // Verificamos si el servidor devuelve el status como JSON o como texto parseado
+                if (res.ok || data.status === 'requiere_password') {
                     if (data.status === 'requiere_password') {
                         cerrarModalAuth();
-                        document.getElementById('config-correo').value = data.correo;
+                        document.getElementById('config-correo').value = data.correo || correo;
                         document.getElementById('modal-config-password').classList.remove('hidden');
                     } else if (data.status === 'success') {
                         localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
                         cerrarModalAuth();
                         actualizarBotonCuentaNav();
-                        alert(data.mensaje);
+                        alert(data.mensaje || "¡Bienvenido!");
+                    } else {
+                        alert("Respuesta inesperada del servidor.");
                     }
                 } else {
-                    alert("Error: " + (data.detail || "Credenciales incorrectas"));
+                    alert("Error: " + (data.detail || data.mensaje || "Credenciales incorrectas"));
                 }
             } catch (e) {
-                alert("Error de conexión.");
+                alert("Error de conexión con el servidor.");
             }
         }
 
