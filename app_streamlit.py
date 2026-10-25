@@ -27,16 +27,13 @@ st.set_page_config(
 
 # --- BLINDAJE Y AUTO-DETECCIÓN INTELIGENTE DE ENTORNO ---
 def obtener_url_api():
-    # 1. Prioridad máxima: Si configuras una variable manual, se respeta siempre
     if os.getenv("API_BASE_URL"):
         return os.getenv("API_BASE_URL").strip()
     
-    # 2. Detección estricta de entorno cloud (Railway, Render, etc.)
     es_nube = os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("PORT")
     if es_nube:
         return "https://fajasisabella-production.up.railway.app"
     
-    # 3. Detección local segura
     try:
         hostname = socket.gethostname().lower()
         if "localhost" in hostname or "desktop" in hostname or os.getenv("USERNAME") or os.getenv("USER"):
@@ -44,7 +41,6 @@ def obtener_url_api():
     except Exception:
         pass
     
-    # 4. Fallback por defecto absoluto para desarrollo local
     return "http://localhost:8000"
 
 base_url = obtener_url_api().rstrip("/")
@@ -66,8 +62,6 @@ if not st.session_state["autenticado"]:
 # --- INFORMACIÓN Y CERRAR SESIÓN EN SIDEBAR ---
 st.sidebar.markdown(f"👤 **Usuario:** {st.session_state['usuario_actual']}")
 st.sidebar.markdown(f"🛡️ **Rol:** `{st.session_state['rol_actual']}`")
-
-# 🕵️‍♂️ Chivato visual del entorno activo en la barra lateral
 st.sidebar.caption(f"🔌 **API Activa:** `{st.session_state['API_URL']}`")
 
 if st.sidebar.button("🔒 Cerrar Sesión", use_container_width=True):
@@ -76,10 +70,18 @@ if st.sidebar.button("🔒 Cerrar Sesión", use_container_width=True):
     st.session_state["rol_actual"] = None
     st.rerun()
 
-# --- MENÚ LATERAL SEGÚN EL ROL ---
-rol = st.session_state["rol_actual"]
+# --- MENÚ LATERAL INTELIGENTE (SOPORTE MULTI-ROL Y JERARQUÍA) ---
+rol_actual_str = str(st.session_state["rol_actual"] or "").strip()
 
-if rol == "Administrador":
+es_administrador = "Administrador" in rol_actual_str
+es_ventas = "Ventas" in rol_actual_str
+es_logistica = "Logística" in rol_actual_str or "Despacho" in rol_actual_str
+es_inventario = "Inventario" in rol_actual_str
+
+modulos_disponibles = []
+
+if es_administrador:
+    # El Administrador tiene acceso total a todos los módulos
     modulos_disponibles = [
         "📦 Inventario", 
         "💳 Ventas", 
@@ -89,18 +91,21 @@ if rol == "Administrador":
         "👥 Clientes",
         "📊 Reportes"
     ]
-elif rol == "Ventas":
-    modulos_disponibles = [
-        "💳 Ventas",
-        "📦 Inventario",
-        "👥 Clientes"
-    ]
-elif rol == "Despacho":
-    modulos_disponibles = [
-        "🚚 Logística"  # Acceso exclusivo al módulo de logística
-    ]
 else:
-    modulos_disponibles = ["📦 Inventario"]
+    # Construcción dinámica según los permisos específicos asignados
+    if es_ventas:
+        modulos_disponibles.extend(["💳 Ventas", "👥 Clientes"])
+    if es_logistica:
+        modulos_disponibles.append("🚚 Logística")
+    if es_inventario:
+        modulos_disponibles.append("📦 Inventario")
+    
+    # Fallback por seguridad si ningún rol coincide
+    if not modulos_disponibles:
+        modulos_disponibles = ["📦 Inventario"]
+
+# Eliminar duplicados manteniendo orden
+modulos_disponibles = list(dict.fromkeys(modulos_disponibles))
 
 # 🧠 Inicializar el estado del menú si no existe
 if "menu_modulo_activo" not in st.session_state:
