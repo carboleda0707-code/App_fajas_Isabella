@@ -485,56 +485,46 @@
         }
 
         // --- Funciones auxiliares para el manejo de primer ingreso / login ---
-async function ejecutarLogin(event) {
-            event.preventDefault();
-            const correo = document.getElementById('login-correo').value;
-            const password = document.getElementById('login-password').value;
+        async function ejecutarLogin(event) {
+                    event.preventDefault();
+                    const correo = document.getElementById('login-correo').value;
+                    const password = document.getElementById('login-password').value;
 
-            try {
-                const res = await fetch('/api/web/auth/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ correo, password })
-                });
-                const data = await res.json();
+                    try {
+                        const res = await fetch('/api/web/auth/login', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ correo, password })
+                        });
+                        const data = await res.json();
 
-                const statusReal = data.status || (data.detail && data.detail.status);
-                const correoReal = data.correo || (data.detail && data.detail.correo) || correo;
+                        // Detectar si requiere configurar contraseña por cuenta provisional
+                        if (data.status === 'requiere_password') {
+                            cerrarModalAuth();
+                            if (document.getElementById('config-correo')) {
+                                document.getElementById('config-correo').value = data.correo || correo;
+                            }
+                            const modalConfig = document.getElementById('modal-config-password');
+                            if (modalConfig) {
+                                modalConfig.classList.remove('hidden');
+                            }
+                            return;
+                        }
 
-                if (statusReal === 'requiere_password') {
-                    cerrarModalAuth();
-                    if (document.getElementById('config-correo')) {
-                        document.getElementById('config-correo').value = correoReal;
+                        if (res.ok && data.status === 'success') {
+                            localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
+                            cerrarModalAuth();
+                            if (typeof actualizarBotonCuentaNav === 'function') {
+                                actualizarBotonCuentaNav();
+                            }
+                            alert(data.mensaje || "¡Bienvenido!");
+                        } else {
+                            alert("Error: " + (data.detail || "Credenciales incorrectas."));
+                        }
+                    } catch (e) {
+                        alert("Error de conexión con el servidor.");
                     }
-                    const modalConfig = document.getElementById('modal-config-password');
-                    if (modalConfig) {
-                        modalConfig.classList.remove('hidden');
-                    }
-                    return;
                 }
-
-                if (res.ok && statusReal === 'success') {
-                    localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
-                    cerrarModalAuth();
-                    if (typeof actualizarBotonCuentaNav === 'function') {
-                        actualizarBotonCuentaNav();
-                    }
-                    alert(data.mensaje || "¡Bienvenido!");
-                    return;
-                }
-
-                let msgError = "Credenciales incorrectas";
-                if (typeof data.detail === 'string') {
-                    msgError = data.detail;
-                } else if (data.mensaje) {
-                    msgError = data.mensaje;
-                }
-                alert("Error: " + msgError);
-
-            } catch (e) {
-                alert("Error de conexión con el servidor.");
-            }
-        }
 
         async function ejecutarRegistro(event) {
             event.preventDefault();

@@ -292,82 +292,85 @@ function abrirModal(productoId) {
         : primerPrecio;
 
     const contenido = `
-        <div class="flex gap-4 items-start mb-4">
-            <img src="${imgSrcModal}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-20 h-20 object-contain rounded-2xl bg-slate-50 p-2 border border-slate-100 shrink-0">
-            <div>
-                <span class="text-[10px] font-bold text-rose-600 tracking-wider uppercase">${productoSeleccionado.categoria}</span>
-                <h3 class="text-base font-extrabold text-slate-900 leading-snug">${productoSeleccionado.nombre}</h3>
-                <p id="modal-precio" class="text-xl font-black text-rose-600 mt-1">$${precioFinalModal.toFixed(2)}</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+            <!-- COLUMNA IZQUIERDA: Foto Grande -->
+            <div class="flex flex-col items-center justify-center bg-slate-50 rounded-2xl p-4 border border-slate-100 h-full min-h-[300px]">
+                <img src="${imgSrcModal}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-72 object-contain rounded-xl">
             </div>
-        </div>
 
-        <div class="space-y-3.5 border-t border-slate-100 pt-3">
-            <div>
-                <label class="text-xs font-bold text-slate-800 block mb-1.5">Talla:</label>
-                <div class="flex gap-2 flex-wrap" id="selector-tallas">
-                    ${tallas.map((t, idx) => `
-                        <button onclick="seleccionarTalla('${t}')" id="btn-talla-${t}" type="button"
-                            class="btn-talla px-3.5 py-1.5 text-xs rounded-xl font-bold border ${idx === 0 ? 'bg-rose-600 text-white border-rose-600 shadow-xs' : 'bg-white text-slate-700 border-slate-300'} transition cursor-pointer">
-                            ${t}
-                        </button>
-                    `).join('')}
+            <!-- COLUMNA DERECHA: Información, Tallas, Colores y Resumen -->
+            <div class="flex flex-col justify-between space-y-3">
+                <div>
+                    <span class="text-[10px] font-bold text-rose-600 tracking-wider uppercase">${productoSeleccionado.categoria}</span>
+                    <h3 class="text-base font-extrabold text-slate-900 leading-snug mb-1">${productoSeleccionado.nombre}</h3>
+                    <p id="modal-precio" class="text-2xl font-black text-rose-600">$${precioFinalModal.toFixed(2)}</p>
                 </div>
-            </div>
 
-            <div>
-                <label class="text-xs font-bold text-slate-800 block mb-1.5">Color:</label>
-                <div class="flex gap-2 flex-wrap" id="selector-colores">
-                    ${colores.map((c, idx) => `
-                        <button onclick="seleccionarColor('${c}')" id="btn-color-${c}" type="button"
-                            class="btn-color px-3.5 py-1.5 text-xs rounded-xl font-bold border ${idx === 0 ? 'bg-slate-900 text-white border-slate-900 shadow-xs' : 'bg-white text-slate-700 border-slate-300'} transition cursor-pointer">
-                            ${c}
-                        </button>
-                    `).join('')}
-                </div>
-            </div>
-
-            <div class="bg-rose-50/60 border border-rose-100 p-3 rounded-2xl mt-3">
-                <span class="text-[10px] font-bold text-rose-600 uppercase tracking-wider block mb-1">📋 Resumen de Selección:</span>
-                <div class="text-xs text-slate-800 space-y-1.5">
-                    <div class="flex justify-between">
-                        <span class="text-slate-500">Variante:</span>
-                        <span class="font-bold text-slate-900"><span id="resumen-talla">${tallaSeleccionada}</span> / <span id="resumen-color">${colorSeleccionado}</span></span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-slate-500">Disponibilidad:</span>
-                        <span class="font-mono text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded" id="modal-stock">Consultando...</span>
-                    </div>
-
-                    <hr class="border-rose-200 my-2">
-
-                    <div class="flex justify-between items-center pt-1">
-                        <span class="text-slate-700 font-bold">Cantidad:</span>
-                        <div class="flex items-center border border-slate-300 rounded-lg bg-white overflow-hidden shadow-2xs">
-                            <button onclick="cambiarCantidadModal(-1)" type="button" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold transition cursor-pointer">-</button>
-                            <input id="modal-cantidad-input" type="number" value="1" min="1" class="w-10 text-center text-xs font-black border-none outline-none bg-transparent" readonly>
-                            <button onclick="cambiarCantidadModal(1)" type="button" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold transition cursor-pointer">+</button>
+                <div class="space-y-3 border-t border-slate-100 pt-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-800 block mb-1">Talla:</label>
+                        <div class="flex gap-2 flex-wrap" id="selector-tallas">
+                            ${tallas.map((t, idx) => `
+                                <button onclick="seleccionarTalla('${t}')" id="btn-talla-${t}" type="button"
+                                    class="btn-talla px-3 py-1 text-xs rounded-xl font-bold border ${idx === 0 ? 'bg-rose-600 text-white border-rose-600 shadow-xs' : 'bg-white text-slate-700 border-slate-300'} transition cursor-pointer">
+                                    ${t}
+                                </button>
+                            `).join('')}
                         </div>
                     </div>
 
-                    <div class="flex justify-between items-center pt-1 text-sm font-black text-slate-900">
-                        <span>Total Selección:</span>
-                        <span id="modal-total-seleccion" class="text-rose-600 text-base">$0.00</span>
+                    <div>
+                        <label class="text-xs font-bold text-slate-800 block mb-1">Color:</label>
+                        <div class="flex gap-2 flex-wrap" id="selector-colores">
+                            ${colores.map((c, idx) => `
+                                <button onclick="seleccionarColor('${c}')" id="btn-color-${c}" type="button"
+                                    class="btn-color px-3.5 py-1 text-xs rounded-xl font-bold border ${idx === 0 ? 'bg-slate-900 text-white border-slate-900 shadow-xs' : 'bg-white text-slate-700 border-slate-300'} transition cursor-pointer">
+                                    ${c}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div class="bg-rose-50/60 border border-rose-100 p-2.5 rounded-xl">
+                        <span class="text-[10px] font-bold text-rose-600 uppercase tracking-wider block mb-1">📋 Resumen de Selección:</span>
+                        <div class="text-xs text-slate-800 space-y-1">
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Variante:</span>
+                                <span class="font-bold text-slate-900"><span id="resumen-talla">${tallaSeleccionada}</span> / <span id="resumen-color">${colorSeleccionado}</span></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Disponibilidad:</span>
+                                <span class="font-mono text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded" id="modal-stock">Consultando...</span>
+                            </div>
+                            <div class="flex justify-between items-center pt-1">
+                                <span class="text-slate-700 font-bold">Cantidad:</span>
+                                <div class="flex items-center border border-slate-300 rounded-lg bg-white overflow-hidden shadow-2xs">
+                                    <button onclick="cambiarCantidadModal(-1)" type="button" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold transition cursor-pointer">-</button>
+                                    <input id="modal-cantidad-input" type="number" value="1" min="1" class="w-8 text-center text-xs font-black border-none outline-none bg-transparent" readonly>
+                                    <button onclick="cambiarCantidadModal(1)" type="button" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold transition cursor-pointer">+</button>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center pt-1 text-sm font-black text-slate-900 border-t border-rose-200/60 mt-1">
+                                <span>Total Selección:</span>
+                                <span id="modal-total-seleccion" class="text-rose-600 text-base">$0.00</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="grid grid-cols-2 gap-2 mt-2">
-                <button onclick="agregarAlCarrito(false)" type="button"
-                    class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs py-3 rounded-xl flex items-center justify-center gap-1.5 transition cursor-pointer">
-                    <i class="fa-solid fa-plus"></i>
-                    <span>Seguir Comprando</span>
-                </button>
+                <div class="grid grid-cols-2 gap-2 pt-2">
+                    <button onclick="agregarAlCarrito(false)" type="button"
+                        class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-[11px] py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition cursor-pointer">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Seguir Comprando</span>
+                    </button>
 
-                <button onclick="agregarAlCarrito(true)" type="button"
-                    class="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-3 rounded-xl flex items-center justify-center gap-1.5 shadow-md shadow-rose-600/20 transition cursor-pointer">
-                    <i class="fa-solid fa-cart-shopping"></i>
-                    <span>Ir al Carrito</span>
-                </button>
+                    <button onclick="agregarAlCarrito(true)" type="button"
+                        class="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-md shadow-rose-600/20 transition cursor-pointer">
+                        <i class="fa-solid fa-cart-shopping"></i>
+                        <span>Ir al Carrito</span>
+                    </button>
+                </div>
             </div>
         </div>
     `;
