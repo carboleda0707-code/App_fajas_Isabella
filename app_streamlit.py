@@ -16,6 +16,7 @@ from modules.compras_ui import render_compras
 from modules.proveedores_ui import render_proveedores
 from modules.clientes_ui import render_clientes
 from modules.reportes_ui import render_reportes
+from modules.home_admin_ui import render_home_admin
 
 # Configuración general de la página
 st.set_page_config(
@@ -89,7 +90,8 @@ if es_administrador:
         "📥 Compras", 
         "🏭 Proveedores",
         "👥 Clientes",
-        "📊 Reportes"
+        "📊 Reportes",
+        "🌐 Panel Web"
     ]
 else:
     # Construcción dinámica según los permisos específicos asignados
@@ -163,3 +165,5 @@ elif seccion == "👥 Clientes":
     render_clientes()
 elif seccion == "📊 Reportes":
     render_reportes()
+elif seccion == "🌐 Panel Web":
+    render_home_admin()

@@ -1,3 +1,25 @@
+async function cargarSeccionInicio() {
+    const container = document.getElementById('home-dinamico-container');
+    if (!container) return;
+
+    try {
+        const res = await fetch('./home.html');
+        if (res.ok) {
+            const html = await res.text();
+            container.innerHTML = html;
+            container.style.display = 'block';
+        } else {
+            console.error("Error al cargar home.html: Estado", res.status);
+        }
+    } catch (err) {
+        console.error("No se pudo cargar home.html", err);
+    }
+
+    if (typeof filtrarCategoria === 'function') {
+        filtrarCategoria('TODAS');
+    }
+}
+
 const API_URL = "/api/web/inventario";
 const API_CATEGORIAS = "/api/web/categorias";
 const SVG_FALLBACK = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100%' height='100%' fill='%23f1f5f9'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-size='10'>Fajas Isabella</text></svg>";
@@ -15,13 +37,21 @@ let whatsappUrlGlobal = "https://wa.me/593983870398";
 
 async function inicializarTienda() {
     await cargarConfiguracionEmpresa();
-    await cargarInventario();
+    await cargarSeccionInicio();
+    // Damos un pequeño respiro para que el DOM de home.html esté listo
+    setTimeout(async () => {
+        // 🚀 Disparamos la inicialización del Home una vez inyectado el HTML
+        if (typeof window.inicializarHome === 'function') {
+            window.inicializarHome();
+        }
+        await cargarInventario();
+    }, 100);
     actualizarBotonCuentaNav();
 }
 
 async function cargarConfiguracionEmpresa() {
     try {
-        const res = await fetch("/config/empresa");
+        const res = await fetch("/api/config/empresa");
         if (res.ok) {
             const data = await res.json();
             if (data.redes && data.redes.whatsapp) {
@@ -86,7 +116,7 @@ function cargarCategoriasWeb() {
     if (!contenedor) return;
     
     let htmlScroll = `
-        <button onclick="filtrarCategoria('TODAS')" id="btn-cat-TODAS" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none">
+        <button onclick="filtrarCategoria('TODAS')" id="btn-cat-TODAS" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none cursor-pointer">
             <div class="circle-cat w-14 h-14 rounded-full overflow-hidden border-2 border-rose-500 p-0.5 transition-all shadow-xs bg-rose-50 flex items-center justify-center">
                 <img src="/img/cat-todas.jpg" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-cover rounded-full" alt="Todas">
             </div>
@@ -95,7 +125,7 @@ function cargarCategoriasWeb() {
     `;
 
     let htmlDropdown = `
-        <a href="#" onclick="filtrarCategoria('TODAS')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">✨ Ver Todo el Catálogo</a>
+        <a href="#catalogo" onclick="filtrarCategoria('TODAS')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">✨ Ver Todo el Catálogo</a>
         <div class="border-t border-slate-100 my-1"></div>
     `;
 
@@ -104,7 +134,7 @@ function cargarCategoriasWeb() {
         let imgCat = obtenerRutaImagenProducto(catObj.imagen_url);
 
         htmlScroll += `
-            <button onclick="filtrarCategoria('${nombreCat}')" id="btn-cat-${nombreCat}" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none">
+            <button onclick="filtrarCategoria('${nombreCat}')" id="btn-cat-${nombreCat}" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none cursor-pointer">
                 <div class="circle-cat w-14 h-14 rounded-full overflow-hidden border-2 border-slate-200 p-0.5 transition-all shadow-xs bg-rose-50 flex items-center justify-center">
                     <img src="${imgCat}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-cover rounded-full" alt="${nombreCat}">
                 </div>
@@ -113,7 +143,7 @@ function cargarCategoriasWeb() {
         `;
 
         htmlDropdown += `
-            <a href="#" onclick="filtrarCategoria('${nombreCat}')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">${nombreCat}</a>
+            <a href="#catalogo" onclick="filtrarCategoria('${nombreCat}')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">${nombreCat}</a>
         `;
     });
 
@@ -284,7 +314,6 @@ function abrirModal(productoId) {
     colorSeleccionado = colores[0] || "Negro";
     cantidadSeleccionada = 1;
 
-    // Obtener la variante inicial para su imagen específica (si la tiene) o la general del producto
     const varianteInicial = obtenerVarianteActual();
     const imgSrcModal = (varianteInicial && varianteInicial.imagen_url) 
         ? obtenerRutaImagenProducto(varianteInicial.imagen_url) 
@@ -298,12 +327,10 @@ function abrirModal(productoId) {
 
     const contenido = `
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-            <!-- COLUMNA IZQUIERDA: Foto Grande Dinámica -->
             <div class="flex flex-col items-center justify-center bg-slate-50 rounded-2xl p-4 border border-slate-100 h-full min-h-[300px]">
                 <img id="modal-imagen-producto" src="${imgSrcModal}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-72 object-contain rounded-xl transition-all duration-300">
             </div>
 
-            <!-- COLUMNA DERECHA: Información, Tallas, Colores y Resumen -->
             <div class="flex flex-col justify-between space-y-3">
                 <div>
                     <span class="text-[10px] font-bold text-rose-600 tracking-wider uppercase">${productoSeleccionado.categoria}</span>
@@ -389,32 +416,6 @@ function abrirModal(productoId) {
     actualizarDetalleVariante();
 }
 
-function seleccionarColor(color) {
-    colorSeleccionado = color;
-    document.querySelectorAll(".btn-color").forEach(b => {
-        b.classList.remove("bg-slate-900", "text-white", "border-slate-900");
-        b.classList.add("bg-white", "text-slate-700", "border-slate-300");
-    });
-    const btn = document.getElementById(`btn-color-${color}`);
-    if (btn) {
-        btn.classList.remove("bg-white", "text-slate-700", "border-slate-300");
-        btn.classList.add("bg-slate-900", "text-white", "border-slate-900");
-    }
-
-    // 🟢 Cambio dinámico de imagen según la variante seleccionada
-    const variante = obtenerVarianteActual();
-    const imgElem = document.getElementById("modal-imagen-producto");
-    if (imgElem && productoSeleccionado) {
-        if (variante && variante.imagen_url && variante.imagen_url.trim() !== "") {
-            imgElem.src = obtenerRutaImagenProducto(variante.imagen_url);
-        } else {
-            imgElem.src = obtenerRutaImagenProducto(productoSeleccionado.imagen_url);
-        }
-    }
-
-    actualizarDetalleVariante();
-}
-
 function cambiarCantidadModal(delta) {
     const variante = obtenerVarianteActual();
     const stockMax = variante ? variante.stock : 99;
@@ -462,6 +463,17 @@ function seleccionarColor(color) {
         btn.classList.remove("bg-white", "text-slate-700", "border-slate-300");
         btn.classList.add("bg-slate-900", "text-white", "border-slate-900");
     }
+
+    const variante = obtenerVarianteActual();
+    const imgElem = document.getElementById("modal-imagen-producto");
+    if (imgElem && productoSeleccionado) {
+        if (variante && variante.imagen_url && variante.imagen_url.trim() !== "") {
+            imgElem.src = obtenerRutaImagenProducto(variante.imagen_url);
+        } else {
+            imgElem.src = obtenerRutaImagenProducto(productoSeleccionado.imagen_url);
+        }
+    }
+
     actualizarDetalleVariante();
 }
 
@@ -500,27 +512,38 @@ function scrollCategorias(distancia) {
     }
 }
 
+// --- FILTRAR CATEGORÍA SIN OCULTAR EL HOME ---
 function filtrarCategoria(cat) {
     categoriaSeleccionadaActual = cat;
+    const tituloCatElem = document.getElementById("titulo-categoria");
 
     if (cat === 'LIQUIDACION') {
-        document.getElementById("titulo-categoria").innerText = "🔥 Productos en Liquidación";
+        if (tituloCatElem) tituloCatElem.innerText = "🔥 Productos en Liquidación";
         productosFiltrados = productos.filter(p => p.en_liquidacion === true);
     } else if (cat === 'OFERTAS') {
-        document.getElementById("titulo-categoria").innerText = "🏷️ Productos en Oferta Especial";
+        if (tituloCatElem) tituloCatElem.innerText = "🏷️ Productos en Oferta Especial";
         productosFiltrados = productos.filter(p => p.en_oferta === true);
     } else if (cat === 'NEW') {
-        document.getElementById("titulo-categoria").innerText = "✨ Nuevos Modelos (New)";
+        if (tituloCatElem) tituloCatElem.innerText = "✨ Nuevos Modelos (New)";
         productosFiltrados = productos.filter(p => p.es_nuevo === true);
     } else {
-        document.getElementById("titulo-categoria").innerText = cat === 'TODAS' ? 'Todas las Prendas Disponibles' : `Categoría: ${cat}`;
+        if (tituloCatElem) {
+            tituloCatElem.innerText = cat === 'TODAS' ? 'Todas las Prendas Disponibles' : `Colección: ${cat}`;
+        }
         if (cat === 'TODAS') {
             productosFiltrados = [...productos];
         } else {
-            productosFiltrados = productos.filter(p => (p.categoria || '').toUpperCase() === cat.toUpperCase());
+            productosFiltrados = productos.filter(p => (p.categoria || '').toUpperCase().trim() === cat.toUpperCase().trim());
         }
     }
+
     renderizarCatalogo();
+
+    // Desplazamiento suave automático hacia el catálogo para ver los productos filtrados
+    const catalogElem = document.getElementById("catalogo");
+    if (catalogElem && cat !== 'TODAS') {
+        catalogElem.scrollIntoView({ behavior: 'smooth' });
+    }
 }
 
 function buscarProducto() {
@@ -615,99 +638,6 @@ function toggleCarrito() {
     if (drawer) drawer.classList.toggle("hidden");
 }
 
-// --- FUNCIÓN MEJORADA: AUTOCOMPLETA SI HAY SESIÓN ACTIVA ---
-function abrirModalCheckoutWhatsApp() {
-    if (carrito.length === 0) {
-        alert("Tu carrito está vacío. Agrega una prenda antes de proceder al pago.");
-        return;
-    }
-
-    // Comprobar si el usuario ya inició sesión (ej. Enrique)
-    const usuarioLogueado = obtenerUsuarioLogueado();
-
-    if (usuarioLogueado) {
-        // Autocompletar inputs si ya están en el DOM del modal de WhatsApp
-        const inputNombre = document.getElementById("checkout-nombre");
-        const inputCorreo = document.getElementById("checkout-correo");
-        const inputTelefono = document.getElementById("checkout-telefono");
-
-        if (inputNombre) inputNombre.value = usuarioLogueado.nombre || "";
-        if (inputCorreo) inputCorreo.value = usuarioLogueado.correo || "";
-        if (inputTelefono) inputTelefono.value = usuarioLogueado.telefono || "";
-    }
-
-    // Mostrar el modal de checkout de WhatsApp
-    const modalCheckout = document.getElementById("modal-checkout-whatsapp");
-    if (modalCheckout) {
-        modalCheckout.classList.remove("hidden");
-    } else {
-        // Si no usa modal intermedio y envía directo o maneja otra vista
-        enviarPedidoFinalWhatsApp();
-    }
-}
-
-function enviarPedidoFinalWhatsApp() {
-    if (carrito.length === 0) {
-        alert("Tu carrito está vacío. Agrega una prenda antes de enviar tu pedido.");
-        return;
-    }
-
-    let detalleText = "";
-    let total = 0;
-
-    carrito.forEach((item, idx) => {
-        const subtotal = item.precio * item.cantidad;
-        total += subtotal;
-        detalleText += `${idx + 1}. *${item.nombre}*%0A   - Talla: ${item.talla} | Color: ${item.color}%0A   - SKU: ${item.sku}%0A   - Cantidad: ${item.cantidad} x $${item.precio.toFixed(2)} = $${subtotal.toFixed(2)}%0A%0A`;
-    });
-
-    const mensaje = `¡Hola Fajas Isabella! 👋 Deseo realizar la compra de las siguientes prendas de mi carrito:%0A%0A${detalleText}💰 *Total a Pagar:* $${total.toFixed(2)}%0A%0A¿Me ayudan a confirmar el pedido y coordinar el envío?`;
-    
-    window.open(`${whatsappUrlGlobal}?text=${mensaje}`, '_blank');
-
-    // --- LIMPIAR EL CARRITO Y PONER CONTADOR A 0 ---
-    carrito = [];
-    actualizarCarritoUI();
-    toggleCarrito();
-}
-
-function iniciarPagoPaymentez() {
-    if (carrito.length === 0) {
-        alert("Tu carrito está vacío.");
-        return;
-    }
-
-    const payloadCompra = {
-        items: carrito.map(item => ({
-            sku: item.sku,
-            cantidad: item.cantidad,
-            precio_unitario: item.precio
-        }))
-    };
-
-    fetch('/api/pagos/iniciar-paymentez', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payloadCompra)
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.status === "success") {
-            if (data.checkout_url && data.checkout_url !== "#") {
-                window.location.href = data.checkout_url;
-            } else {
-                alert(data.mensaje || "Pasarela configurada en modo simulación de pruebas exitosamente.");
-            }
-        } else {
-            alert("Error al iniciar el pago: " + (data.detail || "Intente nuevamente."));
-        }
-    })
-    .catch(err => {
-        console.error("Error de red:", err);
-        alert("No se pudo conectar con el servidor de pagos.");
-    });
-}
-
 function obtenerUsuarioLogueado() {
     const userStr = localStorage.getItem('usuario_fajas');
     return userStr ? JSON.parse(userStr) : null;
@@ -790,7 +720,6 @@ async function ejecutarLogin(event) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ correo, password })
         });
-        
         const data = await res.json();
 
         if (res.ok && data.status === 'success') {
@@ -799,10 +728,10 @@ async function ejecutarLogin(event) {
             actualizarBotonCuentaNav();
             alert(data.mensaje);
         } else {
-            alert("Error [Server]: " + (data.detail || JSON.stringify(data)));
+            alert("Error: " + (data.detail || JSON.stringify(data)));
         }
     } catch (e) {
-        alert("Error de conexión con el servidor: " + e.message);
+        alert("Error de conexión con el servidor.");
     }
 }
 
@@ -817,43 +746,29 @@ async function ejecutarRegistro(event) {
     const direccion = document.getElementById('reg-direccion').value;
 
     if (password !== passwordConfirm) {
-        alert("⚠️ Las contraseñas no coinciden. Por favor verifíquelas e intente nuevamente.");
+        alert("⚠️ Las contraseñas no coinciden.");
         return;
     }
 
     try {
-        const payload = { nombre, correo, password, telefono, direccion };
-
         const res = await fetch('/api/web/auth/registro', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({ nombre, correo, password, telefono, direccion })
         });
-
-        const rawText = await res.text();
-        let data;
-        try {
-            data = JSON.parse(rawText);
-        } catch(errJson) {
-            alert("Error 500 Servidor: " + rawText);
-            return;
-        }
+        const data = await res.json();
 
         if (res.ok && data.status === 'success') {
-            localStorage.setItem('usuario_fajas', JSON.stringify(data.create));
             localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
             cerrarModalAuth();
             actualizarBotonCuentaNav();
             alert(data.mensaje);
         } else {
             let errorMsg = data.detail || "Error al registrarse.";
-            if (Array.isArray(errorMsg)) {
-                errorMsg = errorMsg.map(err => `${err.loc.join('.')}: ${err.msg}`).join(', ');
-            }
-            alert("Error [Server]: " + errorMsg);
+            alert("Error: " + errorMsg);
         }
     } catch (e) {
-        alert("Error de conexión con el servidor: " + e.message);
+        alert("Error de conexión con el servidor.");
     }
 }
 
@@ -874,7 +789,7 @@ async function abrirModalPerfil() {
         const pedidos = await res.json();
 
         if (pedidos.length === 0) {
-            container.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">Aún no tienes compras registradas. ¡Anímate a estrenar!</div>`;
+            container.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">Aún no tienes compras registradas.</div>`;
             return;
         }
 
