@@ -1,60 +1,56 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Factorbets - Instagram Reel</title>
 <style>
-body {
-  margin: 0;
-  padding: 20px;
-  background: #f1f2f5;
-  font-family: Arial, sans-serif;
-}
-.contenedor {
-  max-width: 600px;
-  margin: 20px auto;
-  padding: 20px;
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 14px;
-  box-shadow: 0 4px 15px #0001;
-}
-h2 {
-  text-align: center;
-  color: #222;
-}
-.recuadro {
-  width: 100%;
-  min-height: 550px;
-  border: 1px solid #ddd;
-  border-radius: 10px;
-  overflow: hidden;
-  background: #fff;
-}
-.instagram-media {
-  margin: 0 auto !important;
-  min-width: 0 !important;
-  width: 100% !important;
-  max-width: 540px !important;
-}
+  body {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 540px;
+    font-family: Arial, sans-serif;
+  }
+  .instagram-media {
+    margin: 0 auto !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 540px !important;
+  }
 </style>
 </head>
 <body>
 
-<div class="contenedor">
-  <h2>Instagram Reel</h2>
-  <div class="recuadro">
+  <div id="ig-wrapper" style="width: 100%; display: flex; justify-content: center;">
+    <!-- Respaldo por defecto -->
     <blockquote
       class="instagram-media"
       data-instgrm-captioned
-      data-instgrm-permalink="https://www.instagram.com/reel/DQIK9pLDl4l"
+      data-instgrm-permalink="https://www.instagram.com/reel/DQIK9pLDl4l/"
       data-instgrm-version="14">
     </blockquote>
   </div>
-</div>
 
+<script>
+  // Consultar la configuración guardada en el panel web (Sección 2)
+  fetch('/api/web/home')
+    .then(res => res.json())
+    .then(data => {
+      if (data && data.sec2 && data.sec2.instagram_embed) {
+        const wrapper = document.getElementById('ig-wrapper');
+        wrapper.innerHTML = data.sec2.instagram_embed;
+        if (window.instgrm && window.instgrm.Embeds) {
+          window.instgrm.Embeds.process();
+        }
+      }
+    })
+    .catch(err => {
+      console.log("Usando embed por defecto", err);
+    });
+</script>
 <script async src="https://www.instagram.com/embed.js"></script>
 </body>
 </html>
