@@ -1,6 +1,7 @@
 import hashlib
 from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from database import get_db, Producto, Categoria, Cliente, Factura, Pago, MovimientoInventario
 from typing import Optional
 from pydantic import BaseModel
@@ -29,6 +30,131 @@ class SetPasswordSchema(BaseModel):
     correo: str
     password: str
     password_confirm: str
+
+class WebConfigModel(BaseModel):
+    seccion: str
+    contenido: dict
+
+
+# ==============================================================================
+# GESTIÓN DINÁMICA DEL HOME (POSTGRESQL + JSONB)
+# ==============================================================================
+
+def init_web_db_table(db: Session):
+    """Crea la tabla configuracion_web e inserta valores por defecto si no existen."""
+    try:
+        db.execute(text("""
+        CREATE TABLE IF NOT EXISTS configuracion_web (
+            id SERIAL PRIMARY KEY,
+            seccion VARCHAR(50) UNIQUE NOT NULL,
+            contenido JSONB NOT NULL,
+            actualizado_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """))
+        db.commit()
+
+        default_data = [
+            (
+                'sec1',
+                json.dumps({
+                    "titulo": "HISTORIA",
+                    "subtitulo": "12 AÑOS RESALTANDO TU BELLEZA",
+                    "parrafo1": "Fajas Isabella empezó vendiendo desde la sala de su casa, con la convicción de que toda mujer merece sentirse segura y hermosa en su cuerpo.",
+                    "parrafo2": "Hoy somos un equipo que fabrica directamente fajas colombianas, con ventas al por mayor y al por menor, y más de 80 modelos entre fajas látex reductoras, fajas postoperatorias, cinturillas y accesorios.",
+                    "parrafo3": "Nuestra marca está registrada ante el SENADI como \"FAJAS Isabella RESALTA TU BELLEZA\", un respaldo de la calidad y la confianza que nos han dado nuestras clientas.",
+                    "multimedia": "banner_historia.mp4"
+                })
+            ),
+            (
+                'sec2',
+                json.dumps({
+                    "tiktok_url": "https://tiktok.com"
+                })
+            ),
+            (
+                'sec3',
+                json.dumps({
+                    "card1": {
+                        "tag": "PUBLICIDAD 1",
+                        "titulo": "Moldeadoras de Alta Compresión",
+                        "descripcion": "Control total y definición perfecta para uso diario.",
+                        "link_texto": "Ver Colección →",
+                        "multimedia": "publi_1.jpg"
+                    },
+                    "card2": {
+                        "tag": "PUBLICIDAD 2",
+                        "titulo": "Confort y Recuperación Segura",
+                        "descripcion": "Diseñadas por expertos para garantizar tu bienestar.",
+                        "link_texto": "Ver Modelos →",
+                        "multimedia": "publi_2.jpg"
+                    },
+                    "card3": {
+                        "tag": "PUBLICIDAD 3",
+                        "titulo": "Reduce Medidas al Instante",
+                        "descripcion": "Moldea tu cintura con máxima comodidad.",
+                        "link_texto": "Descubrir →",
+                        "multimedia": "publi_3.jpg"
+                    }
+                })
+            )
+        ]
+
+        for seccion, contenido in default_data:
+            db.execute(text("""
+                INSERT INTO configuracion_web (seccion, contenido)
+                VALUES (:seccion, :contenido::jsonb)
+                ON CONFLICT (seccion) DO NOTHING;
+            """), {"seccion": seccion, "contenido": contenido})
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"Error al inicializar tabla web: {e}")
+
+
+@router.get("/web/home")
+def get_web_home(db: Session = Depends(get_db)):
+    """Obtiene la configuración completa del Home almacenada en PostgreSQL."""
+    init_web_db_table(db)
+    try:
+        result = db.execute(text("SELECT seccion, contenido FROM configuracion_web;")).fetchall()
+        resultado = {}
+        for row in result:
+            seccion_name = row[0]
+            seccion_content = row[1]
+            if isinstance(seccion_content, str):
+                seccion_content = json.loads(seccion_content)
+            resultado[seccion_name] = seccion_content
+        return resultado
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener configuración web: {str(e)}")
+
+
+@router.post("/web/home")
+def update_web_home(config: WebConfigModel, db: Session = Depends(get_db)):
+    """Actualiza o guarda una sección de la web en PostgreSQL (UPSERT)."""
+    init_web_db_table(db)
+    try:
+        db.execute(text("""
+            INSERT INTO configuracion_web (seccion, contenido, actualizado_at) 
+            VALUES (:seccion, :contenido::jsonb, NOW()) 
+            ON CONFLICT (seccion) 
+            DO UPDATE SET 
+                contenido = EXCLUDED.contenido, 
+                actualizado_at = NOW();
+        """), {"seccion": config.seccion, "contenido": json.dumps(config.contenido)})
+        db.commit()
+        return {
+            "status": "success",
+            "message": f"Sección '{config.seccion}' actualizada exitosamente en PostgreSQL."
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al actualizar la sección: {str(e)}")
+
+
+# ==============================================================================
+# ENDPOINTS PÚBLICOS DE CONFIG, INVENTARIO Y AUTENTICACIÓN
+# ==============================================================================
 
 @router.get("/config/empresa")
 def obtener_info_empresa():
@@ -68,7 +194,7 @@ def listar_inventario_publico(categoria: Optional[str] = Query(None), db: Sessio
                     "color": v.color,
                     "precio": float(v.precio),
                     "stock": v.stock_actual,
-                    "imagen_url": getattr(v, 'imagen_url', '') or ''  # 👈 NUEVO: Enviar imagen de la variante
+                    "imagen_url": getattr(v, 'imagen_url', '') or ''
                 })
             
             img_clean = getattr(prod, 'imagen_url', '') or ''
@@ -105,7 +231,7 @@ def obtener_producto_dinamico(producto_id: int, db: Session = Depends(get_db)):
             "color": v.color,
             "precio": float(v.precio),
             "stock": v.stock_actual,
-            "imagen_url": getattr(v, 'imagen_url', '') or ''  # 👈 NUEVO
+            "imagen_url": getattr(v, 'imagen_url', '') or ''
         })
 
     img_clean = getattr(prod, 'imagen_url', '') or ''
@@ -149,7 +275,6 @@ def login_cliente(datos: LoginSchema, db: Session = Depends(get_db)):
     if not cliente:
         raise HTTPException(status_code=400, detail="Correo no registrado en el sistema.")
 
-    # Si la cuenta está pendiente por actualizar contraseña (generada provisionalmente por transferencia)
     if not cliente.password or str(cliente.cliente_web).upper() == "POR_ACTUALIZAR":
         return {
             "status": "requiere_password",
@@ -202,7 +327,6 @@ def registrar_cliente_web(
 ):
     correo_limpio = correo.lower().strip()
     
-    # 🛑 REGLA DE UNICIDAD ESTRICTA: Validar si ya existe un cliente con el mismo correo o RUC/Cédula
     query_filtro = (Cliente.correo == correo_limpio)
     if ruc_cedula:
         query_filtro = (query_filtro) | (Cliente.ruc_cedula == ruc_cedula)
@@ -210,11 +334,9 @@ def registrar_cliente_web(
     existente = db.query(Cliente).filter(query_filtro).first()
     
     if existente:
-        # Si ya tiene contraseña fija y está activo, prohibir duplicidad
         if existente.password and str(existente.cliente_web).upper() != "POR_ACTUALIZAR":
             raise HTTPException(status_code=400, detail="Ya existe una cuenta registrada con este correo o RUC/Cédula.")
         else:
-            # Si existía por compra de transferencia sin clave activa, se le asigna su cuenta definitiva
             existente.nombre = nombre
             existente.correo = correo_limpio
             existente.password = generar_hash_sha256(password)
@@ -267,7 +389,6 @@ async def checkout_whatsapp(
 ):
     correo_limpio = correo.lower().strip() if correo else None
     
-    # 🛑 REGLA DE UNICIDAD: Evitar duplicados buscando por correo o RUC/Cédula
     cliente_db = None
     if correo_limpio:
         cliente_db = db.query(Cliente).filter(Cliente.correo == correo_limpio).first()
@@ -283,14 +404,12 @@ async def checkout_whatsapp(
         if correo_limpio and not cliente_db.correo:
             cliente_db.correo = correo_limpio
             
-        # Si no tiene clave o está provisional por actualizar
         if not cliente_db.password or str(cliente_db.cliente_web).upper() == "POR_ACTUALIZAR":
             password_temporal = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
             cliente_db.password = generar_hash_sha256(password_temporal)
             cliente_db.cliente_web = "POR_ACTUALIZAR"
         db.commit()
     else:
-        # Crear cuenta provisional con clave temporal aleatoria de 8 caracteres
         password_temporal = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
         password_hash_temp = generar_hash_sha256(password_temporal)
         reg_correo = correo_limpio if correo_limpio else f"{ruc_cedula}@fajasisabella.com"

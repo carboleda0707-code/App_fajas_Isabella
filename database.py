@@ -2,6 +2,7 @@ import os
 from datetime import datetime, date
 from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, DateTime, Date, Boolean, text
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
+from sqlalchemy.dialects.postgresql import JSONB
 
 # Detección automática de entorno:
 is_railway = os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("RAILWAY_PROJECT_ID") or os.getenv("PORT")
@@ -76,10 +77,7 @@ class VarianteProducto(Base):
     color = Column(String, nullable=False)
     stock_actual = Column(Integer, default=0)
     precio = Column(Float, nullable=False)
-    
-    # 🟢 NUEVO CAMPO AÑADIDO:
     imagen_url = Column(String(255), nullable=True)
-    
     stock_minimo = Column(Integer, default=2)
     stock_maximo = Column(Integer, default=20)
     fecha_creacion = Column(DateTime, default=datetime.now)
@@ -146,10 +144,17 @@ class Usuario(Base):
     username = Column(String(50), unique=True, index=True, nullable=False)
     email = Column(String(100), unique=True, index=True, nullable=False)
     password = Column(String(255), nullable=False)
-    rol = Column(String(100), nullable=False, default="Ventas")  # 👈 Ampliado a 100 caracteres para múltiples roles
+    rol = Column(String(100), nullable=False, default="Ventas")
     activo = Column(Boolean, default=True)
     fecha_creacion = Column(DateTime, default=datetime.now)
     fecha_actualizacion = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+class ConfiguracionWeb(Base):
+    __tablename__ = "configuracion_web"
+    id = Column(Integer, primary_key=True, index=True)
+    seccion = Column(String(50), unique=True, index=True, nullable=False)
+    contenido = Column(JSONB, nullable=False)
+    actualizado_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 def get_db():
     db = SessionLocal()
@@ -189,8 +194,6 @@ def asegurar_columnas_logistica():
         conn.execute(text("ALTER TABLE variantes_producto ADD COLUMN IF NOT EXISTS stock_maximo INTEGER DEFAULT 20;"))
         conn.execute(text("ALTER TABLE variantes_producto ADD COLUMN IF NOT EXISTS fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
         conn.execute(text("ALTER TABLE variantes_producto ADD COLUMN IF NOT EXISTS fecha_ultima_venta TIMESTAMP;"))
-        
-        # 👈 Ampliar dinámicamente la columna rol si ya fue creada como VARCHAR(20)
         conn.execute(text("ALTER TABLE usuarios ALTER COLUMN rol TYPE VARCHAR(100);"))
 
 try:

@@ -1,53 +1,22 @@
-// home.js - Lógica dinámica unificada y limpia
+// home.js - Conexión dinámica con PostgreSQL y Chivato de Estado
 if (typeof window.globalInstagramEmbed === 'undefined') {
     window.globalInstagramEmbed = "";
 }
 
-// Configuración unificada directamente en el JS
-const homeConfig = {
-    "sec1": {
-        "titulo": "HISTORIA",
-        "subtitulo": "12 AÑOS RESALTANDO TU BELLEZA",
-        "parrafo1": "Fajas Isabella empezó vendiendo desde la sala de su casa, con la convicción de que toda mujer merece sentirse segura y hermosa en su cuerpo.",
-        "parrafo2": "Hoy somos un equipo que fabrica directamente fajas colombianas, con ventas al por mayor y al por menor, y más de 80 modelos entre fajas látex reductoras, fajas postoperatorias, cinturillas y accesorios.",
-        "parrafo3": "Nuestra marca está registrada ante el SENADI como \"FAJAS Isabella RESALTA TU BELLEZA\", un respaldo de la calidad y la confianza que nos han dado nuestras clientas.",
-        "multimedia": "banner_historia.mp4"
-    },
-    "sec2": {
-        "tiktok_url": "https://tiktok.com"
-    },
-    "sec3": {
-        "card1": {
-            "tag": "PUBLICIDAD 1",
-            "titulo": "Moldeadoras de Alta Compresión",
-            "descripcion": "Control total y definición perfecta para uso diario.",
-            "link_texto": "Ver Colección →",
-            "multimedia": "publi_1.jpg",
-            "tipo": "img"
-        },
-        "card2": {
-            "tag": "PUBLICIDAD 2",
-            "titulo": "Confort y Recuperación Segura",
-            "descripcion": "Diseñadas por expertos para garantizar tu bienestar.",
-            "link_texto": "Ver Modelos →",
-            "multimedia": "publi_2.jpg",
-            "tipo": "img"
-        },
-        "card3": {
-            "tag": "PUBLICIDAD 3",
-            "titulo": "Reduce Medidas al Instante",
-            "descripcion": "Moldea tu cintura con máxima comodidad.",
-            "link_texto": "Descubrir →",
-            "multimedia": "publi_3.jpg",
-            "tipo": "img"
-        }
-    }
-};
-
 window.inicializarHome = async function() {
+    const chivato = document.getElementById('chivato-debug');
+    
     try {
-        const data = homeConfig;
+        if (chivato) chivato.innerHTML = '<span class="text-amber-400 font-bold">⚡ Estado Web:</span> Consultando Base de Datos...';
+
+        // Petición al endpoint de FastAPI que lee PostgreSQL
+        const response = await fetch('/api/web/home');
+        if (!response.ok) throw new Error("Error al conectar con la API de la tienda");
         
+        const data = await response.json();
+        
+        if (chivato) chivato.innerHTML = '<span class="text-emerald-400 font-bold">✅ Estado Web:</span> Sincronizado con PostgreSQL';
+
         // SECCIÓN 1: HISTORIA (Textos y Video / Imagen dinámica)
         if (data.sec1) {
             if (document.getElementById('sec1-titulo')) document.getElementById('sec1-titulo').innerText = data.sec1.titulo || "";
@@ -83,7 +52,7 @@ window.inicializarHome = async function() {
             }
         }
 
-        // SECCIÓN 3: PUBLICIDAD (Soporte dinámico para imágenes o videos)
+        // SECCIÓN 3: PUBLICIDAD (Soporte dinámico para imágenes o videos desde la BD)
         const renderPub = (num, cardData) => {
             if (!cardData) return;
             
@@ -119,7 +88,10 @@ window.inicializarHome = async function() {
         }
 
     } catch (e) {
-        console.error("Error al cargar la configuración:", e);
+        console.error("Error al cargar la configuración desde la BD:", e);
+        if (chivato) {
+            chivato.innerHTML = `<span class="text-rose-400 font-bold">❌ Error BD:</span> ${e.message}`;
+        }
     }
 };
 
