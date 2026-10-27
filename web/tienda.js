@@ -1,3 +1,4 @@
+// tienda.js - Carga dinámica del catálogo de Fajas Isabella
 async function cargarSeccionInicio() {
     const container = document.getElementById('home-dinamico-container');
     if (!container) return;
@@ -38,9 +39,7 @@ let whatsappUrlGlobal = "https://wa.me/593983870398";
 async function inicializarTienda() {
     await cargarConfiguracionEmpresa();
     await cargarSeccionInicio();
-    // Damos un pequeño respiro para que el DOM de home.html esté listo
     setTimeout(async () => {
-        // 🚀 Disparamos la inicialización del Home una vez inyectado el HTML
         if (typeof window.inicializarHome === 'function') {
             window.inicializarHome();
         }
@@ -512,7 +511,6 @@ function scrollCategorias(distancia) {
     }
 }
 
-// --- FILTRAR CATEGORÍA SIN OCULTAR EL HOME ---
 function filtrarCategoria(cat) {
     categoriaSeleccionadaActual = cat;
     const tituloCatElem = document.getElementById("titulo-categoria");
@@ -539,7 +537,6 @@ function filtrarCategoria(cat) {
 
     renderizarCatalogo();
 
-    // Desplazamiento suave automático hacia el catálogo para ver los productos filtrados
     const catalogElem = document.getElementById("catalogo");
     if (catalogElem && cat !== 'TODAS') {
         catalogElem.scrollIntoView({ behavior: 'smooth' });
