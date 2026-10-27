@@ -71,21 +71,14 @@ async function cargarConfiguracionEmpresa() {
 }
 
 async function cargarInventario() {
-    const chivatoInv = document.getElementById('chivato-inventario');
-    
-    if (chivatoInv) {
-        chivatoInv.className = "text-[11px] bg-slate-900 text-amber-400 px-3 py-1 rounded-full font-mono shadow-sm";
-        chivatoInv.innerText = "⚡ Consultando APIs...";
-    }
+    const catalogContainer = document.getElementById('catalog-container');
 
     try {
-        // Peticiones independientes para evitar que una falle y bloquee la otra
         const [resProductos, resCategorias] = await Promise.allSettled([
             fetch(API_URL),
             fetch(API_CATEGORIAS)
         ]);
 
-        // 1. Procesar Productos
         if (resProductos.status === 'fulfilled' && resProductos.value.ok) {
             productos = await resProductos.value.json();
         } else {
@@ -93,7 +86,6 @@ async function cargarInventario() {
             productos = [];
         }
 
-        // 2. Procesar Categorías
         if (resCategorias.status === 'fulfilled' && resCategorias.value.ok) {
             categoriasOficiales = await resCategorias.value.json();
         } else {
@@ -101,22 +93,18 @@ async function cargarInventario() {
             categoriasOficiales = [];
         }
 
-        if (chivatoInv) {
-            chivatoInv.className = "text-[11px] bg-slate-900 text-emerald-400 px-3 py-1 rounded-full font-mono shadow-sm";
-            chivatoInv.innerText = `✅ Éxito: ${productos.length} prendas`;
-        }
-
     } catch (e) {
         console.error("Error crítico al conectar con el servidor:", e);
         productos = [];
         categoriasOficiales = [];
-        if (chivatoInv) {
-            chivatoInv.className = "text-[11px] bg-slate-900 text-rose-400 px-3 py-1 rounded-full font-mono shadow-sm";
-            chivatoInv.innerText = `❌ Error: ${e.message}`;
-        }
     }
 
     productosFiltrados = [...productos];
+    
+    if (catalogContainer) {
+        catalogContainer.innerHTML = "";
+    }
+
     cargarCategoriasWeb();
     renderizarCatalogo();
 }
