@@ -71,10 +71,10 @@ def render_home_admin():
             subm_sec1 = st.form_submit_button("💾 Guardar Cambios de Sección 1 en BD", use_container_width=True)
             
             if subm_sec1:
-                multimedia_actual = sec1_cfg.get("multimedia", "banner_historia.mp4")
+                multimedia_actual = sec1_cfg.get("multimedia", "banner_historia.jpg")
                 if archivo_sec1 is not None:
-                    ext = archivo_sec1.name.split('.')[-1].lower()
-                    nombre_archivo = "banner_historia.mp4" if ext == "mp4" else "banner_historia.jpg"
+                    # Usar el nombre original del archivo subido
+                    nombre_archivo = archivo_sec1.name
                     ruta_destino = os.path.join("web/img", nombre_archivo)
                     os.makedirs("web/img", exist_ok=True)
                     with open(ruta_destino, "wb") as f:
@@ -161,24 +161,24 @@ def render_home_admin():
             if subm_sec3:
                 os.makedirs("web/img", exist_ok=True)
                 
+                # Procesar Tarjeta 1
                 m1 = p1_cfg.get("multimedia", "publi_1.jpg")
                 if p1_file is not None:
-                    ext = p1_file.name.split('.')[-1].lower()
-                    m1 = "publi_1.mp4" if ext == "mp4" else "publi_1.jpg"
+                    m1 = p1_file.name  # Nombre real original
                     with open(os.path.join("web/img", m1), "wb") as f:
                         f.write(p1_file.getbuffer())
 
+                # Procesar Tarjeta 2
                 m2 = p2_cfg.get("multimedia", "publi_2.jpg")
                 if p2_file is not None:
-                    ext = p2_file.name.split('.')[-1].lower()
-                    m2 = "publi_2.mp4" if ext == "mp4" else "publi_2.jpg"
+                    m2 = p2_file.name  # Nombre real original
                     with open(os.path.join("web/img", m2), "wb") as f:
                         f.write(p2_file.getbuffer())
 
+                # Procesar Tarjeta 3
                 m3 = p3_cfg.get("multimedia", "publi_3.jpg")
                 if p3_file is not None:
-                    ext = p3_file.name.split('.')[-1].lower()
-                    m3 = "publi_3.mp4" if ext == "mp4" else "publi_3.jpg"
+                    m3 = p3_file.name  # Nombre real original
                     with open(os.path.join("web/img", m3), "wb") as f:
                         f.write(p3_file.getbuffer())
 
