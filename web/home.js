@@ -29,16 +29,18 @@ window.inicializarHome = async function() {
             const videoSourceElem = document.getElementById('home-historia-video-source');
             const imgElem = document.getElementById('home-historia-img');
             
-            const rutaVideo = data.sec1.multimedia || data.sec1.video || "";
+            const rutaMultimedia = data.sec1.multimedia || data.sec1.video || "";
 
             if (videoElem && videoSourceElem && imgElem) {
-                if (rutaVideo && rutaVideo.toLowerCase().includes('.mp4')) {
-                    const nombreArchivo = rutaVideo.split('/').pop();
+                if (rutaMultimedia && rutaMultimedia.toLowerCase().includes('.mp4')) {
+                    const nombreArchivo = rutaMultimedia.split('/').pop();
                     videoSourceElem.src = `img/${nombreArchivo}`;
                     videoElem.style.display = 'block';
                     videoElem.load();
                     imgElem.style.display = 'none';
                 } else {
+                    const nombreImg = rutaMultimedia ? rutaMultimedia.split('/').pop() : 'banner_historia.jpg';
+                    imgElem.src = `img/${nombreImg}`;
                     videoElem.style.display = 'none';
                     imgElem.style.display = 'block';
                 }
@@ -68,13 +70,14 @@ window.inicializarHome = async function() {
             const archivo = cardData.multimedia || `publi_${num}.jpg`;
 
             if (videoElem && sourceElem && imgElem) {
+                const nombreArchivo = archivo.split('/').pop();
                 if (archivo.toLowerCase().includes('.mp4')) {
-                    sourceElem.src = `img/${archivo.split('/').pop()}`;
+                    sourceElem.src = `img/${nombreArchivo}`;
                     videoElem.style.display = 'block';
                     videoElem.load();
                     imgElem.style.display = 'none';
                 } else {
-                    imgElem.src = `img/${archivo.split('/').pop()}`;
+                    imgElem.src = `img/${nombreArchivo}`;
                     videoElem.style.display = 'none';
                     imgElem.style.display = 'block';
                 }
