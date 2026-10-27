@@ -29,17 +29,18 @@ window.inicializarHome = async function() {
             const videoSourceElem = document.getElementById('home-historia-video-source');
             const imgElem = document.getElementById('home-historia-img');
             
-            const rutaMultimedia = data.sec1.multimedia || data.sec1.video || "";
+            const rutaMultimedia = data.sec1.multimedia || "";
 
             if (videoElem && videoSourceElem && imgElem) {
-                if (rutaMultimedia && rutaMultimedia.toLowerCase().includes('.mp4')) {
-                    const nombreArchivo = rutaMultimedia.split('/').pop();
+                const nombreArchivo = rutaMultimedia.split('/').pop().trim();
+                if (nombreArchivo && nombreArchivo.toLowerCase().endsWith('.mp4')) {
                     videoSourceElem.src = `img/${nombreArchivo}`;
                     videoElem.style.display = 'block';
                     videoElem.load();
+                    videoElem.play().catch(e => console.log("Autoplay prevenido:", e));
                     imgElem.style.display = 'none';
                 } else {
-                    const nombreImg = rutaMultimedia ? rutaMultimedia.split('/').pop() : 'banner_historia.jpg';
+                    const nombreImg = nombreArchivo || 'banner_historia.jpg';
                     imgElem.src = `img/${nombreImg}`;
                     videoElem.style.display = 'none';
                     imgElem.style.display = 'block';
@@ -68,16 +69,18 @@ window.inicializarHome = async function() {
             const imgElem = document.getElementById(`pub${num}-img`);
 
             const archivo = cardData.multimedia || `publi_${num}.jpg`;
+            const nombreArchivo = archivo.split('/').pop().trim();
+            const rutaMultimedia = `img/${nombreArchivo}`;
 
             if (videoElem && sourceElem && imgElem) {
-                const nombreArchivo = archivo.split('/').pop();
-                if (archivo.toLowerCase().includes('.mp4')) {
-                    sourceElem.src = `img/${nombreArchivo}`;
+                if (nombreArchivo.toLowerCase().endsWith('.mp4')) {
+                    sourceElem.src = rutaMultimedia;
                     videoElem.style.display = 'block';
                     videoElem.load();
+                    videoElem.play().catch(e => console.log("Autoplay prevenido:", e));
                     imgElem.style.display = 'none';
                 } else {
-                    imgElem.src = `img/${nombreArchivo}`;
+                    imgElem.src = rutaMultimedia;
                     videoElem.style.display = 'none';
                     imgElem.style.display = 'block';
                 }
