@@ -72,6 +72,11 @@ async function cargarConfiguracionEmpresa() {
 
 async function cargarInventario() {
     const catalogContainer = document.getElementById('catalog-container');
+    
+    // Limpia el icono de carga inmediatamente para evitar bucles visuales
+    if (catalogContainer) {
+        catalogContainer.innerHTML = `<div class="col-span-full text-center py-6 text-slate-400 text-xs">Sincronizando catálogo...</div>`;
+    }
 
     try {
         const [resProductos, resCategorias] = await Promise.allSettled([
@@ -100,13 +105,8 @@ async function cargarInventario() {
     }
 
     productosFiltrados = [...productos];
-    
-    if (catalogContainer) {
-        catalogContainer.innerHTML = "";
-    }
-
     cargarCategoriasWeb();
-    renderizarCatalogo();
+    renderizarCatalogo(); // Esto dibuja los productos reales o el mensaje de "No encontramos modelos"
 }
 
 function obtenerRutaImagenProducto(imagenUrl) {
