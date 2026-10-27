@@ -48,8 +48,19 @@ window.inicializarHome = async function() {
             }
         }
 
-        // SECCIÓN 2: REDES (TikTok URL)
+        // SECCIÓN 2: REDES (Instagram Embed Nativo y TikTok URL)
         if (data.sec2) {
+            if (data.sec2.instagram_embed) {
+                const igContainer = document.getElementById('instagram-embed-container');
+                if (igContainer) {
+                    igContainer.innerHTML = data.sec2.instagram_embed;
+                    setTimeout(() => {
+                        if (window.instgrm && window.instgrm.Embeds) {
+                            window.instgrm.Embeds.process();
+                        }
+                    }, 200);
+                }
+            }
             if (data.sec2.tiktok_url && document.getElementById('sec2-tk-btn')) {
                 document.getElementById('sec2-tk-btn').href = data.sec2.tiktok_url;
             }

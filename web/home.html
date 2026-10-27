@@ -36,7 +36,7 @@
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
 
-        <!-- Columna 1: Instagram Embed Directo con el link funcional -->
+        <!-- Columna 1: Instagram Embed Directo desde PostgreSQL (Sin doble marco) -->
         <div class="bg-white border border-rose-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between relative overflow-hidden">
             <div>
                 <div class="flex items-center justify-between mb-4">
@@ -48,9 +48,9 @@
                 <h3 class="text-lg font-extrabold text-slate-900 mb-2">Reel Destacado en Directo</h3>
             </div>
 
-            <!-- Contenedor con Iframe llamando a webinst.html -->
-            <div class="w-full bg-slate-50 rounded-2xl p-2 my-2 overflow-hidden flex justify-center">
-                <iframe src="webinst.html" class="w-full border-0" style="height: 560px;" scrolling="no"></iframe>
+            <!-- Contenedor Dinámico Nativo -->
+            <div id="instagram-embed-container" class="w-full bg-slate-50 rounded-2xl p-2 my-2 overflow-hidden flex justify-center">
+                <!-- Se inyecta el blockquote directamente -->
             </div>
 
             <p class="text-[10px] text-slate-400 text-center mt-2">Publicación oficial sincronizada desde @fajasisabella.ec</p>
