@@ -1,21 +1,14 @@
-// home.js - Conexión dinámica con PostgreSQL y Chivato de Estado
+// home.js - Conexión dinámica con PostgreSQL
 if (typeof window.globalInstagramEmbed === 'undefined') {
     window.globalInstagramEmbed = "";
 }
 
 window.inicializarHome = async function() {
-    const chivato = document.getElementById('chivato-debug');
-    
     try {
-        if (chivato) chivato.innerHTML = '<span class="text-amber-400 font-bold">⚡ Estado Web:</span> Consultando Base de Datos...';
-
-        // Petición al endpoint de FastAPI que lee PostgreSQL
         const response = await fetch('/api/web/home');
         if (!response.ok) throw new Error("Error al conectar con la API de la tienda");
         
         const data = await response.json();
-        
-        if (chivato) chivato.innerHTML = '<span class="text-emerald-400 font-bold">✅ Estado Web:</span> Sincronizado con PostgreSQL';
 
         // SECCIÓN 1: HISTORIA (Textos y Video / Imagen dinámica)
         if (data.sec1) {
@@ -48,7 +41,7 @@ window.inicializarHome = async function() {
             }
         }
 
-        // SECCIÓN 2: REDES (Instagram Embed Nativo y TikTok URL)
+        // SECCIÓN 2: REDES (Instagram Embed y TikTok URL)
         if (data.sec2) {
             if (data.sec2.instagram_embed) {
                 const igContainer = document.getElementById('instagram-embed-container');
@@ -106,9 +99,6 @@ window.inicializarHome = async function() {
 
     } catch (e) {
         console.error("Error al cargar la configuración desde la BD:", e);
-        if (chivato) {
-            chivato.innerHTML = `<span class="text-rose-400 font-bold">❌ Error BD:</span> ${e.message}`;
-        }
     }
 };
 

@@ -105,16 +105,12 @@
         <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div class="flex items-center justify-between mb-6">
                 <h2 id="titulo-categoria" class="text-lg font-bold text-slate-900 tracking-tight">Todas las Prendas Disponibles</h2>
-                <span id="total-productos" class="text-xs bg-slate-200 text-slate-700 px-2.5 py-1 rounded-full font-semibold">Cargando...</span>
+                <span id="total-productos" class="text-xs bg-slate-200 text-slate-700 px-2.5 py-1 rounded-full font-semibold">0 modelos</span>
             </div>
 
             <!-- Contenedor del Catálogo de la Categoría Seleccionada -->
-            <div id="catalog-container" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                <div class="col-span-full text-center py-12 text-slate-400">
-                    <i class="fa-solid fa-circle-notch fa-spin text-2xl text-rose-500 mb-2"></i>
-                    <p class="text-xs">Cargando catálogo en tiempo real...</p>
-                </div>
-            </div>
+            <div id="catalog-container" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"></div>
+
             <!-- Contenedor dinámico en renglón seguido para "Lo Nuevo" y "Ofertas" cuando se selecciona categoría -->
             <div id="secciones-secundarias-container"></div>
         </main>
@@ -409,25 +405,10 @@
         </div>
     </div>
 
-    <!-- SCRIPT DE CARGA DE CONFIGURACIÓN Y MODAL DE INSTAGRAM GLOBAL -->
+    <!-- SCRIPT DE MODAL DE INSTAGRAM GLOBAL -->
     <script>
         let globalInstagramEmbed = "";
 
-        document.addEventListener("DOMContentLoaded", async () => {
-            try {
-                const response = await fetch('home_config_4.json');
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.sec2 && data.sec2.instagram_embed) {
-                        globalInstagramEmbed = data.sec2.instagram_embed;
-                    }
-                }
-            } catch (e) {
-                console.log("No se pudo cargar el embed de Instagram desde el config:", e);
-            }
-        });
-
-        // Funciones globales para el modal de Instagram
         window.abrirModalInstagram = function() {
             const modal = document.getElementById('instagram-modal');
             const container = document.getElementById('modal-ig-container');
@@ -453,7 +434,6 @@
             }
         };
 
-        // Cerrar al hacer clic fuera del modal de Instagram
         document.addEventListener('click', (e) => {
             const modal = document.getElementById('instagram-modal');
             if (modal && e.target === modal) {

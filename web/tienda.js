@@ -72,11 +72,6 @@ async function cargarConfiguracionEmpresa() {
 
 async function cargarInventario() {
     const catalogContainer = document.getElementById('catalog-container');
-    
-    // Limpia el icono de carga inmediatamente para evitar bucles visuales
-    if (catalogContainer) {
-        catalogContainer.innerHTML = `<div class="col-span-full text-center py-6 text-slate-400 text-xs">Sincronizando catálogo...</div>`;
-    }
 
     try {
         const [resProductos, resCategorias] = await Promise.allSettled([
@@ -105,8 +100,13 @@ async function cargarInventario() {
     }
 
     productosFiltrados = [...productos];
+    
+    if (catalogContainer) {
+        catalogContainer.innerHTML = "";
+    }
+
     cargarCategoriasWeb();
-    renderizarCatalogo(); // Esto dibuja los productos reales o el mensaje de "No encontramos modelos"
+    renderizarCatalogo();
 }
 
 function obtenerRutaImagenProducto(imagenUrl) {
@@ -180,7 +180,6 @@ function generarHTMLTarjetaProducto(p) {
         const precioMin = Math.min(...preciosCalculados);
         const precioMax = Math.max(...preciosCalculados);
         const precioMinOrig = Math.min(...variantes.map(v => Number(v.precio || 0)));
-        const precioMaxOrig = Math.max(...variantes.map(v => Number(v.precio || 0)));
 
         if ((p.en_oferta || p.en_liquidacion) && descuento > 0) {
             if (precioMin === precioMax) {
