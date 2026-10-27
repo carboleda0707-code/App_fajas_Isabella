@@ -71,26 +71,49 @@ async function cargarConfiguracionEmpresa() {
 }
 
 async function cargarInventario() {
+    const chivatoInv = document.getElementById('chivato-inventario');
+    
+    if (chivatoInv) {
+        chivatoInv.className = "text-[11px] bg-slate-900 text-amber-400 px-3 py-1 rounded-full font-mono shadow-sm";
+        chivatoInv.innerText = "⚡ Consultando APIs...";
+    }
+
     try {
-        const [resProductos, resCategorias] = await Promise.all([
+        // Peticiones independientes para evitar que una falle y bloquee la otra
+        const [resProductos, resCategorias] = await Promise.allSettled([
             fetch(API_URL),
             fetch(API_CATEGORIAS)
         ]);
 
-        if (resProductos.ok) {
-            productos = await resProductos.json();
+        // 1. Procesar Productos
+        if (resProductos.status === 'fulfilled' && resProductos.value.ok) {
+            productos = await resProductos.value.json();
         } else {
+            console.warn("No se pudo cargar el inventario principal.");
             productos = [];
         }
 
-        if (resCategorias.ok) {
-            categoriasOficiales = await resCategorias.json();
+        // 2. Procesar Categorías
+        if (resCategorias.status === 'fulfilled' && resCategorias.value.ok) {
+            categoriasOficiales = await resCategorias.value.json();
         } else {
+            console.warn("No se pudieron cargar las categorías oficiales.");
             categoriasOficiales = [];
         }
+
+        if (chivatoInv) {
+            chivatoInv.className = "text-[11px] bg-slate-900 text-emerald-400 px-3 py-1 rounded-full font-mono shadow-sm";
+            chivatoInv.innerText = `✅ Éxito: ${productos.length} prendas`;
+        }
+
     } catch (e) {
+        console.error("Error crítico al conectar con el servidor:", e);
         productos = [];
         categoriasOficiales = [];
+        if (chivatoInv) {
+            chivatoInv.className = "text-[11px] bg-slate-900 text-rose-400 px-3 py-1 rounded-full font-mono shadow-sm";
+            chivatoInv.innerText = `❌ Error: ${e.message}`;
+        }
     }
 
     productosFiltrados = [...productos];
