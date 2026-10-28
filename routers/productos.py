@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
 from sqlalchemy.orm import Session
 from typing import Optional
-import os, shutil, re, unicodedata, json, io
+import re, unicodedata, json, io
 import pandas as pd
 from database import get_db, Producto, VarianteProducto, Categoria
+from utils.cloudinary_uploader import subir_archivo_a_nube
 
 router = APIRouter()
 
@@ -14,15 +15,6 @@ def generar_sku_compacto(nombre: str, talla: str, color: str) -> str:
     color_clean = re.sub(r'[^a-zA-Z]', '', "".join([c for c in color_norm if unicodedata.category(c) != 'Mn']))
     color_code = color_clean[:2].capitalize() if len(color_clean) >= 2 else color_clean.ljust(2, 'x').capitalize()
     return f"{nombre_clean}-{talla_clean}-{color_code}"
-
-def guardar_imagen(imagen: UploadFile) -> str:
-    if not imagen or not imagen.filename:
-        return ""
-    os.makedirs("web/img", exist_ok=True)
-    ruta = os.path.join("web/img", imagen.filename)
-    with open(ruta, "wb") as buffer:
-        shutil.copyfileobj(imagen.file, buffer)
-    return f"img/{imagen.filename}"
 
 @router.get("/inventario")
 def listar_inventario(db: Session = Depends(get_db)):
@@ -95,7 +87,7 @@ async def importar_excel(file: UploadFile = File(...), db: Session = Depends(get
             if not variante:
                 prod = db.query(Producto).filter(Producto.nombre.ilike(nombre)).first()
                 if not prod:
-                    prod = Producto(nombre=nombre, modelo=nombre, categoria=cat or "GENERAL", imagen_url="img/logo.png")
+                    prod = Producto(nombre=nombre, modelo=nombre, categoria=cat or "GENERAL", imagen_url="")
                     db.add(prod)
                     db.commit()
                     db.refresh(prod)
@@ -130,7 +122,7 @@ async def importar_excel(file: UploadFile = File(...), db: Session = Depends(get
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.put("/variantes/{var_id}")
-def actualizar_variante(
+async def actualizar_variante(
     var_id: int, 
     categoria: str = Form(...), 
     talla: str = Form(...), 
@@ -155,9 +147,10 @@ def actualizar_variante(
     v.stock_minimo = stock_minimo
     v.stock_maximo = stock_maximo
     
-    img_url = guardar_imagen(imagen)
-    if img_url: 
-        v.imagen_url = img_url
+    if imagen and imagen.filename:
+        img_url = await subir_archivo_a_nube(imagen, folder="fajas_isabella/variantes")
+        if img_url: 
+            v.imagen_url = img_url
     
     if v.producto:
         v.sku = generar_sku_compacto(v.producto.nombre, v.talla, v.color)
@@ -171,7 +164,7 @@ def actualizar_variante(
     return {"status": "success", "message": f"Variante ID {var_id} actualizada correctamente."}
 
 @router.post("/productos")
-def crear_o_actualizar_producto(
+async def crear_o_actualizar_producto(
     nombre: str = Form(...), 
     modelo: Optional[str] = Form(None), 
     categoria: str = Form("GENERAL"),
@@ -185,12 +178,16 @@ def crear_o_actualizar_producto(
 ):
     try:
         prod = db.query(Producto).filter(Producto.nombre == nombre).first()
-        img_rel = guardar_imagen(imagen) or (prod.imagen_url if prod else "img/logo.png")
+        
+        img_rel = prod.imagen_url if prod else ""
+        if imagen and imagen.filename:
+            img_rel = await subir_archivo_a_nube(imagen, folder="fajas_isabella/productos")
         
         if prod:
             prod.modelo = modelo or nombre
             prod.categoria = categoria or prod.categoria
-            prod.imagen_url = img_rel
+            if img_rel:
+                prod.imagen_url = img_rel
             prod.en_liquidacion = en_liquidacion
             prod.es_nuevo = es_nuevo
             prod.en_oferta = en_oferta
@@ -269,13 +266,17 @@ def listar_categorias(db: Session = Depends(get_db)):
     return [{"id": c.id, "nombre": c.nombre, "imagen_url": c.imagen_url} for c in db.query(Categoria).all()]
 
 @router.post("/categorias")
-def crear_categoria(nombre: str = Form(...), imagen: UploadFile = File(...), db: Session = Depends(get_db)):
+async def crear_categoria(nombre: str = Form(...), imagen: Optional[UploadFile] = File(None), db: Session = Depends(get_db)):
     try:
         cat_nom = nombre.strip().upper()
-        img_rel = guardar_imagen(imagen)
+        img_rel = ""
+        if imagen and imagen.filename:
+            img_rel = await subir_archivo_a_nube(imagen, folder="fajas_isabella/categorias")
+            
         cat_db = db.query(Categoria).filter(Categoria.nombre == cat_nom).first()
         if cat_db: 
-            cat_db.imagen_url = img_rel
+            if img_rel:
+                cat_db.imagen_url = img_rel
         else: 
             db.add(Categoria(nombre=cat_nom, imagen_url=img_rel))
         db.commit()
