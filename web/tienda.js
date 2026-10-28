@@ -224,7 +224,6 @@ function generarHTMLTarjetaProducto(p) {
 
     return `
         <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:shadow-lg transition flex flex-col justify-between group">
-            <!-- CONTENEDOR DE IMAGEN UNIFORME -->
             <div class="relative bg-slate-50 h-48 w-full flex items-center justify-center p-3 overflow-hidden">
                 ${badgePromo}
                 <img src="${imgSrc}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-contain group-hover:scale-105 transition-all duration-300" alt="${p.nombre}">
@@ -232,7 +231,25 @@ function generarHTMLTarjetaProducto(p) {
                     ${variantes.length} Opciones
                 </span>
             </div>
-            ...
+
+            <div class="p-3.5 flex-1 flex flex-col justify-between">
+                <div>
+                    <span class="text-[9px] font-bold text-rose-600 tracking-wider uppercase">${p.categoria}</span>
+                    <h3 class="text-xs font-bold text-slate-800 line-clamp-1 mb-1">${p.nombre}</h3>
+                    <p class="text-[10px] text-slate-500 mb-2">Colores: <span class="font-medium text-slate-700">${coloresUnicos}</span></p>
+                </div>
+
+                <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
+                    <div>
+                        <span class="text-[9px] text-slate-400 block">${(p.en_liquidacion || p.en_oferta) ? 'Precio Oferta' : 'Precio'}</span>
+                        ${preciosTextoHtml}
+                    </div>
+                    <button onclick="abrirModal(${p.id})" class="bg-slate-900 hover:bg-rose-600 text-white font-bold text-[11px] px-3 py-1.5 rounded-xl transition shadow-xs cursor-pointer">
+                        Ver Tallas
+                    </button>
+                </div>
+            </div>
+        </div>
     `;
 }
 
