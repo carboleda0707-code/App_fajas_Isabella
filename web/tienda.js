@@ -108,13 +108,12 @@ function obtenerRutaImagenProducto(imagenUrl) {
         return SVG_FALLBACK;
     }
     
-    // Si es una URL absoluta de Cloudinary u otra web, la retornamos intacta de inmediato
     let urlLimpia = imagenUrl.trim();
+    // Si es una URL absoluta de Cloudinary u otra fuente externa, se retorna tal cual
     if (urlLimpia.startsWith("http://") || urlLimpia.startsWith("https://")) {
         return urlLimpia;
     }
     
-    // Si es una ruta relativa local antigua
     let nombreArchivo = urlLimpia.split('/').pop().trim();
     return `/img/${nombreArchivo}`;
 }
@@ -142,9 +141,9 @@ function cargarCategoriasWeb() {
         categoriasOficiales.forEach(catObj => {
             const nombreCat = catObj.nombre || catObj.categoria;
             if (!nombreCat) return;
-            
-            // Obtenemos la URL usando directamente el campo de la base de datos o la función de ruta
-            let imgCat = catObj.imagen_url ? obtenerRutaImagenProducto(catObj.imagen_url) : SVG_FALLBACK;
+
+            const rawImg = catObj.imagen_url || catObj.imagen || "";
+            let imgCat = obtenerRutaImagenProducto(rawImg);
 
             htmlScroll += `
                 <button onclick="filtrarCategoria('${nombreCat}')" id="btn-cat-${nombreCat}" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none cursor-pointer">
@@ -228,7 +227,6 @@ function generarHTMLTarjetaProducto(p) {
 
     return `
         <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:shadow-lg transition flex flex-col justify-between group">
-            <!-- FOTO CON MÁS PRESENCIA (h-64) -->
             <div class="relative bg-slate-50 h-64 w-full flex items-center justify-center p-3 overflow-hidden">
                 ${badgePromo}
                 <img src="${imgSrc}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-contain group-hover:scale-105 transition-all duration-300" alt="${p.nombre}">
@@ -249,7 +247,6 @@ function generarHTMLTarjetaProducto(p) {
                         <span class="text-[9px] text-slate-400 block">${(p.en_liquidacion || p.en_oferta) ? 'Precio Oferta' : 'Precio'}</span>
                         ${preciosTextoHtml}
                     </div>
-                    <!-- BOTÓN ACTUALIZADO -->
                     <button onclick="abrirModal(${p.id})" class="bg-slate-900 hover:bg-rose-600 text-white font-bold text-[10px] px-2.5 py-1.5 rounded-xl transition shadow-xs cursor-pointer">
                         Ver Tallas y Colores
                     </button>
@@ -546,14 +543,11 @@ function filtrarCategoria(cat) {
     const tituloCatElem = document.getElementById("titulo-categoria");
     const introContainer = document.getElementById("secciones-intro-container");
 
-    // SI ES INICIO / TODAS -> Muestra la Sección 1 (Historia) y Sección 2 (Redes)
     if (cat === 'TODAS') {
         if (introContainer) introContainer.style.display = 'block';
         if (tituloCatElem) tituloCatElem.innerText = "Todas las Prendas Disponibles";
         productosFiltrados = [...productos];
-    } 
-    // SI ES CUALQUIER OTRA CATEGORÍA O FILTRO -> Oculta Historia y Redes y muestra el catálogo directo
-    else {
+    } else {
         if (introContainer) introContainer.style.display = 'none';
 
         if (cat === 'LIQUIDACION') {
@@ -573,7 +567,6 @@ function filtrarCategoria(cat) {
 
     renderizarCatalogo();
 
-    // Scroll suave hacia la sección de catálogo
     const catalogElem = document.getElementById("catalogo") || document.getElementById("catalog-container");
     if (catalogElem) {
         catalogElem.scrollIntoView({ behavior: 'smooth' });
