@@ -142,7 +142,9 @@ function cargarCategoriasWeb() {
         categoriasOficiales.forEach(catObj => {
             const nombreCat = catObj.nombre || catObj.categoria;
             if (!nombreCat) return;
-            let imgCat = obtenerRutaImagenProducto(catObj.imagen_url);
+            
+            // Obtenemos la URL usando directamente el campo de la base de datos o la función de ruta
+            let imgCat = catObj.imagen_url ? obtenerRutaImagenProducto(catObj.imagen_url) : SVG_FALLBACK;
 
             htmlScroll += `
                 <button onclick="filtrarCategoria('${nombreCat}')" id="btn-cat-${nombreCat}" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none cursor-pointer">
