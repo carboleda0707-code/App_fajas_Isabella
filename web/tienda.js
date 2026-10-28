@@ -139,23 +139,26 @@ function cargarCategoriasWeb() {
         <div class="border-t border-slate-100 my-1"></div>
     `;
 
-    categoriasOficiales.forEach(catObj => {
-        const nombreCat = catObj.nombre || catObj.categoria;
-        let imgCat = obtenerRutaImagenProducto(catObj.imagen_url);
+    if (Array.isArray(categoriasOficiales) && categoriasOficiales.length > 0) {
+        categoriasOficiales.forEach(catObj => {
+            const nombreCat = catObj.nombre || catObj.categoria;
+            if (!nombreCat) return;
+            let imgCat = obtenerRutaImagenProducto(catObj.imagen_url);
 
-        htmlScroll += `
-            <button onclick="filtrarCategoria('${nombreCat}')" id="btn-cat-${nombreCat}" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none cursor-pointer">
-                <div class="circle-cat w-14 h-14 rounded-full overflow-hidden border-2 border-slate-200 p-0.5 transition-all shadow-xs bg-rose-50 flex items-center justify-center">
-                    <img src="${imgCat}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-cover rounded-full" alt="${nombreCat}">
-                </div>
-                <span class="text-[10px] font-bold text-slate-700 mt-1 uppercase tracking-tight label-cat">${nombreCat}</span>
-            </button>
-        `;
+            htmlScroll += `
+                <button onclick="filtrarCategoria('${nombreCat}')" id="btn-cat-${nombreCat}" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none cursor-pointer">
+                    <div class="circle-cat w-14 h-14 rounded-full overflow-hidden border-2 border-slate-200 p-0.5 transition-all shadow-xs bg-rose-50 flex items-center justify-center">
+                        <img src="${imgCat}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-cover rounded-full" alt="${nombreCat}">
+                    </div>
+                    <span class="text-[10px] font-bold text-slate-700 mt-1 uppercase tracking-tight label-cat">${nombreCat}</span>
+                </button>
+            `;
 
-        htmlDropdown += `
-            <a href="#catalogo" onclick="filtrarCategoria('${nombreCat}')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">${nombreCat}</a>
-        `;
-    });
+            htmlDropdown += `
+                <a href="#catalogo" onclick="filtrarCategoria('${nombreCat}')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">${nombreCat}</a>
+            `;
+        });
+    }
 
     contenedor.innerHTML = htmlScroll;
     if (dropdownContainer) {
