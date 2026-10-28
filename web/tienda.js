@@ -253,46 +253,41 @@ function renderizarCatalogo() {
 
     const contenedorSeccionesSecundarias = document.getElementById("secciones-secundarias-container");
     if (contenedorSeccionesSecundarias) {
+        const productosNuevos = productos.filter(p => p.es_nuevo === true);
+        const productosOfertas = productos.filter(p => p.en_oferta === true);
+
         let htmlSecundario = '';
 
-        // SE MUESTRA EN CATEGORÍAS NORMALES, PERO NUNCA CUANDO ESTAMOS EN "TODAS"
-        if (categoriaSeleccionadaActual !== 'TODAS') {
-            const productosNuevos = productos.filter(p => p.es_nuevo === true);
-            const productosOfertas = productos.filter(p => p.en_oferta === true);
-
-            // Mostrar sección de Nuevos solo si la categoría actual NO ES 'NEW'
-            if (categoriaSeleccionadaActual !== 'NEW' && productosNuevos.length > 0) {
-                htmlSecundario += `
-                    <div class="mt-16 pt-8 border-t border-slate-200">
-                        <div class="flex items-center justify-between mb-6">
-                            <div class="flex items-center gap-2">
-                                <span class="bg-blue-100 text-blue-700 p-2 rounded-xl text-xs"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
-                                <h3 class="text-base font-extrabold text-slate-900">✨ Mira lo Nuevo de Fajas Isabella</h3>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                            ${productosNuevos.map(p => generarHTMLTarjetaProducto(p)).join('')}
+        if (categoriaSeleccionadaActual !== 'NEW' && productosNuevos.length > 0) {
+            htmlSecundario += `
+                <div class="mt-16 pt-8 border-t border-slate-200">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center gap-2">
+                            <span class="bg-blue-100 text-blue-700 p-2 rounded-xl text-xs"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+                            <h3 class="text-base font-extrabold text-slate-900">✨ Mira lo Nuevo de Fajas Isabella</h3>
                         </div>
                     </div>
-                `;
-            }
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                        ${productosNuevos.map(p => generarHTMLTarjetaProducto(p)).join('')}
+                    </div>
+                </div>
+            `;
+        }
 
-            // Mostrar sección de Ofertas solo si la categoría actual NO ES 'OFERTAS' ni 'LIQUIDACION'
-            if (categoriaSeleccionadaActual !== 'OFERTAS' && categoriaSeleccionadaActual !== 'LIQUIDACION' && productosOfertas.length > 0) {
-                htmlSecundario += `
-                    <div class="mt-12 pt-8 border-t border-slate-200">
-                        <div class="flex items-center justify-between mb-6">
-                            <div class="flex items-center gap-2">
-                                <span class="bg-amber-100 text-amber-700 p-2 rounded-xl text-xs"><i class="fa-solid fa-tags"></i></span>
-                                <h3 class="text-base font-extrabold text-slate-900">🏷️ ¡Aprovecha nuestras Ofertas Especiales!</h3>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                            ${productosOfertas.map(p => generarHTMLTarjetaProducto(p)).join('')}
+        if (categoriaSeleccionadaActual !== 'OFERTAS' && categoriaSeleccionadaActual !== 'LIQUIDACION' && productosOfertas.length > 0) {
+            htmlSecundario += `
+                <div class="mt-12 pt-8 border-t border-slate-200">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center gap-2">
+                            <span class="bg-amber-100 text-amber-700 p-2 rounded-xl text-xs"><i class="fa-solid fa-tags"></i></span>
+                            <h3 class="text-base font-extrabold text-slate-900">🏷️ ¡Aprovecha nuestras Ofertas Especiales!</h3>
                         </div>
                     </div>
-                `;
-            }
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                        ${productosOfertas.map(p => generarHTMLTarjetaProducto(p)).join('')}
+                    </div>
+                </div>
+            `;
         }
         
         contenedorSeccionesSecundarias.innerHTML = htmlSecundario;
