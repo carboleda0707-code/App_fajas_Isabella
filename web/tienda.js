@@ -127,11 +127,11 @@ function cargarCategoriasWeb() {
     if (!contenedor) return;
     
     let htmlScroll = `
-        <button onclick="filtrarCategoria('TODAS')" id="btn-cat-TODAS" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none cursor-pointer group">
+        <button onclick="filtrarCategoria('TODAS')" id="btn-cat-TODAS" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none cursor-pointer group w-20">
             <div class="circle-cat w-14 h-14 min-w-[3.5rem] min-h-[3.5rem] rounded-full overflow-hidden border-2 border-rose-500 p-0.5 transition-all shadow-xs bg-rose-50 flex items-center justify-center shrink-0">
                 <img src="/img/cat-todas.jpg" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-cover rounded-full" alt="Todas">
             </div>
-            <span class="text-[10px] font-bold text-rose-600 mt-1 uppercase tracking-tight label-cat truncate max-w-[75px]">Todas</span>
+            <span class="text-[9px] font-bold text-rose-600 mt-1 uppercase tracking-tight text-center leading-tight line-clamp-2 w-full">Todas</span>
         </button>
     `;
 
@@ -149,11 +149,11 @@ function cargarCategoriasWeb() {
             let imgCat = obtenerRutaImagenProducto(rawImg);
 
             htmlScroll += `
-                <button onclick="filtrarCategoria('${nombreCat}')" id="btn-cat-${nombreCat}" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none cursor-pointer group">
+                <button onclick="filtrarCategoria('${nombreCat}')" id="btn-cat-${nombreCat}" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none cursor-pointer group w-20">
                     <div class="circle-cat w-14 h-14 min-w-[3.5rem] min-h-[3.5rem] rounded-full overflow-hidden border-2 border-slate-200 p-0.5 transition-all shadow-xs bg-rose-50 flex items-center justify-center shrink-0">
                         <img src="${imgCat}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-cover rounded-full" alt="${nombreCat}">
                     </div>
-                    <span class="text-[10px] font-bold text-slate-700 mt-1 uppercase tracking-tight label-cat truncate max-w-[75px]" title="${nombreCat}">${nombreCat}</span>
+                    <span class="text-[9px] font-bold text-slate-700 mt-1 uppercase tracking-tight text-center leading-tight line-clamp-2 w-full">${nombreCat}</span>
                 </button>
             `;
 
