@@ -537,29 +537,36 @@ function scrollCategorias(distancia) {
 function filtrarCategoria(cat) {
     categoriaSeleccionadaActual = cat;
     const tituloCatElem = document.getElementById("titulo-categoria");
+    const introContainer = document.getElementById("secciones-intro-container");
 
-    if (cat === 'LIQUIDACION') {
-        if (tituloCatElem) tituloCatElem.innerText = "🔥 Productos en Liquidación";
-        productosFiltrados = productos.filter(p => p.en_liquidacion === true);
-    } else if (cat === 'OFERTAS') {
-        if (tituloCatElem) tituloCatElem.innerText = "🏷️ Productos en Oferta Especial";
-        productosFiltrados = productos.filter(p => p.en_oferta === true);
-    } else if (cat === 'NEW') {
-        if (tituloCatElem) tituloCatElem.innerText = "✨ Nuevos Modelos (New)";
-        productosFiltrados = productos.filter(p => p.es_nuevo === true);
-    } else {
-        if (tituloCatElem) {
-            tituloCatElem.innerText = cat === 'TODAS' ? 'Todas las Prendas Disponibles' : `Colección: ${cat}`;
-        }
-        if (cat === 'TODAS') {
-            productosFiltrados = [...productos];
+    // SI ES INICIO / TODAS -> Muestra la Sección 1 (Historia) y Sección 2 (Redes)
+    if (cat === 'TODAS') {
+        if (introContainer) introContainer.style.display = 'block';
+        if (tituloCatElem) tituloCatElem.innerText = "Todas las Prendas Disponibles";
+        productosFiltrados = [...productos];
+    } 
+    // SI ES CUALQUIER OTRA CATEGORÍA O FILTRO -> Oculta Historia y Redes y muestra el catálogo directo
+    else {
+        if (introContainer) introContainer.style.display = 'none';
+
+        if (cat === 'LIQUIDACION') {
+            if (tituloCatElem) tituloCatElem.innerText = "🔥 Productos en Liquidación";
+            productosFiltrados = productos.filter(p => p.en_liquidacion === true);
+        } else if (cat === 'OFERTAS') {
+            if (tituloCatElem) tituloCatElem.innerText = "🏷️ Productos en Oferta Especial";
+            productosFiltrados = productos.filter(p => p.en_oferta === true);
+        } else if (cat === 'NEW') {
+            if (tituloCatElem) tituloCatElem.innerText = "✨ Nuevos Modelos (New)";
+            productosFiltrados = productos.filter(p => p.es_nuevo === true);
         } else {
+            if (tituloCatElem) tituloCatElem.innerText = `Colección: ${cat}`;
             productosFiltrados = productos.filter(p => (p.categoria || '').toUpperCase().trim() === cat.toUpperCase().trim());
         }
     }
 
     renderizarCatalogo();
 
+    // Scroll suave hacia la sección de catálogo
     const catalogElem = document.getElementById("catalogo") || document.getElementById("catalog-container");
     if (catalogElem) {
         catalogElem.scrollIntoView({ behavior: 'smooth' });

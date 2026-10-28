@@ -1,84 +1,87 @@
-<!-- SECCIÓN 1: HISTORIA -->
-<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-4">
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-        <!-- Columna Izquierda: Video o Imagen Dinámica -->
-        <div class="relative rounded-3xl overflow-hidden shadow-xl bg-slate-100 flex items-center justify-center h-[290px] sm:h-[340px] lg:h-[390px] max-w-md mx-auto lg:max-w-none w-full">
-            <video id="home-historia-video" autoplay muted loop playsinline class="w-full h-full object-cover rounded-3xl" style="display:none;">
-                <source id="home-historia-video-source" src="" type="video/mp4">
-            </video>
-            <img id="home-historia-img" src="img/banner_historia.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=800&q=80'" alt="Historia Fajas Isabella" class="w-full h-full object-cover rounded-3xl transition-transform duration-500 hover:scale-105">
-        </div>
-
-        <!-- Columna Derecha: Título, Subtítulo y Párrafos -->
-        <div class="flex flex-col justify-center space-y-4">
-            <div>
-                <span class="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-1">Conoce nuestra...</span>
-                <h2 id="sec1-titulo" class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">HISTORIA</h2>
-                <h3 id="sec1-subtitulo" class="text-sm font-extrabold text-rose-600 mt-1 uppercase tracking-wide">12 AÑOS RESALTANDO TU BELLEZA</h3>
+<!-- CONTENEDOR DE BIENVENIDA (Sección 1 y 2 - Se ocultan automáticamente al filtrar categorías) -->
+<div id="secciones-intro-container">
+    <!-- SECCIÓN 1: HISTORIA -->
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-4">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <!-- Columna Izquierda: Video o Imagen Dinámica -->
+            <div class="relative rounded-3xl overflow-hidden shadow-xl bg-slate-100 flex items-center justify-center h-[290px] sm:h-[340px] lg:h-[390px] max-w-md mx-auto lg:max-w-none w-full">
+                <video id="home-historia-video" autoplay muted loop playsinline class="w-full h-full object-cover rounded-3xl" style="display:none;">
+                    <source id="home-historia-video-source" src="" type="video/mp4">
+                </video>
+                <img id="home-historia-img" src="img/banner_historia.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=800&q=80'" alt="Historia Fajas Isabella" class="w-full h-full object-cover rounded-3xl transition-transform duration-500 hover:scale-105">
             </div>
 
-            <div class="text-slate-600 text-sm sm:text-base leading-relaxed space-y-3">
-                <p id="sec1-p1">Fajas Isabella empezó vendiendo desde la sala de su casa, con la convicción de que toda mujer merece sentirse segura y hermosa en su cuerpo.</p>
-                <p id="sec1-p2">Hoy somos un equipo que fabrica directamente fajas colombianas, con ventas al por mayor y al por menor, y más de 80 modelos entre fajas látex reductoras, fajas postoperatorias, cinturillas y accesorios.</p>
-                <p id="sec1-p3" class="font-semibold text-slate-900 bg-rose-50 border-l-4 border-rose-600 p-3 rounded-r-xl">Nuestra marca está registrada ante el SENADI como "FAJAS Isabella RESALTA TU BELLEZA", un respaldo de la calidad y la confianza que nos han dado nuestras clientas.</p>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- SECCIÓN 2: TESTIMONIOS Y REDES -->
-<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-12 border-t border-slate-200">
-    <div class="text-center max-w-2xl mx-auto mb-10">
-        <span class="text-xs font-bold text-rose-600 uppercase tracking-wider">Comunidad y Confianza</span>
-        <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1">Belleza y Directos</h2>
-        <p class="text-xs sm:text-sm text-slate-500 mt-2">Sigue nuestras publicaciones diarias y conéctate a nuestras transmisiones en vivo.</p>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
-        <!-- Columna 1: Instagram Embed Controlado -->
-        <div class="bg-white border border-rose-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between relative overflow-hidden h-full">
-            <div>
-                <div class="flex items-center justify-between mb-3">
-                    <span class="inline-flex items-center gap-1.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-xs">
-                        <i class="fa-brands fa-instagram"></i> Instagram Oficial
-                    </span>
-                    <span class="text-[11px] text-slate-500 font-medium">@fajasisabella.ec</span>
+            <!-- Columna Derecha: Título, Subtítulo y Párrafos -->
+            <div class="flex flex-col justify-center space-y-4">
+                <div>
+                    <span class="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-1">Conoce nuestra...</span>
+                    <h2 id="sec1-titulo" class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">HISTORIA</h2>
+                    <h3 id="sec1-subtitulo" class="text-sm font-extrabold text-rose-600 mt-1 uppercase tracking-wide">12 AÑOS RESALTANDO TU BELLEZA</h3>
                 </div>
-                <h3 class="text-lg font-extrabold text-slate-900 mb-1">Reel Destacado en Directo</h3>
-            </div>
 
-            <!-- CONTENEDOR ALTURA LIMITADA PARA EVITAR EL ESPACIO GIGANTE -->
-            <div id="instagram-embed-container" class="w-full bg-slate-50 rounded-2xl p-1 my-2 overflow-hidden flex justify-center items-start max-h-[360px] border border-slate-100">
-                <!-- El embed de IG se inyecta aquí -->
-            </div>
-
-            <p class="text-[10px] text-slate-400 text-center mt-2">Publicación oficial sincronizada desde @fajasisabella.ec</p>
-        </div>
-
-        <!-- Columna 2: TikTok Live -->
-        <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white border border-slate-800 rounded-3xl p-6 shadow-md flex flex-col justify-between relative overflow-hidden group h-full">
-            <div class="absolute top-0 right-0 transform translate-x-4 -translate-y-4 w-24 h-24 bg-rose-500/20 rounded-full blur-xl pointer-events-none"></div>
-            <div>
-                <div class="flex items-center justify-between mb-3">
-                    <span class="inline-flex items-center gap-1.5 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-xs animate-pulse">
-                        <span class="w-2 h-2 rounded-full bg-white animate-ping"></span> TikTok Live
-                    </span>
-                    <span class="text-[11px] text-rose-300 font-medium">Asesoría en Directo</span>
+                <div class="text-slate-600 text-sm sm:text-base leading-relaxed space-y-3">
+                    <p id="sec1-p1">Fajas Isabella empezó vendiendo desde la sala de su casa, con la convicción de que toda mujer merece sentirse segura y hermosa en su cuerpo.</p>
+                    <p id="sec1-p2">Hoy somos un equipo que fabrica directamente fajas colombianas, con ventas al por mayor y al por menor, y más de 80 modelos entre fajas látex reductoras, fajas postoperatorias, cinturillas y accesorios.</p>
+                    <p id="sec1-p3" class="font-semibold text-slate-900 bg-rose-50 border-l-4 border-rose-600 p-3 rounded-r-xl">Nuestra marca está registrada ante el SENADI como "FAJAS Isabella RESALTA TU BELLEZA", un respaldo de la calidad y la confianza que nos han dado nuestras clientas.</p>
                 </div>
-                <h3 class="text-base font-extrabold text-white mb-2">Resolviendo Dudas de Tallas en Directo</h3>
-                <p class="text-xs text-slate-300 leading-relaxed mb-6">
-                    Conéctate a nuestras transmisiones en vivo en TikTok donde nuestras expertas te guían paso a paso para elegir la faja ideal.
-                </p>
             </div>
-            <a id="sec2-tk-btn" href="https://tiktok.com" target="_blank" rel="noopener noreferrer" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-3 rounded-xl text-center transition shadow-md">
-                Unirse al Live en TikTok &rarr;
-            </a>
         </div>
-    </div>
-</section>
-<script async src="//www.instagram.com/embed.js"></script>
+    </section>
 
-<!-- SECCIÓN 3: PUBLICIDAD -->
+    <!-- SECCIÓN 2: TESTIMONIOS Y REDES -->
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-12 border-t border-slate-200">
+        <div class="text-center max-w-2xl mx-auto mb-10">
+            <span class="text-xs font-bold text-rose-600 uppercase tracking-wider">Comunidad y Confianza</span>
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1">Belleza y Directos</h2>
+            <p class="text-xs sm:text-sm text-slate-500 mt-2">Sigue nuestras publicaciones diarias y conéctate a nuestras transmisiones en vivo.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
+            <!-- Columna 1: Instagram Embed Controlado -->
+            <div class="bg-white border border-rose-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between relative overflow-hidden h-full">
+                <div>
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="inline-flex items-center gap-1.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-xs">
+                            <i class="fa-brands fa-instagram"></i> Instagram Oficial
+                        </span>
+                        <span class="text-[11px] text-slate-500 font-medium">@fajasisabella.ec</span>
+                    </div>
+                    <h3 class="text-lg font-extrabold text-slate-900 mb-1">Reel Destacado en Directo</h3>
+                </div>
+
+                <!-- CONTENEDOR ALTURA LIMITADA PARA EVITAR EL ESPACIO GIGANTE -->
+                <div id="instagram-embed-container" class="w-full bg-slate-50 rounded-2xl p-1 my-2 overflow-hidden flex justify-center items-start max-h-[360px] border border-slate-100">
+                    <!-- El embed de IG se inyecta aquí -->
+                </div>
+
+                <p class="text-[10px] text-slate-400 text-center mt-2">Publicación oficial sincronizada desde @fajasisabella.ec</p>
+            </div>
+
+            <!-- Columna 2: TikTok Live -->
+            <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white border border-slate-800 rounded-3xl p-6 shadow-md flex flex-col justify-between relative overflow-hidden group h-full">
+                <div class="absolute top-0 right-0 transform translate-x-4 -translate-y-4 w-24 h-24 bg-rose-500/20 rounded-full blur-xl pointer-events-none"></div>
+                <div>
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="inline-flex items-center gap-1.5 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-xs animate-pulse">
+                            <span class="w-2 h-2 rounded-full bg-white animate-ping"></span> TikTok Live
+                        </span>
+                        <span class="text-[11px] text-rose-300 font-medium">Asesoría en Directo</span>
+                    </div>
+                    <h3 class="text-base font-extrabold text-white mb-2">Resolviendo Dudas de Tallas en Directo</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed mb-6">
+                        Conéctate a nuestras transmisiones en vivo en TikTok donde nuestras expertas te guían paso a paso para elegir la faja ideal.
+                    </p>
+                </div>
+                <a id="sec2-tk-btn" href="https://tiktok.com" target="_blank" rel="noopener noreferrer" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-3 rounded-xl text-center transition shadow-md">
+                    Unirse al Live en TikTok &rarr;
+                </a>
+            </div>
+        </div>
+    </section>
+    <script async src="//www.instagram.com/embed.js"></script>
+</div>
+
+<!-- SECCIÓN 3: PUBLICIDAD (Siempre visible) -->
 <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t border-slate-200">
     <div class="text-center max-w-2xl mx-auto mb-10">
         <span class="text-xs font-bold text-rose-600 uppercase tracking-wider">Promociones y Estilos</span>
@@ -134,7 +137,7 @@
     </div>
 </section>
 
-<!-- SECCIÓN 4: CATÁLOGO DE PRENDAS (¡AQUÍ ESTABA EL CATÁLOGO!) -->
+<!-- SECCIÓN 4: CATÁLOGO DE PRENDAS -->
 <section id="catalogo" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t border-slate-200">
     <div class="flex items-center justify-between mb-6">
         <h2 id="titulo-categoria" class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">Todas las Prendas Disponibles</h2>
@@ -144,6 +147,6 @@
     <!-- Contenedor del Catálogo -->
     <div id="catalog-container" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"></div>
 
-    <!-- Contenedor dinámico secundario para Nuevos y Ofertas (cuando aplica) -->
+    <!-- Contenedor dinámico secundario para Nuevos y Ofertas -->
     <div id="secciones-secundarias-container"></div>
 </section>
