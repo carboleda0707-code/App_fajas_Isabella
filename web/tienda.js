@@ -104,16 +104,21 @@ async function cargarInventario() {
 }
 
 function obtenerRutaImagenProducto(imagenUrl) {
-    if (!imagenUrl || typeof imagenUrl !== 'string' || imagenUrl.trim() === "" || imagenUrl === "/logo.png" || imagenUrl === "logo.png") {
+    if (!imagenUrl) return SVG_FALLBACK;
+    
+    // Convertir a string por seguridad y quitar espacios
+    let urlLimpia = String(imagenUrl).trim();
+    
+    if (urlLimpia === "" || urlLimpia === "/logo.png" || urlLimpia === "logo.png") {
         return SVG_FALLBACK;
     }
     
-    let urlLimpia = imagenUrl.trim();
-    // Si es una URL absoluta de Cloudinary u otra fuente externa, se retorna tal cual
+    // Si contiene http o https, la retornamos obligatoriamente como URL absoluta entrecomillada/intacta
     if (urlLimpia.startsWith("http://") || urlLimpia.startsWith("https://")) {
         return urlLimpia;
     }
     
+    // Si es una ruta local antigua
     let nombreArchivo = urlLimpia.split('/').pop().trim();
     return `/img/${nombreArchivo}`;
 }
