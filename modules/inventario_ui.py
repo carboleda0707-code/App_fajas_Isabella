@@ -18,6 +18,14 @@ if "API_URL" not in st.session_state:
 API_URL = st.session_state["API_URL"]
 API_BASE = API_URL.removesuffix("/api")
 
+def resolver_url_imagen(url_o_path: str) -> str:
+    """Retorna la URL correcta ya sea externa (Cloudinary https://) o local."""
+    if not url_o_path:
+        return ""
+    if url_o_path.startswith("http://") or url_o_path.startswith("https://"):
+        return url_o_path
+    return f"{API_BASE}/{url_o_path.lstrip('/')}"
+
 def render_inventario():
     st.markdown("<p style='color: black; font-weight: bold;'>🖼️ Productos e Inventarios</p>", unsafe_allow_html=True)   
     
@@ -87,7 +95,7 @@ def render_inventario():
             categoria = st.selectbox("Categoría del Producto", options=categorias_disponibles)
 
             st.markdown("###### 🏷️ Variantes (Tallas, Colores, Precios y Stock)")
-            st.caption("Puedes dejar el SKU vacío para que el sistema lo genere automáticamente. También puedes indicar el nombre del archivo de imagen específico para esa variante (opcional).")
+            st.caption("Puedes dejar el SKU vacío para que el sistema lo genere automáticamente.")
 
             df_inicial = pd.DataFrame([
                 {"sku": "", "talla": "S", "color": "Negro", "precio": 45.0, "stock_actual": 10, "stock_minimo": 2, "stock_maximo": 20, "imagen_variante": ""},
@@ -107,7 +115,7 @@ def render_inventario():
                     "stock_actual": st.column_config.NumberColumn("Stock", min_value=0, step=1, width="small"),
                     "stock_minimo": st.column_config.NumberColumn("Stock Mín.", min_value=0, step=1, width="small"),
                     "stock_maximo": st.column_config.NumberColumn("Stock Máx.", min_value=0, step=1, width="small"),
-                    "imagen_variante": st.column_config.TextColumn("Foto Variante (Opcional)", width="medium", help="Nombre del archivo de imagen si difiere de la principal")
+                    "imagen_variante": st.column_config.TextColumn("Foto Variante (Opcional)", width="medium", help="Nombre o URL si difiere de la principal")
                 }
             )
 
@@ -353,15 +361,14 @@ def render_inventario():
                                 img_gen_url = p_info.get("imagen_url")
                                 
                                 if img_var_url:
-                                    st.image(f"{API_BASE}/{img_var_url}", width=110, caption="Foto Específica Variante")
+                                    st.image(resolver_url_imagen(img_var_url), width=110, caption="Foto Específica Variante")
                                 elif img_gen_url:
-                                    st.image(f"{API_BASE}/{img_gen_url}", width=110, caption="Usa Foto General")
+                                    st.image(resolver_url_imagen(img_gen_url), width=110, caption="Usa Foto General")
                                 else:
                                     st.info("Sin imagen")
                             else:
                                 st.warning("ID no encontrado")
 
-                            # 🟢 NUEVO: Subir foto exclusiva para esta variante
                             archivo_nueva_imagen_variante = st.file_uploader("Subir foto para esta variante", type=["jpg", "jpeg", "png", "webp"], key="up_img_var")
 
                         btn_actualizar = st.form_submit_button("🔄 Actualizar Datos y Variante", type="primary", use_container_width=True)
@@ -453,7 +460,7 @@ def render_inventario():
                             cols_item = st.columns([1, 3])
                             with cols_item[0]:
                                 if c_img:
-                                    st.image(f"{API_BASE}/{c_img}", width=60)
+                                    st.image(resolver_url_imagen(c_img), width=60)
                                 else:
                                     st.write("Sin img")
                             with cols_item[1]:
