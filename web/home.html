@@ -35,8 +35,7 @@
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
-
-        <!-- Columna 1: Instagram Embed Directo desde PostgreSQL -->
+        <!-- Columna 1: Instagram Embed -->
         <div class="bg-white border border-rose-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between relative overflow-hidden">
             <div>
                 <div class="flex items-center justify-between mb-4">
@@ -47,16 +46,11 @@
                 </div>
                 <h3 class="text-lg font-extrabold text-slate-900 mb-2">Reel Destacado en Directo</h3>
             </div>
-
-            <!-- Contenedor Dinámico Nativo -->
-            <div id="instagram-embed-container" class="w-full bg-slate-50 rounded-2xl p-2 my-2 overflow-hidden flex justify-center">
-                <!-- Se inyecta el blockquote directamente -->
-            </div>
-
+            <div id="instagram-embed-container" class="w-full bg-slate-50 rounded-2xl p-2 my-2 overflow-hidden flex justify-center"></div>
             <p class="text-[10px] text-slate-400 text-center mt-2">Publicación oficial sincronizada desde @fajasisabella.ec</p>
         </div>
 
-        <!-- Columna 2: Enlace a TikTok Live -->
+        <!-- Columna 2: TikTok Live -->
         <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white border border-slate-800 rounded-3xl p-6 shadow-md flex flex-col justify-between relative overflow-hidden group">
             <div class="absolute top-0 right-0 transform translate-x-4 -translate-y-4 w-24 h-24 bg-rose-500/20 rounded-full blur-xl pointer-events-none"></div>
             <div>
@@ -77,8 +71,6 @@
         </div>
     </div>
 </section>
-
-<!-- Script oficial de Instagram -->
 <script async src="//www.instagram.com/embed.js"></script>
 
 <!-- SECCIÓN 3: PUBLICIDAD -->
@@ -135,4 +127,18 @@
             </div>
         </div>
     </div>
+</section>
+
+<!-- SECCIÓN 4: CATÁLOGO DE PRENDAS (¡AQUÍ ESTABA EL CATÁLOGO!) -->
+<section id="catalogo" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t border-slate-200">
+    <div class="flex items-center justify-between mb-6">
+        <h2 id="titulo-categoria" class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">Todas las Prendas Disponibles</h2>
+        <span id="total-productos" class="text-xs bg-slate-200 text-slate-700 px-3 py-1 rounded-full font-semibold">0 modelos</span>
+    </div>
+
+    <!-- Contenedor del Catálogo -->
+    <div id="catalog-container" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"></div>
+
+    <!-- Contenedor dinámico secundario para Nuevos y Ofertas (cuando aplica) -->
+    <div id="secciones-secundarias-container"></div>
 </section>

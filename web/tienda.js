@@ -82,30 +82,24 @@ async function cargarInventario() {
         if (resProductos.status === 'fulfilled' && resProductos.value.ok) {
             productos = await resProductos.value.json();
         } else {
-            console.warn("No se pudo cargar el inventario principal.");
             productos = [];
         }
 
         if (resCategorias.status === 'fulfilled' && resCategorias.value.ok) {
             categoriasOficiales = await resCategorias.value.json();
         } else {
-            console.warn("No se pudieron cargar las categorías oficiales.");
             categoriasOficiales = [];
         }
 
     } catch (e) {
-        console.error("Error crítico al conectar con el servidor:", e);
+        console.error("Error al conectar:", e);
         productos = [];
         categoriasOficiales = [];
     }
 
     productosFiltrados = [...productos];
     
-    if (catalogContainer) {
-        catalogContainer.innerHTML = "";
-    }
-
-    cargarCategoriasWeb();
+    cargarCategoriasWeb(); // Asegurar que se pinten las burbujas con o sin datos de API
     renderizarCatalogo();
 }
 
@@ -139,6 +133,7 @@ function cargarCategoriasWeb() {
         <div class="border-t border-slate-100 my-1"></div>
     `;
 
+    // Si ya tenemos categorías oficiales cargadas, las dibujamos
     if (Array.isArray(categoriasOficiales) && categoriasOficiales.length > 0) {
         categoriasOficiales.forEach(catObj => {
             const nombreCat = catObj.nombre || catObj.categoria;
