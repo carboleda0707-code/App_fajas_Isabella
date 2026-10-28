@@ -9,7 +9,7 @@ if os.path.exists(config_file_path):
 
 # Datos Principales de la Empresa
 NOMBRE_EMPRESA = config.get("EMPRESA", "nombre", fallback="Fajas Isabella")
-TELEFONO_WHATSAPP = config.get("EMPRESA", "telefono_whatsapp", fallback="593983870398")
+TELEFONO_WHATSAPP = config.get("EMPRESA", "telefono_whatsapp", fallback="593985389751")
 CORREO_EMPRESA = config.get("EMPRESA", "correo_contacto", fallback="ventas@fajasisabella.com")
 DIRECCION_EMPRESA = config.get("EMPRESA", "direccion_local", fallback="Guayaquil, Ecuador")
 
