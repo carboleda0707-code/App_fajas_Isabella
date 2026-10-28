@@ -224,32 +224,15 @@ function generarHTMLTarjetaProducto(p) {
 
     return `
         <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:shadow-lg transition flex flex-col justify-between group">
-            <div class="relative bg-slate-50 h-48 flex items-center justify-center p-3 overflow-hidden">
+            <!-- CONTENEDOR DE IMAGEN UNIFORME -->
+            <div class="relative bg-slate-50 h-48 w-full flex items-center justify-center p-3 overflow-hidden">
                 ${badgePromo}
-                <img src="${imgSrc}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="h-full object-contain group-hover:scale-105 transition-all duration-300" alt="${p.nombre}">
+                <img src="${imgSrc}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-contain group-hover:scale-105 transition-all duration-300" alt="${p.nombre}">
                 <span class="absolute top-2 right-2 bg-slate-900/80 text-white text-[9px] font-bold px-2 py-0.5 rounded-full backdrop-blur-xs">
                     ${variantes.length} Opciones
                 </span>
             </div>
-
-            <div class="p-3.5 flex-1 flex flex-col justify-between">
-                <div>
-                    <span class="text-[9px] font-bold text-rose-600 tracking-wider uppercase">${p.categoria}</span>
-                    <h3 class="text-xs font-bold text-slate-800 line-clamp-1 mb-1">${p.nombre}</h3>
-                    <p class="text-[10px] text-slate-500 mb-2">Colores: <span class="font-medium text-slate-700">${coloresUnicos}</span></p>
-                </div>
-
-                <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
-                    <div>
-                        <span class="text-[9px] text-slate-400 block">${(p.en_liquidacion || p.en_oferta) ? 'Precio Oferta' : 'Precio'}</span>
-                        ${preciosTextoHtml}
-                    </div>
-                    <button onclick="abrirModal(${p.id})" class="bg-slate-900 hover:bg-rose-600 text-white font-bold text-[11px] px-3 py-1.5 rounded-xl transition shadow-xs cursor-pointer">
-                        Ver Tallas
-                    </button>
-                </div>
-            </div>
-        </div>
+            ...
     `;
 }
 
@@ -270,41 +253,46 @@ function renderizarCatalogo() {
 
     const contenedorSeccionesSecundarias = document.getElementById("secciones-secundarias-container");
     if (contenedorSeccionesSecundarias) {
-        const productosNuevos = productos.filter(p => p.es_nuevo === true);
-        const productosOfertas = productos.filter(p => p.en_oferta === true);
-
         let htmlSecundario = '';
 
-        if (categoriaSeleccionadaActual !== 'NEW' && productosNuevos.length > 0) {
-            htmlSecundario += `
-                <div class="mt-16 pt-8 border-t border-slate-200">
-                    <div class="flex items-center justify-between mb-6">
-                        <div class="flex items-center gap-2">
-                            <span class="bg-blue-100 text-blue-700 p-2 rounded-xl text-xs"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
-                            <h3 class="text-base font-extrabold text-slate-900">✨ Mira lo Nuevo de Fajas Isabella</h3>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                        ${productosNuevos.map(p => generarHTMLTarjetaProducto(p)).join('')}
-                    </div>
-                </div>
-            `;
-        }
+        // SE MUESTRA EN CATEGORÍAS NORMALES, PERO NUNCA CUANDO ESTAMOS EN "TODAS"
+        if (categoriaSeleccionadaActual !== 'TODAS') {
+            const productosNuevos = productos.filter(p => p.es_nuevo === true);
+            const productosOfertas = productos.filter(p => p.en_oferta === true);
 
-        if (categoriaSeleccionadaActual !== 'OFERTAS' && categoriaSeleccionadaActual !== 'LIQUIDACION' && productosOfertas.length > 0) {
-            htmlSecundario += `
-                <div class="mt-12 pt-8 border-t border-slate-200">
-                    <div class="flex items-center justify-between mb-6">
-                        <div class="flex items-center gap-2">
-                            <span class="bg-amber-100 text-amber-700 p-2 rounded-xl text-xs"><i class="fa-solid fa-tags"></i></span>
-                            <h3 class="text-base font-extrabold text-slate-900">🏷️ ¡Aprovecha nuestras Ofertas Especiales!</h3>
+            // Mostrar sección de Nuevos solo si la categoría actual NO ES 'NEW'
+            if (categoriaSeleccionadaActual !== 'NEW' && productosNuevos.length > 0) {
+                htmlSecundario += `
+                    <div class="mt-16 pt-8 border-t border-slate-200">
+                        <div class="flex items-center justify-between mb-6">
+                            <div class="flex items-center gap-2">
+                                <span class="bg-blue-100 text-blue-700 p-2 rounded-xl text-xs"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+                                <h3 class="text-base font-extrabold text-slate-900">✨ Mira lo Nuevo de Fajas Isabella</h3>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                            ${productosNuevos.map(p => generarHTMLTarjetaProducto(p)).join('')}
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                        ${productosOfertas.map(p => generarHTMLTarjetaProducto(p)).join('')}
+                `;
+            }
+
+            // Mostrar sección de Ofertas solo si la categoría actual NO ES 'OFERTAS' ni 'LIQUIDACION'
+            if (categoriaSeleccionadaActual !== 'OFERTAS' && categoriaSeleccionadaActual !== 'LIQUIDACION' && productosOfertas.length > 0) {
+                htmlSecundario += `
+                    <div class="mt-12 pt-8 border-t border-slate-200">
+                        <div class="flex items-center justify-between mb-6">
+                            <div class="flex items-center gap-2">
+                                <span class="bg-amber-100 text-amber-700 p-2 rounded-xl text-xs"><i class="fa-solid fa-tags"></i></span>
+                                <h3 class="text-base font-extrabold text-slate-900">🏷️ ¡Aprovecha nuestras Ofertas Especiales!</h3>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                            ${productosOfertas.map(p => generarHTMLTarjetaProducto(p)).join('')}
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
+            }
         }
         
         contenedorSeccionesSecundarias.innerHTML = htmlSecundario;
