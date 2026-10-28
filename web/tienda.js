@@ -107,6 +107,7 @@ function obtenerRutaImagenProducto(imagenUrl) {
     if (!imagenUrl || imagenUrl.trim() === "" || imagenUrl === "/logo.png" || imagenUrl === "logo.png") {
         return SVG_FALLBACK;
     }
+    // Si ya es una URL absoluta (Cloudinary u otra externa), se usa tal cual
     if (imagenUrl.startsWith("http://") || imagenUrl.startsWith("https://")) {
         return imagenUrl;
     }
