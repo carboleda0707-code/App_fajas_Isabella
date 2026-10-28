@@ -142,13 +142,17 @@ function cargarCategoriasWeb() {
             const nombreCat = catObj.nombre || catObj.categoria;
             if (!nombreCat) return;
 
-            const rawImg = catObj.imagen_url || catObj.imagen || "";
-            let imgCat = obtenerRutaImagenProducto(rawImg);
+            // --- 🕵️‍♂️ CHIVATO DE CONSOLA WEB ---
+            console.log(`[CHIVATO CATEGORIA] Nombre: "${nombreCat}" | imagen_url cruda:`, catObj.imagen_url);
+
+            let imgCat = obtenerRutaImagenProducto(catObj.imagen_url);
+            
+            console.log(`[CHIVATO CATEGORIA] URL procesada final para "${nombreCat}":`, imgCat);
 
             htmlScroll += `
                 <button onclick="filtrarCategoria('${nombreCat}')" id="btn-cat-${nombreCat}" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none cursor-pointer">
                     <div class="circle-cat w-14 h-14 rounded-full overflow-hidden border-2 border-slate-200 p-0.5 transition-all shadow-xs bg-rose-50 flex items-center justify-center">
-                        <img src="${imgCat}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-cover rounded-full" alt="${nombreCat}">
+                        <img src="${imgCat}" onerror="console.error('❌ Error cargando imagen para:', '${nombreCat}', 'SRC intentado:', this.src); this.onerror=null; this.src='${SVG_FALLBACK}';" class="w-full h-full object-cover rounded-full" alt="${nombreCat}">
                     </div>
                     <span class="text-[10px] font-bold text-slate-700 mt-1 uppercase tracking-tight label-cat">${nombreCat}</span>
                 </button>
