@@ -145,13 +145,19 @@ function cargarCategoriasWeb() {
             const nombreCat = catObj.nombre || catObj.categoria;
             if (!nombreCat) return;
 
+            // 🕵️‍♂️ CHIVATO DE CONSOLA
+            console.log("🕵️‍♂️ [CHIVATO CATEGORIA] Objeto recibido:", catObj);
+            console.log("🕵️‍♂️ [CHIVATO CATEGORIA] Nombre:", nombreCat, "| imagen_url:", catObj.imagen_url, "| imagen:", catObj.imagen, "| foto:", catObj.foto);
+
             const rawImg = catObj.imagen_url || catObj.imagen || catObj.foto || "";
             let imgCat = obtenerRutaImagenProducto(rawImg);
+
+            console.log("🕵️‍♂️ [CHIVATO CATEGORIA] URL final procesada para el gráfico:", imgCat);
 
             htmlScroll += `
                 <button onclick="filtrarCategoria('${nombreCat}')" id="btn-cat-${nombreCat}" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none cursor-pointer group w-20">
                     <div class="circle-cat w-14 h-14 min-w-[3.5rem] min-h-[3.5rem] rounded-full overflow-hidden border-2 border-slate-200 p-0.5 transition-all shadow-xs bg-rose-50 flex items-center justify-center shrink-0">
-                        <img src="${imgCat}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-cover rounded-full" alt="${nombreCat}">
+                        <img src="${imgCat}" onerror="console.error('❌ Error cargando imagen en círculo para:', '${nombreCat}', 'SRC intentado:', this.src); this.onerror=null; this.src='${SVG_FALLBACK}';" class="w-full h-full object-cover rounded-full" alt="${nombreCat}">
                     </div>
                     <span class="text-[9px] font-bold text-slate-700 mt-1 uppercase tracking-tight text-center leading-tight line-clamp-2 w-full">${nombreCat}</span>
                 </button>
