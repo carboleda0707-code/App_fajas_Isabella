@@ -547,8 +547,9 @@ function filtrarCategoria(cat) {
 
     renderizarCatalogo();
 
-    const catalogElem = document.getElementById("catalogo");
-    if (catalogElem && cat !== 'TODAS') {
+    // HACE SCROLL AUTOMÁTICO HACIA EL CATÁLOGO (SECCIÓN 4) EN CUALQUIER CATEGORÍA SELECCIONADA
+    const catalogElem = document.getElementById("catalogo") || document.getElementById("catalog-container");
+    if (catalogElem) {
         catalogElem.scrollIntoView({ behavior: 'smooth' });
     }
 }
