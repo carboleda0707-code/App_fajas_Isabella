@@ -224,7 +224,8 @@ function generarHTMLTarjetaProducto(p) {
 
     return `
         <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:shadow-lg transition flex flex-col justify-between group">
-            <div class="relative bg-slate-50 h-48 w-full flex items-center justify-center p-3 overflow-hidden">
+            <!-- FOTO CON MÁS PRESENCIA (Altura aumentada a h-64 para resaltar la prenda) -->
+            <div class="relative bg-slate-50 h-64 w-full flex items-center justify-center p-3 overflow-hidden">
                 ${badgePromo}
                 <img src="${imgSrc}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-contain group-hover:scale-105 transition-all duration-300" alt="${p.nombre}">
                 <span class="absolute top-2 right-2 bg-slate-900/80 text-white text-[9px] font-bold px-2 py-0.5 rounded-full backdrop-blur-xs">
@@ -244,71 +245,14 @@ function generarHTMLTarjetaProducto(p) {
                         <span class="text-[9px] text-slate-400 block">${(p.en_liquidacion || p.en_oferta) ? 'Precio Oferta' : 'Precio'}</span>
                         ${preciosTextoHtml}
                     </div>
-                    <button onclick="abrirModal(${p.id})" class="bg-slate-900 hover:bg-rose-600 text-white font-bold text-[11px] px-3 py-1.5 rounded-xl transition shadow-xs cursor-pointer">
-                        Ver Tallas
+                    <!-- BOTÓN ACTUALIZADO -->
+                    <button onclick="abrirModal(${p.id})" class="bg-slate-900 hover:bg-rose-600 text-white font-bold text-[10px] px-2.5 py-1.5 rounded-xl transition shadow-xs cursor-pointer">
+                        Ver Tallas y Colores
                     </button>
                 </div>
             </div>
         </div>
     `;
-}
-
-function renderizarCatalogo() {
-    const container = document.getElementById("catalog-container");
-    const contadorElem = document.getElementById("total-productos");
-    if (!container) return;
-
-    if (contadorElem) {
-        contadorElem.innerText = `${productosFiltrados.length} modelos`;
-    }
-
-    if (productosFiltrados.length === 0) {
-        container.innerHTML = `<div class="col-span-full text-center py-12 text-slate-400 text-sm">No encontramos modelos en esta categoría.</div>`;
-    } else {
-        container.innerHTML = productosFiltrados.map(p => generarHTMLTarjetaProducto(p)).join('');
-    }
-
-    const contenedorSeccionesSecundarias = document.getElementById("secciones-secundarias-container");
-    if (contenedorSeccionesSecundarias) {
-        const productosNuevos = productos.filter(p => p.es_nuevo === true);
-        const productosOfertas = productos.filter(p => p.en_oferta === true);
-
-        let htmlSecundario = '';
-
-        if (categoriaSeleccionadaActual !== 'NEW' && productosNuevos.length > 0) {
-            htmlSecundario += `
-                <div class="mt-16 pt-8 border-t border-slate-200">
-                    <div class="flex items-center justify-between mb-6">
-                        <div class="flex items-center gap-2">
-                            <span class="bg-blue-100 text-blue-700 p-2 rounded-xl text-xs"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
-                            <h3 class="text-base font-extrabold text-slate-900">✨ Mira lo Nuevo de Fajas Isabella</h3>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                        ${productosNuevos.map(p => generarHTMLTarjetaProducto(p)).join('')}
-                    </div>
-                </div>
-            `;
-        }
-
-        if (categoriaSeleccionadaActual !== 'OFERTAS' && categoriaSeleccionadaActual !== 'LIQUIDACION' && productosOfertas.length > 0) {
-            htmlSecundario += `
-                <div class="mt-12 pt-8 border-t border-slate-200">
-                    <div class="flex items-center justify-between mb-6">
-                        <div class="flex items-center gap-2">
-                            <span class="bg-amber-100 text-amber-700 p-2 rounded-xl text-xs"><i class="fa-solid fa-tags"></i></span>
-                            <h3 class="text-base font-extrabold text-slate-900">🏷️ ¡Aprovecha nuestras Ofertas Especiales!</h3>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                        ${productosOfertas.map(p => generarHTMLTarjetaProducto(p)).join('')}
-                    </div>
-                </div>
-            `;
-        }
-        
-        contenedorSeccionesSecundarias.innerHTML = htmlSecundario;
-    }
 }
 
 function abrirModal(productoId) {
@@ -363,12 +307,25 @@ function abrirModal(productoId) {
                     <div>
                         <label class="text-xs font-bold text-slate-800 block mb-1">Color:</label>
                         <div class="flex gap-2 flex-wrap" id="selector-colores">
-                            ${colores.map((c, idx) => `
-                                <button onclick="seleccionarColor('${c}')" id="btn-color-${c}" type="button"
-                                    class="btn-color px-3.5 py-1 text-xs rounded-xl font-bold border ${idx === 0 ? 'bg-slate-900 text-white border-slate-900 shadow-xs' : 'bg-white text-slate-700 border-slate-300'} transition cursor-pointer">
-                                    ${c}
-                                </button>
-                            `).join('')}
+                            ${colores.map((c, idx) => {
+                                // Mapeo rápido de colores comunes para el círculo visual
+                                let bgHex = "#1e293b"; // por defecto oscuro/negro
+                                const cLower = c.toLowerCase();
+                                if (cLower.includes('beige') || cLower.includes('nude') || cLower.includes('arena')) bgHex = "#d4b293";
+                                else if (cLower.includes('blanco')) bgHex = "#ffffff";
+                                else if (cLower.includes('azul')) bgHex = "#2563eb";
+                                else if (cLower.includes('vino') || cLower.includes('rojo')) bgHex = "#9f1239";
+                                else if (cLower.includes('gris')) bgHex = "#64748b";
+
+                                const esSeleccionado = idx === 0;
+                                return `
+                                    <button onclick="seleccionarColor('${c}')" id="btn-color-${c}" type="button"
+                                        class="btn-color flex items-center gap-1.5 px-3 py-1 text-xs rounded-xl font-bold border ${esSeleccionado ? 'bg-slate-900 text-white border-slate-900 shadow-xs' : 'bg-white text-slate-700 border-slate-300'} transition cursor-pointer">
+                                        <span class="w-3 h-3 rounded-full border border-slate-300 inline-block shadow-2xs" style="background-color: ${bgHex};"></span>
+                                        <span>${c}</span>
+                                    </button>
+                                `;
+                            }).join('')}
                         </div>
                     </div>
 
