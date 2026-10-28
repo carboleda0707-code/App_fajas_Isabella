@@ -99,7 +99,7 @@ async function cargarInventario() {
 
     productosFiltrados = [...productos];
     
-    cargarCategoriasWeb(); // Asegurar que se pinten las burbujas con o sin datos de API
+    cargarCategoriasWeb();
     renderizarCatalogo();
 }
 
@@ -133,7 +133,6 @@ function cargarCategoriasWeb() {
         <div class="border-t border-slate-100 my-1"></div>
     `;
 
-    // Si ya tenemos categorías oficiales cargadas, las dibujamos
     if (Array.isArray(categoriasOficiales) && categoriasOficiales.length > 0) {
         categoriasOficiales.forEach(catObj => {
             const nombreCat = catObj.nombre || catObj.categoria;
@@ -222,7 +221,7 @@ function generarHTMLTarjetaProducto(p) {
 
     return `
         <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:shadow-lg transition flex flex-col justify-between group">
-            <!-- FOTO CON MÁS PRESENCIA (Altura aumentada a h-64 para resaltar la prenda) -->
+            <!-- FOTO CON MÁS PRESENCIA (h-64) -->
             <div class="relative bg-slate-50 h-64 w-full flex items-center justify-center p-3 overflow-hidden">
                 ${badgePromo}
                 <img src="${imgSrc}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-contain group-hover:scale-105 transition-all duration-300" alt="${p.nombre}">
@@ -251,6 +250,66 @@ function generarHTMLTarjetaProducto(p) {
             </div>
         </div>
     `;
+}
+
+function renderizarCatalogo() {
+    const container = document.getElementById("catalog-container");
+    const contadorElem = document.getElementById("total-productos");
+    if (!container) return;
+
+    if (contadorElem) {
+        contadorElem.innerText = `${productosFiltrados.length} modelos`;
+    }
+
+    if (productosFiltrados.length === 0) {
+        container.innerHTML = `<div class="col-span-full text-center py-12 text-slate-400 text-sm">No encontramos modelos en esta categoría.</div>`;
+    } else {
+        container.innerHTML = productosFiltrados.map(p => generarHTMLTarjetaProducto(p)).join('');
+    }
+
+    const contenedorSeccionesSecundarias = document.getElementById("secciones-secundarias-container");
+    if (contenedorSeccionesSecundarias) {
+        let htmlSecundario = '';
+
+        if (categoriaSeleccionadaActual !== 'TODAS') {
+            const productosNuevos = productos.filter(p => p.es_nuevo === true);
+            const productosOfertas = productos.filter(p => p.en_oferta === true);
+
+            if (categoriaSeleccionadaActual !== 'NEW' && productosNuevos.length > 0) {
+                htmlSecundario += `
+                    <div class="mt-16 pt-8 border-t border-slate-200">
+                        <div class="flex items-center justify-between mb-6">
+                            <div class="flex items-center gap-2">
+                                <span class="bg-blue-100 text-blue-700 p-2 rounded-xl text-xs"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+                                <h3 class="text-base font-extrabold text-slate-900">✨ Mira lo Nuevo de Fajas Isabella</h3>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                            ${productosNuevos.map(p => generarHTMLTarjetaProducto(p)).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (categoriaSeleccionadaActual !== 'OFERTAS' && categoriaSeleccionadaActual !== 'LIQUIDACION' && productosOfertas.length > 0) {
+                htmlSecundario += `
+                    <div class="mt-12 pt-8 border-t border-slate-200">
+                        <div class="flex items-center justify-between mb-6">
+                            <div class="flex items-center gap-2">
+                                <span class="bg-amber-100 text-amber-700 p-2 rounded-xl text-xs"><i class="fa-solid fa-tags"></i></span>
+                                <h3 class="text-base font-extrabold text-slate-900">🏷️ ¡Aprovecha nuestras Ofertas Especiales!</h3>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                            ${productosOfertas.map(p => generarHTMLTarjetaProducto(p)).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        contenedorSeccionesSecundarias.innerHTML = htmlSecundario;
+    }
 }
 
 function abrirModal(productoId) {
@@ -303,11 +362,10 @@ function abrirModal(productoId) {
                     </div>
 
                     <div>
-                        <label class="text-xs font-bold text-slate-800 block mb-1">Color:</label>
+                        <label class="text-xs font-bold text-slate-800 block mb-1">Color (Círculos Interactivos):</label>
                         <div class="flex gap-2 flex-wrap" id="selector-colores">
                             ${colores.map((c, idx) => {
-                                // Mapeo rápido de colores comunes para el círculo visual
-                                let bgHex = "#1e293b"; // por defecto oscuro/negro
+                                let bgHex = "#1e293b";
                                 const cLower = c.toLowerCase();
                                 if (cLower.includes('beige') || cLower.includes('nude') || cLower.includes('arena')) bgHex = "#d4b293";
                                 else if (cLower.includes('blanco')) bgHex = "#ffffff";
@@ -502,7 +560,6 @@ function filtrarCategoria(cat) {
 
     renderizarCatalogo();
 
-    // HACE SCROLL AUTOMÁTICO HACIA EL CATÁLOGO (SECCIÓN 4) EN CUALQUIER CATEGORÍA SELECCIONADA
     const catalogElem = document.getElementById("catalogo") || document.getElementById("catalog-container");
     if (catalogElem) {
         catalogElem.scrollIntoView({ behavior: 'smooth' });

@@ -86,20 +86,18 @@
             <!-- 3. BARRA SECUNDARIA DE CATEGORÍAS -->
             <div class="bg-white border-b border-slate-200 py-3 relative">
                 <div class="max-w-7xl mx-auto px-2 relative flex items-center">
-                    <button onclick="scrollCategorias(-180)" class="absolute left-1 z-20 w-7 h-7 rounded-full bg-white shadow-md border border-slate-200 flex items-center justify-center text-slate-700 hover:text-rose-600 hover:scale-110 transition shrink-0">
+                    <button onclick="scrollCategorias(-180)" class="absolute left-1 z-20 w-7 h-7 rounded-full bg-white shadow-md border border-slate-200 flex items-center justify-center text-slate-700 hover:text-rose-600 hover:scale-110 transition shrink-0 cursor-pointer">
                         <i class="fa-solid fa-chevron-left text-[11px]"></i>
                     </button>
                     <div id="categorias-scroll" class="overflow-x-auto no-scrollbar scroll-smooth flex items-center space-x-4 py-1 px-8 w-full select-none"></div>
-                        <div class="text-xs text-slate-400 py-2">Cargando categorías oficiales...</div>
-                    </div>
-                    <button onclick="scrollCategorias(180)" class="absolute right-1 z-20 w-7 h-7 rounded-full bg-white shadow-md border border-slate-200 flex items-center justify-center text-slate-700 hover:text-rose-600 hover:scale-110 transition shrink-0">
+                    <button onclick="scrollCategorias(180)" class="absolute right-1 z-20 w-7 h-7 rounded-full bg-white shadow-md border border-slate-200 flex items-center justify-center text-slate-700 hover:text-rose-600 hover:scale-110 transition shrink-0 cursor-pointer">
                         <i class="fa-solid fa-chevron-right text-[11px]"></i>
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- 4. CONTENIDO PRINCIPAL (CATÁLOGO Y HOME DINÁMICO) -->
+        <!-- 4. CONTENIDO PRINCIPAL (HOME DINÁMICO Y CATÁLOGO) -->
         <div id="home-dinamico-container" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6"></div>
 
         <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -191,7 +189,7 @@
         </div>
     </div>
 
-    <!-- MODAL FLOTANTE DE INSTAGRAM (GLOBAL) -->
+    <!-- MODAL FLOTANTE DE INSTAGRAM -->
     <div id="instagram-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm hidden p-4">
         <div class="bg-white rounded-3xl max-w-lg w-full p-6 relative shadow-2xl border border-rose-100 flex flex-col items-center">
             <button onclick="cerrarModalInstagram()" class="absolute top-4 right-4 w-9 h-9 rounded-full bg-slate-100 hover:bg-rose-600 hover:text-white text-slate-700 font-bold flex items-center justify-center transition cursor-pointer">
@@ -202,12 +200,8 @@
                     <i class="fa-brands fa-instagram"></i> Fajas Isabella Oficial
                 </span>
             </div>
-            <div id="modal-ig-container" class="w-full flex justify-center max-h-[480px] overflow-y-auto bg-slate-50 rounded-2xl p-2">
-                <!-- Se carga dinámicamente -->
-            </div>
-            <p class="text-[11px] text-slate-400 mt-4 text-center">
-                Publicación oficial sincronizada desde @fajasisabella.ec
-            </p>
+            <div id="modal-ig-container" class="w-full flex justify-center max-h-[480px] overflow-y-auto bg-slate-50 rounded-2xl p-2"></div>
+            <p class="text-[11px] text-slate-400 mt-4 text-center">Publicación oficial sincronizada desde @fajasisabella.ec</p>
         </div>
     </div>
     <script async src="//www.instagram.com/embed.js"></script>
@@ -234,9 +228,6 @@
                     <button id="btnPedidoWapp" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition cursor-pointer">
                         <i class="fa-brands fa-whatsapp text-xl"></i><span>Pedido y Pago por WhatsApp</span>
                     </button>
-                    <button onclick="iniciarPagoPaymentez()" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-rose-600/20 transition cursor-pointer">
-                        <i class="fa-solid fa-credit-card text-xl"></i><span>Pagar con Tarjeta (Paymentez)</span>
-                    </button>
                     <button onclick="toggleCarrito()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2.5 rounded-xl flex items-center justify-center gap-2 transition cursor-pointer">
                         <i class="fa-solid fa-arrow-left"></i><span>Seguir Comprando</span>
                     </button>
@@ -252,7 +243,6 @@
                 <h3 style="margin:0; color:#1e293b; font-size:16px; font-weight:800;">📦 Finalizar Pedido por WhatsApp</h3>
                 <button onclick="cerrarModalCheckout()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#64748b;">&times;</button>
             </div>
-            
             <form id="formCheckoutWapp" onsubmit="procesarPedidoWapp(event)">
                 <h4 style="margin:0 0 8px 0; color:#334155; font-size:13px; font-weight:bold; border-bottom:1px solid #e2e8f0; padding-bottom:4px;">1. Datos Personales</h4>
                 <div style="margin-bottom:10px;">
@@ -303,19 +293,18 @@
                 </div>
 
                 <div style="margin-bottom:15px; background:#f8fafc; padding:12px; border-radius:8px; border:1px dashed #cbd5e1;">
-                    <label style="font-size:12px; font-weight:bold; color:#1e293b; display:block; margin-bottom:4px;">📸 Subir Comprobante de Pago (Transferencia / Depósito):</label>
+                    <label style="font-size:12px; font-weight:bold; color:#1e293b; display:block; margin-bottom:4px;">📸 Subir Comprobante de Pago:</label>
                     <input type="file" id="wapp_comprobante" accept="image/*,application/pdf" style="width:100%; font-size:11px; color:#475569;">
-                    <small style="color:#64748b; font-size:10px; display:block; margin-top:3px;">Adjunta la foto del voucher o el PDF de la transferencia bancaria.</small>
                 </div>
 
-                <button type="submit" style="width:100%; background:#16a34a; color:white; border:none; padding:12px; font-size:14px; font-weight:bold; border-radius:8px; cursor:pointer; transition:background 0.2s;">
+                <button type="submit" style="width:100%; background:#16a34a; color:white; border:none; padding:12px; font-size:14px; font-weight:bold; border-radius:8px; cursor:pointer;">
                     ✅ Registrar y Enviar Pedido por WhatsApp
                 </button>
             </form>
         </div>
     </div>
 
-    <!-- MODAL DE AUTENTICACIÓN (LOGIN / REGISTRO) -->
+    <!-- MODAL DE AUTENTICACIÓN -->
     <div id="modal-auth" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto no-scrollbar">
             <button onclick="cerrarModalAuth()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
@@ -361,27 +350,6 @@
         </div>
     </div>
 
-    <!-- MODAL: CONFIGURAR CONTRASEÑA POR PRIMERA VEZ -->
-    <div id="modal-config-password" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl p-6 relative">
-            <h3 class="text-base font-extrabold text-slate-900 mb-1">🔒 Configurar tu Contraseña</h3>
-            <p class="text-xs text-slate-500 mb-4">Detectamos que realizaste compras por transferencia. Establece una contraseña para activar tu acceso web.</p>
-            <form onsubmit="ejecutarConfigurarPassword(event)" class="space-y-3">
-                <input type="hidden" id="config-correo">
-                <div>
-                    <label class="text-xs font-bold text-slate-700 block mb-1">Nueva Contraseña</label>
-                    <input type="password" id="config-pass" required class="w-full bg-slate-100 text-xs rounded-xl p-3 border border-slate-200 outline-none focus:border-rose-500">
-                </div>
-                <div>
-                    <label class="text-xs font-bold text-slate-700 block mb-1">Confirmar Contraseña</label>
-                    <input type="password" id="config-pass-confirm" required class="w-full bg-slate-100 text-xs rounded-xl p-3 border border-slate-200 outline-none focus:border-rose-500">
-                </div>
-                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-3 rounded-xl shadow-md transition cursor-pointer">Guardar y Activar Cuenta</button>
-                <button type="button" onclick="document.getElementById('modal-config-password').classList.add('hidden')" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs py-2.5 rounded-xl transition cursor-pointer">Cancelar</button>
-            </form>
-        </div>
-    </div>
-
     <!-- MODAL DE PERFIL -->
     <div id="modal-perfil" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl p-6 relative max-h-[85vh] flex flex-col">
@@ -405,7 +373,7 @@
         </div>
     </div>
 
-    <!-- SCRIPT DE MODAL DE INSTAGRAM GLOBAL -->
+    <!-- SCRIPTS DE APOYO Y CHECKOUT -->
     <script>
         let globalInstagramEmbed = "";
 
@@ -429,21 +397,9 @@
 
         window.cerrarModalInstagram = function() {
             const modal = document.getElementById('instagram-modal');
-            if (modal) {
-                modal.classList.add('hidden');
-            }
+            if (modal) modal.classList.add('hidden');
         };
 
-        document.addEventListener('click', (e) => {
-            const modal = document.getElementById('instagram-modal');
-            if (modal && e.target === modal) {
-                window.cerrarModalInstagram();
-            }
-        });
-    </script>
-
-    <!-- SCRIPT DE INTERACCIÓN MODAL Y CHECKOUT -->
-    <script>
         document.addEventListener('click', function(e) {
             if (e.target && (e.target.id === 'btnPedidoWapp' || e.target.closest('#btnPedidoWapp'))) {
                 e.preventDefault();
@@ -452,30 +408,18 @@
                     alert("Tu carrito está vacío.");
                     return;
                 }
-
                 const usuarioStr = localStorage.getItem('usuario_fajas');
                 if (usuarioStr) {
                     try {
                         const usuario = JSON.parse(usuarioStr);
                         if (usuario) {
-                            if (document.getElementById('wapp_nombre') && usuario.nombre) {
-                                document.getElementById('wapp_nombre').value = usuario.nombre;
-                            }
-                            if (document.getElementById('wapp_telefono') && usuario.telefono) {
-                                document.getElementById('wapp_telefono').value = usuario.telefono;
-                            }
-                            if (document.getElementById('wapp_correo') && usuario.correo) {
-                                document.getElementById('wapp_correo').value = usuario.correo;
-                            }
-                            if (document.getElementById('wapp_direccion') && usuario.direccion) {
-                                document.getElementById('wapp_direccion').value = usuario.direccion;
-                            }
+                            if (document.getElementById('wapp_nombre') && usuario.nombre) document.getElementById('wapp_nombre').value = usuario.nombre;
+                            if (document.getElementById('wapp_telefono') && usuario.telefono) document.getElementById('wapp_telefono').value = usuario.telefono;
+                            if (document.getElementById('wapp_correo') && usuario.correo) document.getElementById('wapp_correo').value = usuario.correo;
+                            if (document.getElementById('wapp_direccion') && usuario.direccion) document.getElementById('wapp_direccion').value = usuario.direccion;
                         }
-                    } catch (err) {
-                        console.error("Error al leer datos del usuario logueado", err);
-                    }
+                    } catch (err) { console.error(err); }
                 }
-
                 document.getElementById('modalWhatsAppCheckout').style.display = 'flex';
             }
         });
@@ -487,10 +431,7 @@
         async function procesarPedidoWapp(e) {
             e.preventDefault();
             const productosCarrito = (typeof carrito !== 'undefined' && carrito.length > 0) ? carrito : [];
-            if (productosCarrito.length === 0) {
-                alert("Tu carrito está vacío.");
-                return;
-            }
+            if (productosCarrito.length === 0) { alert("Tu carrito está vacío."); return; }
 
             const formData = new FormData();
             formData.append('nombre', document.getElementById('wapp_nombre').value);
@@ -505,47 +446,29 @@
             formData.append('items', JSON.stringify(productosCarrito));
 
             const inputFile = document.getElementById('wapp_comprobante');
-            if (inputFile.files[0]) {
-                formData.append('comprobante', inputFile.files[0]);
-            }
+            if (inputFile.files[0]) formData.append('comprobante', inputFile.files[0]);
 
             try {
-                const response = await fetch('/api/web/auth/checkout-whatsapp', {
-                    method: 'POST',
-                    body: formData
-                });
+                const response = await fetch('/api/web/auth/checkout-whatsapp', { method: 'POST', body: formData });
                 const resultado = await response.json();
-                
                 if (response.ok) {
                     window.open(resultado.whatsapp_url, '_blank');
-                    
                     carrito = [];
-                    if (typeof actualizarCarritoUI === 'function') {
-                        actualizarCarritoUI();
-                    }
-                    
+                    if (typeof actualizarCarritoUI === 'function') actualizarCarritoUI();
                     document.getElementById('formCheckoutWapp').reset();
                     cerrarModalCheckout();
-                    
-                    const drawer = document.getElementById('drawer-carrito');
-                    if (drawer) {
-                        drawer.classList.add('hidden');
-                    }
-
+                    document.getElementById('drawer-carrito').classList.add('hidden');
                     alert("¡Pedido registrado con éxito! Redirigiendo a WhatsApp...");
                 } else {
-                    alert("Error al procesar el pedido: " + (resultado.detail || "Error desconocido"));
+                    alert("Error al procesar el pedido: " + (resultado.detail || "Error"));
                 }
-            } catch (err) {
-                alert("Error de conexión con el servidor.");
-            }
+            } catch (err) { alert("Error de conexión con el servidor."); }
         }
 
         async function ejecutarLogin(event) {
             event.preventDefault();
             const correo = document.getElementById('login-correo').value;
             const password = document.getElementById('login-password').value;
-
             try {
                 const res = await fetch('/api/web/auth/login', {
                     method: 'POST',
@@ -553,37 +476,19 @@
                     body: JSON.stringify({ correo, password })
                 });
                 const data = await res.json();
-
-                if (data.status === 'requiere_password') {
-                    cerrarModalAuth();
-                    if (document.getElementById('config-correo')) {
-                        document.getElementById('config-correo').value = data.correo || correo;
-                    }
-                    const modalConfig = document.getElementById('modal-config-password');
-                    if (modalConfig) {
-                        modalConfig.classList.remove('hidden');
-                    }
-                    return;
-                }
-
                 if (res.ok && data.status === 'success') {
                     localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
                     cerrarModalAuth();
-                    if (typeof actualizarBotonCuentaNav === 'function') {
-                        actualizarBotonCuentaNav();
-                    }
+                    if (typeof actualizarBotonCuentaNav === 'function') actualizarBotonCuentaNav();
                     alert(data.mensaje || "¡Bienvenido!");
                 } else {
                     alert("Error: " + (data.detail || "Credenciales incorrectas."));
                 }
-            } catch (e) {
-                alert("Error de conexión con el servidor.");
-            }
+            } catch (e) { alert("Error de conexión."); }
         }
 
         async function ejecutarRegistro(event) {
             event.preventDefault();
-
             const nombre = document.getElementById('reg-nombre').value;
             const correo = document.getElementById('reg-correo').value;
             const password = document.getElementById('reg-password').value;
@@ -591,10 +496,7 @@
             const telefono = document.getElementById('reg-telefono').value;
             const direccion = document.getElementById('reg-direccion').value;
 
-            if (password !== passwordConfirm) {
-                alert("⚠️ Las contraseñas no coinciden.");
-                return;
-            }
+            if (password !== passwordConfirm) { alert("⚠️ Las contraseñas no coinciden."); return; }
 
             try {
                 const res = await fetch('/api/web/auth/registro', {
@@ -603,57 +505,19 @@
                     body: JSON.stringify({ nombre, correo, password, telefono, direccion })
                 });
                 const data = await res.json();
-
                 if (res.ok && data.status === 'success') {
                     localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
                     cerrarModalAuth();
-                    if (typeof actualizarBotonCuentaNav === 'function') {
-                        actualizarBotonCuentaNav();
-                    }
+                    if (typeof actualizarBotonCuentaNav === 'function') actualizarBotonCuentaNav();
                     alert(data.mensaje || "¡Registro exitoso!");
                 } else {
-                    let msg = data.detail || "Error al registrarse";
-                    if (typeof msg === 'object') msg = JSON.stringify(msg);
-                    alert("Error: " + msg);
+                    alert("Error: " + (data.detail || "Error al registrarse"));
                 }
-            } catch (e) {
-                alert("Error de conexión con el servidor.");
-            }
-        }
-
-        async function ejecutarConfigurarPassword(event) {
-            event.preventDefault();
-            const correo = document.getElementById('config-correo').value;
-            const password = document.getElementById('config-pass').value;
-            const password_confirm = document.getElementById('config-pass-confirm').value;
-
-            if (password !== password_confirm) {
-                alert("⚠️ Las contraseñas no coinciden.");
-                return;
-            }
-
-            try {
-                const res = await fetch('/api/web/auth/configurar-password', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ correo, password, password_confirm })
-                });
-                const data = await res.json();
-
-                if (res.ok) {
-                    alert("✅ Contraseña configurada exitosamente. Ya puede iniciar sesión.");
-                    document.getElementById('modal-config-password').classList.add('hidden');
-                    abrirModalAuth();
-                } else {
-                    alert("Error: " + (data.detail || "No se pudo configurar la contraseña"));
-                }
-            } catch (e) {
-                alert("Error de conexión.");
-            }
+            } catch (e) { alert("Error de conexión."); }
         }
     </script>
 
-    <!-- ENLACES A LOS ARCHIVOS JS EXTERNOS -->
+    <!-- ARCHIVOS JS EXTERNOS -->
     <script src="tienda.js"></script>
     <script src="home.js" defer></script>
 </body>
