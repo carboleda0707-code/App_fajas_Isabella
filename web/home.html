@@ -3,6 +3,7 @@
     <!-- SECCIÓN 1: HISTORIA -->
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-4">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <!-- Columna Izquierda: Video o Imagen Dinámica -->
             <div class="relative rounded-3xl overflow-hidden shadow-xl bg-slate-100 flex items-center justify-center h-[290px] sm:h-[340px] lg:h-[390px] max-w-md mx-auto lg:max-w-none w-full">
                 <video id="home-historia-video" autoplay muted loop playsinline class="w-full h-full object-cover rounded-3xl" style="display:none;">
                     <source id="home-historia-video-source" src="" type="video/mp4">
@@ -10,6 +11,7 @@
                 <img id="home-historia-img" src="img/banner_historia.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=800&q=80'" alt="Historia Fajas Isabella" class="w-full h-full object-cover rounded-3xl transition-transform duration-500 hover:scale-105">
             </div>
 
+            <!-- Columna Derecha: Título, Subtítulo y Párrafos -->
             <div class="flex flex-col justify-center space-y-4">
                 <div>
                     <span class="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-1">Conoce nuestra...</span>
@@ -27,7 +29,7 @@
     </section>
 
     <!-- SECCIÓN 2: TESTIMONIOS Y REDES -->
-    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-12">
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-12 border-t border-slate-200">
         <div class="text-center max-w-2xl mx-auto mb-10">
             <span class="text-xs font-bold text-rose-600 uppercase tracking-wider">Comunidad y Confianza</span>
             <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1">Belleza y Directos</h2>
@@ -35,6 +37,7 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
+            <!-- Columna 1: Instagram Embed Controlado -->
             <div class="bg-white border border-rose-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between relative overflow-hidden h-full">
                 <div>
                     <div class="flex items-center justify-between mb-3">
@@ -46,11 +49,14 @@
                     <h3 class="text-lg font-extrabold text-slate-900 mb-1">Reel Destacado en Directo</h3>
                 </div>
 
-                <div id="instagram-embed-container" class="w-full bg-slate-50 rounded-2xl p-1 my-2 overflow-hidden flex justify-center items-start max-h-[360px] border border-slate-100"></div>
+                <div id="instagram-embed-container" class="w-full bg-slate-50 rounded-2xl p-1 my-2 overflow-hidden flex justify-center items-start max-h-[360px] border border-slate-100">
+                    <!-- El embed de IG se inyecta aquí -->
+                </div>
 
                 <p class="text-[10px] text-slate-400 text-center mt-2">Publicación oficial sincronizada desde @fajasisabella.ec</p>
             </div>
 
+            <!-- Columna 2: TikTok Live -->
             <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white border border-slate-800 rounded-3xl p-6 shadow-md flex flex-col justify-between relative overflow-hidden group h-full">
                 <div class="absolute top-0 right-0 transform translate-x-4 -translate-y-4 w-24 h-24 bg-rose-500/20 rounded-full blur-xl pointer-events-none"></div>
                 <div>
@@ -74,8 +80,22 @@
     <script async src="//www.instagram.com/embed.js"></script>
 </div>
 
-<!-- SECCIÓN 3: PUBLICIDAD (DESTACADOS DE TEMPORADA) -->
-<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<!-- SECCIÓN 4: CATÁLOGO DE PRENDAS (ANTES DE LA PUBLICIDAD) -->
+<section id="catalogo" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 border-t border-slate-200">
+    <div class="flex items-center justify-between mb-6">
+        <h2 id="titulo-categoria" class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">Todas las Prendas Disponibles</h2>
+        <span id="total-productos" class="text-xs bg-slate-200 text-slate-700 px-3 py-1 rounded-full font-semibold">0 modelos</span>
+    </div>
+
+    <!-- Contenedor del Catálogo -->
+    <div id="catalog-container" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"></div>
+
+    <!-- Contenedor dinámico secundario para Nuevos y Ofertas -->
+    <div id="secciones-secundarias-container"></div>
+</section>
+
+<!-- SECCIÓN 3: PUBLICIDAD (DESPUÉS DEL CATÁLOGO) -->
+<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t border-slate-200">
     <div class="text-center max-w-2xl mx-auto mb-10">
         <span class="text-xs font-bold text-rose-600 uppercase tracking-wider">Promociones y Estilos</span>
         <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1">Destacados de Temporada</h2>
