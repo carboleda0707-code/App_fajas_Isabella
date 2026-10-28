@@ -270,8 +270,19 @@ async def crear_categoria(nombre: str = Form(...), imagen: Optional[UploadFile] 
     try:
         cat_nom = nombre.strip().upper()
         img_rel = ""
+        
+        # --- CHIVATO PARA LA IMAGEN DE CATEGORÍA ---
+        print(f"--- [CHIVATO CATEGORÍA] ---")
+        print(f"Nombre recibido: '{cat_nom}'")
+        if imagen:
+            print(f"Archivo recibido: {imagen.filename}, Content-Type: {imagen.content_type}")
+        else:
+            print("❌ No se recibió ningún archivo 'imagen' en el formulario.")
+        
+
         if imagen and imagen.filename:
             img_rel = await subir_archivo_a_nube(imagen, folder="fajas_isabella/categorias")
+            print(f"URL generada por Cloudinary: '{img_rel}'")
             
         cat_db = db.query(Categoria).filter(Categoria.nombre == cat_nom).first()
         if cat_db: 
@@ -283,6 +294,7 @@ async def crear_categoria(nombre: str = Form(...), imagen: Optional[UploadFile] 
         return {"status": "success", "message": f"Categoría '{cat_nom}' guardada."}
     except Exception as e:
         db.rollback()
+        print(f"❌ [ERROR CREAR CATEGORIA]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/categorias/{cat_id}")
