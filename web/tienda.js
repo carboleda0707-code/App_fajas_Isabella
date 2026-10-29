@@ -57,7 +57,7 @@ function siguienteSlide() {
 function irASlide(index) {
     currentSlide = index;
     mostrarSlide(currentSlide);
-    iniciarHeroSlider(); // Reinicia el temporizador de 2 segundos tras clic manual
+    iniciarHeroSlider(); 
 }
 
 function mostrarSlide(index) {
@@ -117,7 +117,7 @@ async function cargarConfiguracionHomeDinamica() {
                         } else if (rawImg.startsWith("/")) {
                             imgUrl = rawImg;
                         } else if (rawImg !== "") {
-                            imgUrl = `/img/${rawImg}`;
+                            imgUrl = obtenerRutaImagenProducto(rawImg);
                         } else {
                             imgUrl = slidesDefault[i - 1].imagen;
                         }
@@ -137,7 +137,7 @@ async function cargarConfiguracionHomeDinamica() {
             }
         }
     } catch (e) {
-        console.warn("Aviso: Usando configuración por defecto por error en API Home Config:", e);
+        console.warn("Aviso: Usando configuración por defecto en slider:", e);
     }
 
     // Renderizar Slides y Dots
@@ -257,12 +257,7 @@ async function inicializarTienda() {
     await cargarSeccionInicio();
     
     setTimeout(async () => {
-        if (typeof window.inicializarHome === 'function') {
-            window.inicializarHome();
-        }
         await cargarInventario();
-        
-        // Estado inicial por defecto: Mostrar bienvenida (Inicio) y ocultar catálogo
         irAInicio();
     }, 100);
     
@@ -1113,4 +1108,6 @@ async function cerrarSesion() {
 }
 
 // Inicializa la tienda al cargar el script
-inicializarTienda();
+document.addEventListener("DOMContentLoaded", () => {
+    inicializarTienda();
+});
