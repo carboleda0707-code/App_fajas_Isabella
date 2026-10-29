@@ -88,142 +88,165 @@ function mostrarSlide(index) {
 
 // --- CARGAR CONFIGURACIÓN DINÁMICA DE LA BD (SECCIÓN 0.5, 1, 2, 3) ---
 async function cargarConfiguracionHomeDinamica() {
+    // Slides de respaldo por defecto para evitar pantallas negras si la BD está vacía
+    const slidesDefault = [
+        { tag: "Alta Compresión", titulo: "Moldea tu Figura al Instante", descripcion: "Descubre la nueva línea de fajas reductoras y postoperatorias de máxima comodidad.", btn_texto: "Ver Colección →", imagen: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80" },
+        { tag: "Calidad Colombiana", titulo: "Recuperación y Cuidado Seguro", descripcion: "Diseños especializados con microcápsulas y costuras invisibles para tu diario vivir.", btn_texto: "Explorar Modelos →", imagen: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=80" },
+        { tag: "Efecto Cintura", titulo: "Definición Reloj de Arena", descripcion: "Cinturillas de látex térmico ideales para moldear postura y reducir medidas.", btn_texto: "Ver Cinturillas →", imagen: "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1200&q=80" },
+        { tag: "Envíos Seguros", titulo: "Envíos Directos a Todo Ecuador", descripcion: "Garantía de fábrica directa hasta la puerta de tu hogar.", btn_texto: "Comprar Ahora →", imagen: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=80" }
+    ];
+
+    let slidesUsar = slidesDefault;
+
     try {
         const res = await fetch(API_HOME_CONFIG);
-        if (!res.ok) return;
-        const data = await res.json();
+        if (res.ok) {
+            const data = await res.json();
+            if (data.sec05 && typeof data.sec05 === 'object') {
+                let slidesDinamicos = [];
+                for (let i = 1; i <= 4; i++) {
+                    const slide = data.sec05[`slide${i}`];
+                    if (slide && slide.titulo) {
+                        let rawImg = slide.imagen || "";
+                        let imgUrl = "";
 
-        // 1. Sección 0.5 (Banner Slider)
-        if (data.sec05) {
-            let slidesHtml = '';
-            let dotsHtml = '';
+                        if (rawImg.startsWith("http://") || rawImg.startsWith("https://")) {
+                            imgUrl = rawImg;
+                        } else if (rawImg.startsWith("/")) {
+                            imgUrl = rawImg;
+                        } else if (rawImg !== "") {
+                            imgUrl = `/img/${rawImg}`;
+                        } else {
+                            imgUrl = slidesDefault[i - 1].imagen;
+                        }
 
-            for (let i = 1; i <= 4; i++) {
-                const slide = data.sec05[`slide${i}`];
-                if (!slide) continue;
-
-                // Usa la misma lógica de URL de los catálogos (Cloudinary / local / fallback)
-                let rawImg = slide.imagen || "";
-                let imgUrl = "";
-
-                if (rawImg.startsWith("http://") || rawImg.startsWith("https://")) {
-                    imgUrl = rawImg;
-                } else if (rawImg.startsWith("/")) {
-                    imgUrl = rawImg;
-                } else {
-                    // Si viene solo el nombre del archivo guardado desde Streamlit
-                    imgUrl = `/img/${rawImg}`;
+                        slidesDinamicos.push({
+                            tag: slide.tag || "Colección",
+                            titulo: slide.titulo,
+                            descripcion: slide.descripcion || "",
+                            btn_texto: slide.btn_texto || "Ver Colección →",
+                            imagen: imgUrl
+                        });
+                    }
                 }
-                let isActive = i === 1 ? 'opacity-100' : 'opacity-0';
-
-                slidesHtml += `
-                    <div class="hero-slide absolute inset-0 ${isActive} transition-opacity duration-700 ease-in-out">
-                        <img src="${imgUrl}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-cover" alt="${slide.titulo}">
-                        <div class="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-950/40 to-transparent flex items-center p-6 sm:p-10">
-                            <div class="max-w-lg text-white space-y-2">
-                                <span class="bg-rose-600 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">${slide.tag}</span>
-                                <h2 class="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight">${slide.titulo}</h2>
-                                <p class="text-xs sm:text-sm text-slate-200">${slide.descripcion}</p>
-                                <button onclick="filtrarCategoria('TODAS')" class="mt-2 inline-block bg-white text-slate-900 hover:bg-rose-600 hover:text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-md">${slide.btn_texto}</button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-
-                dotsHtml += `
-                    <button onclick="irASlide(${i - 1})" class="hero-dot w-2.5 h-2.5 rounded-full ${i === 1 ? 'bg-white opacity-100' : 'bg-white/50 opacity-60'} transition-all"></button>
-                `;
+                if (slidesDinamicos.length > 0) {
+                    slidesUsar = slidesDinamicos;
+                }
             }
-
-            const sliderContainer = document.getElementById('hero-slider-container');
-            const dotsContainer = document.getElementById('hero-dots-container');
-            if (sliderContainer) sliderContainer.innerHTML = slidesHtml;
-            if (dotsContainer) dotsContainer.innerHTML = dotsHtml;
-
-            iniciarHeroSlider();
         }
+    } catch (e) {
+        console.warn("Aviso: Usando slides por defecto por error en API Home Config:", e);
+    }
 
-        // 2. Sección 1 (Historia y Multimedia)
-        if (data.sec1) {
-            const s1 = data.sec1;
-            if (document.getElementById('sec1-titulo')) document.getElementById('sec1-titulo').innerText = s1.titulo || "HISTORIA";
-            if (document.getElementById('sec1-subtitulo')) document.getElementById('sec1-subtitulo').innerText = s1.subtitulo || "";
-            if (document.getElementById('sec1-p1')) document.getElementById('sec1-p1').innerText = s1.parrafo1 || "";
-            if (document.getElementById('sec1-p2')) document.getElementById('sec1-p2').innerText = s1.parrafo2 || "";
-            if (document.getElementById('sec1-p3')) document.getElementById('sec1-p3').innerText = s1.parrafo3 || "";
+    // Renderizar Slides y Dots de forma limpia
+    let slidesHtml = '';
+    let dotsHtml = '';
 
-            const mediaName = s1.multimedia || "banner_historia.jpg";
-            const mediaUrl = obtenerRutaImagenProducto(mediaName);
-            const imgElem = document.getElementById('home-historia-img');
-            const vidElem = document.getElementById('home-historia-video');
-            const sourceElem = document.getElementById('home-historia-video-source');
+    slidesUsar.forEach((slide, idx) => {
+        let isActive = idx === 0 ? 'opacity-100' : 'opacity-0';
+        slidesHtml += `
+            <div class="hero-slide absolute inset-0 ${isActive} transition-opacity duration-700 ease-in-out">
+                <img src="${slide.imagen}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-cover" alt="${slide.titulo}">
+                <div class="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-950/40 to-transparent flex items-center p-6 sm:p-10">
+                    <div class="max-w-lg text-white space-y-2">
+                        <span class="bg-rose-600 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">${slide.tag}</span>
+                        <h2 class="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight">${slide.titulo}</h2>
+                        <p class="text-xs sm:text-sm text-slate-200">${slide.descripcion}</p>
+                        <button onclick="filtrarCategoria('TODAS')" class="mt-2 inline-block bg-white text-slate-900 hover:bg-rose-600 hover:text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-md">${slide.btn_texto}</button>
+                    </div>
+                </div>
+            </div>
+        `;
 
-            if (mediaName.endsWith('.mp4')) {
-                if (imgElem) imgElem.style.display = 'none';
-                if (vidElem && sourceElem) {
-                    sourceElem.src = mediaUrl;
-                    vidElem.style.display = 'block';
-                    vidElem.load();
+        dotsHtml += `
+            <button onclick="irASlide(${idx})" class="hero-dot w-2.5 h-2.5 rounded-full ${idx === 0 ? 'bg-white opacity-100' : 'bg-white/50 opacity-60'} transition-all"></button>
+        `;
+    });
+
+    const sliderContainer = document.getElementById('hero-slider-container');
+    const dotsContainer = document.getElementById('hero-dots-container');
+    if (sliderContainer) sliderContainer.innerHTML = slidesHtml;
+    if (dotsContainer) dotsContainer.innerHTML = dotsHtml;
+
+    iniciarHeroSlider();
+
+    // 2. Sección 1 (Historia y Multimedia)
+    if (data && data.sec1) {
+        const s1 = data.sec1;
+        if (document.getElementById('sec1-titulo')) document.getElementById('sec1-titulo').innerText = s1.titulo || "HISTORIA";
+        if (document.getElementById('sec1-subtitulo')) document.getElementById('sec1-subtitulo').innerText = s1.subtitulo || "";
+        if (document.getElementById('sec1-p1')) document.getElementById('sec1-p1').innerText = s1.parrafo1 || "";
+        if (document.getElementById('sec1-p2')) document.getElementById('sec1-p2').innerText = s1.parrafo2 || "";
+        if (document.getElementById('sec1-p3')) document.getElementById('sec1-p3').innerText = s1.parrafo3 || "";
+
+        const mediaName = s1.multimedia || "banner_historia.jpg";
+        const mediaUrl = obtenerRutaImagenProducto(mediaName);
+        const imgElem = document.getElementById('home-historia-img');
+        const vidElem = document.getElementById('home-historia-video');
+        const sourceElem = document.getElementById('home-historia-video-source');
+
+        if (mediaName.endsWith('.mp4')) {
+            if (imgElem) imgElem.style.display = 'none';
+            if (vidElem && sourceElem) {
+                sourceElem.src = mediaUrl;
+                vidElem.style.display = 'block';
+                vidElem.load();
+            }
+        } else {
+            if (vidElem) vidElem.style.display = 'none';
+            if (imgElem) {
+                imgElem.src = mediaUrl;
+                imgElem.style.display = 'block';
+            }
+        }
+    }
+
+    // 3. Sección 2 (Instagram y TikTok)
+    if (data && data.sec2) {
+        const s2 = data.sec2;
+        const igContainer = document.getElementById('instagram-embed-container');
+        if (igContainer && s2.instagram_embed) {
+            igContainer.innerHTML = s2.instagram_embed;
+            if (window.instgrm) window.instgrm.Embeds.process();
+        }
+        const tkBtn = document.getElementById('sec2-tk-btn');
+        if (tkBtn && s2.tiktok_url) {
+            tkBtn.href = s2.tiktok_url;
+        }
+    }
+
+    // 4. Sección 3 (Publicidad 3 columnas)
+    if (data && data.sec3) {
+        for (let i = 1; i <= 3; i++) {
+            const card = data.sec3[`card${i}`];
+            if (!card) continue;
+
+            if (document.getElementById(`pub${i}-tag`)) document.getElementById(`pub${i}-tag`).innerText = card.tag || "";
+            if (document.getElementById(`pub${i}-titulo`)) document.getElementById(`pub${i}-titulo`).innerText = card.titulo || "";
+            if (document.getElementById(`pub${i}-desc`)) document.getElementById(`pub${i}-desc`).innerText = card.descripcion || "";
+            if (document.getElementById(`pub${i}-link`)) document.getElementById(`pub${i}-link`).innerText = card.link_texto || "Ver más →";
+
+            const pubMedia = card.multimedia || `publi_${i}.jpg`;
+            const pubUrl = obtenerRutaImagenProducto(pubMedia);
+            const pubImg = document.getElementById(`pub${i}-img`);
+            const pubVid = document.getElementById(`pub${i}-video`);
+            const pubSource = document.getElementById(`pub${i}-video-source`);
+
+            if (pubMedia.endsWith('.mp4')) {
+                if (pubImg) pubImg.style.display = 'none';
+                if (pubVid && pubSource) {
+                    pubSource.src = pubUrl;
+                    pubVid.style.display = 'block';
+                    pubVid.load();
                 }
             } else {
-                if (vidElem) vidElem.style.display = 'none';
-                if (imgElem) {
-                    imgElem.src = mediaUrl;
-                    imgElem.style.display = 'block';
+                if (pubVid) pubVid.style.display = 'none';
+                if (pubImg) {
+                    pubImg.src = pubUrl;
+                    pubImg.style.display = 'block';
                 }
             }
         }
-
-        // 3. Sección 2 (Instagram y TikTok)
-        if (data.sec2) {
-            const s2 = data.sec2;
-            const igContainer = document.getElementById('instagram-embed-container');
-            if (igContainer && s2.instagram_embed) {
-                igContainer.innerHTML = s2.instagram_embed;
-                if (window.instgrm) window.instgrm.Embeds.process();
-            }
-            const tkBtn = document.getElementById('sec2-tk-btn');
-            if (tkBtn && s2.tiktok_url) {
-                tkBtn.href = s2.tiktok_url;
-            }
-        }
-
-        // 4. Sección 3 (Publicidad 3 columnas)
-        if (data.sec3) {
-            for (let i = 1; i <= 3; i++) {
-                const card = data.sec3[`card${i}`];
-                if (!card) continue;
-
-                if (document.getElementById(`pub${i}-tag`)) document.getElementById(`pub${i}-tag`).innerText = card.tag || "";
-                if (document.getElementById(`pub${i}-titulo`)) document.getElementById(`pub${i}-titulo`).innerText = card.titulo || "";
-                if (document.getElementById(`pub${i}-desc`)) document.getElementById(`pub${i}-desc`).innerText = card.descripcion || "";
-                if (document.getElementById(`pub${i}-link`)) document.getElementById(`pub${i}-link`).innerText = card.link_texto || "Ver más →";
-
-                const pubMedia = card.multimedia || `publi_${i}.jpg`;
-                const pubUrl = obtenerRutaImagenProducto(pubMedia);
-                const pubImg = document.getElementById(`pub${i}-img`);
-                const pubVid = document.getElementById(`pub${i}-video`);
-                const pubSource = document.getElementById(`pub${i}-video-source`);
-
-                if (pubMedia.endsWith('.mp4')) {
-                    if (pubImg) pubImg.style.display = 'none';
-                    if (pubVid && pubSource) {
-                        pubSource.src = pubUrl;
-                        pubVid.style.display = 'block';
-                        pubVid.load();
-                    }
-                } else {
-                    if (pubVid) pubVid.style.display = 'none';
-                    if (pubImg) {
-                        pubImg.src = pubUrl;
-                        pubImg.style.display = 'block';
-                    }
-                }
-            }
-        }
-
-    } catch (e) {
-        console.warn("No se pudo cargar la configuración dinámica del home.", e);
     }
 }
 
@@ -896,7 +919,7 @@ function eliminarDelCarrito(index) {
 
 function toggleCarrito() {
     const drawer = document.getElementById("drawer-carrito");
-    if (drawer) drawer.classList.add("hidden"); // Se corrige ocultar por defecto o alternar
+    if (drawer) drawer.classList.add("hidden");
 }
 
 function obtenerUsuarioLogueado() {
