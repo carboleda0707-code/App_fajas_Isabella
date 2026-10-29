@@ -423,7 +423,7 @@ async def checkout_whatsapp(
     comprobante: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
-    correo_limpio = correo.lower().strip() if correo else None
+    correo_limpio = correo.lower().strip() if (correo and correo.strip() != "") else None
     
     cliente_db = None
     if correo_limpio:
@@ -448,7 +448,7 @@ async def checkout_whatsapp(
     else:
         password_temporal = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
         password_hash_temp = generar_hash_sha256(password_temporal)
-        reg_correo = correo_limpio if correo_limpio else f"{ruc_cedula}@fajasisabella.com"
+        reg_correo = correo_limpio if correo_limpio else f"{ruc_cedula.strip()}@fajasisabella.com"
         
         cliente_db = Cliente(
             ruc_cedula=ruc_cedula,
