@@ -103,7 +103,17 @@ async function cargarConfiguracionHomeDinamica() {
                 if (!slide) continue;
 
                 // Usa la misma lógica de URL de los catálogos (Cloudinary / local / fallback)
-                let imgUrl = obtenerRutaImagenProducto(slide.imagen);
+                let rawImg = slide.imagen || "";
+                let imgUrl = "";
+
+                if (rawImg.startsWith("http://") || rawImg.startsWith("https://")) {
+                    imgUrl = rawImg;
+                } else if (rawImg.startsWith("/")) {
+                    imgUrl = rawImg;
+                } else {
+                    // Si viene solo el nombre del archivo guardado desde Streamlit
+                    imgUrl = `/img/${rawImg}`;
+                }
                 let isActive = i === 1 ? 'opacity-100' : 'opacity-0';
 
                 slidesHtml += `

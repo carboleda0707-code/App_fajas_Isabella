@@ -76,28 +76,35 @@ def render_home_admin():
                     "titulo": s_titulo,
                     "descripcion": s_desc,
                     "btn_texto": s_btn,
-                    "imagen_actual": s_cfg.get("imagen", f"slide_{i}.jpg")
+                    "imagen_actual": s_cfg.get("imagen", "")
                 })
 
             subm_sec05 = st.form_submit_button("💾 Guardar Cambios de Sección 0.5 en BD", use_container_width=True)
             
             if subm_sec05:
-                os.makedirs("web/img", exist_ok=True)
                 payload_sec05 = {}
                 
                 for idx, data in enumerate(slides_data, start=1):
-                    img_name = data["imagen_actual"]
-                    if data["file_uploader"] is not None:
-                        img_name = data["file_uploader"].name
-                        with open(os.path.join("web/img", img_name), "wb") as f:
-                            f.write(data["file_uploader"].getbuffer())
+                    img_url = data["imagen_actual"]
+                    archivo_subido = data["file_uploader"]
+                    
+                    if archivo_subido is not None:
+                        # Si tu proyecto ya tiene una función para subir a Cloudinary, úsala aquí.
+                        # Ejemplo: url_nube = subir_imagen_a_cloudinary(archivo_subido)
+                        # Si prefieres manejarlo por nombre en /img/, asegúrate de guardarlo con la ruta completa:
+                        img_url = f"/img/{archivo_subido.name}"
+                        
+                        # Guardar archivo localmente también por respaldo si es necesario
+                        os.makedirs("web/img", exist_ok=True)
+                        with open(os.path.join("web/img", archivo_subido.name), "wb") as f:
+                            f.write(archivo_subido.getbuffer())
                     
                     payload_sec05[f"slide{idx}"] = {
                         "tag": data["tag"],
                         "titulo": data["titulo"],
                         "descripcion": data["descripcion"],
                         "btn_texto": data["btn_texto"],
-                        "imagen": img_name
+                        "imagen": img_url
                     }
                 
                 if guardar_seccion_db("sec05", payload_sec05):
