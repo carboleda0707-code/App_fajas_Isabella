@@ -424,133 +424,140 @@ async def checkout_whatsapp(
     comprobante: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
-    correo_limpio = correo.lower().strip() if (correo and correo.strip() != "") else None
-    
-    cliente_db = None
-    if correo_limpio:
-        cliente_db = db.query(Cliente).filter(Cliente.correo == correo_limpio).first()
-    if not cliente_db and ruc_cedula:
-        cliente_db = db.query(Cliente).filter(Cliente.ruc_cedula == ruc_cedula).first()
-
-    password_temporal = None
-    if cliente_db:
-        cliente_db.nombre = razon_social
-        cliente_db.telefono = telefono
-        cliente_db.direccion = direccion
-        cliente_db.ciudad = ciudad
-        if correo_limpio and not cliente_db.correo:
-            cliente_db.correo = correo_limpio
-            
-        if not cliente_db.password or str(cliente_db.cliente_web).upper() == "POR_ACTUALIZAR":
-            password_temporal = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
-            cliente_db.password = generar_hash_sha256(password_temporal)
-            cliente_db.cliente_web = "POR_ACTUALIZAR"
-        db.commit()
-    else:
-        password_temporal = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
-        password_hash_temp = generar_hash_sha256(password_temporal)
-        reg_correo = correo_limpio if correo_limpio else f"{ruc_cedula.strip()}@fajasisabella.com"
-        
-        cliente_db = Cliente(
-            ruc_cedula=ruc_cedula,
-            nombre=razon_social,
-            correo=reg_correo,
-            telefono=telefono,
-            direccion=direccion,
-            ciudad=ciudad,
-            cliente_web="POR_ACTUALIZAR",
-            password=password_hash_temp
-        )
-        db.add(cliente_db)
-        db.commit()
-        db.refresh(cliente_db)
-
-    # Validación segura del JSON de items para evitar errores 500
     try:
-        lista_items = json.loads(items) if items else []
-    except Exception:
-        raise HTTPException(status_code=400, detail="El formato de los ítems del carrito es inválido.")
-
-    if not lista_items:
-        raise HTTPException(status_code=400, detail="El carrito está vacío.")
-
-    total_pedido = sum(float(item.get('precio', 0)) * int(item.get('cantidad', 1)) for item in lista_items)
-    
-    num_factura_str = f"FAC-WAPP-{int(date.today().strftime('%Y%m%d'))}-{cliente_db.id}"
-    
-    nueva_factura = Factura(
-        tipo_factura="VENTA WEB WHATSAPP",
-        numero_factura=num_factura_str,
-        entidad_ruc=ruc_cedula,
-        entidad_nombre=razon_social,
-        total_factura=total_pedido,
-        cliente_id=cliente_db.id,
-        provincia=provincia,
-        ciudad=ciudad,
-        direccion_entrega=direccion,
-        referencia_direccion=referencia,
-        courier_nombre="Por Definir",
-        estado_despacho="PENDIENTE"
-    )
-    db.add(nueva_factura)
-    db.commit()
-    db.refresh(nueva_factura)
-
-    for item in lista_items:
-        sku_p = item.get("sku") or item.get("codigo") or item.get("name") or "FAJA-WEB"
-        cant_p = int(item.get("cantidad", 1))
-        prec_p = float(item.get("precio", 0))
-        subtotal_p = cant_p * prec_p
+        correo_limpio = correo.lower().strip() if (correo and correo.strip() != "") else None
         
-        nuevo_mov = MovimientoInventario(
-            sku=sku_p,
-            tipo_movimiento="VENTA",
-            cantidad=-cant_p,
-            referencia_factura=num_factura_str,
-            valor_neto=subtotal_p,
-            entidad_asociada=razon_social,
-            fecha_hora=date.today()
-        )
-        db.add(nuevo_mov)
-    db.commit()
+        cliente_db = None
+        if correo_limpio:
+            cliente_db = db.query(Cliente).filter(Cliente.correo == correo_limpio).first()
+        if not cliente_db and ruc_cedula:
+            cliente_db = db.query(Cliente).filter(Cliente.ruc_cedula == ruc_cedula).first()
 
-    if comprobante:
+        password_temporal = None
+        if cliente_db:
+            cliente_db.nombre = razon_social
+            cliente_db.telefono = telefono
+            cliente_db.direccion = direccion
+            cliente_db.ciudad = ciudad
+            if correo_limpio and not cliente_db.correo:
+                cliente_db.correo = correo_limpio
+                
+            if not cliente_db.password or str(cliente_db.cliente_web).upper() == "POR_ACTUALIZAR":
+                password_temporal = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
+                cliente_db.password = generar_hash_sha256(password_temporal)
+                cliente_db.cliente_web = "POR_ACTUALIZAR"
+            db.commit()
+        else:
+            password_temporal = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
+            password_hash_temp = generar_hash_sha256(password_temporal)
+            reg_correo = correo_limpio if correo_limpio else f"{ruc_cedula.strip()}@fajasisabella.com"
+            
+            cliente_db = Cliente(
+                ruc_cedula=ruc_cedula,
+                nombre=razon_social,
+                correo=reg_correo,
+                telefono=telefono,
+                direccion=direccion,
+                ciudad=ciudad,
+                cliente_web="POR_ACTUALIZAR",
+                password=password_hash_temp
+            )
+            db.add(cliente_db)
+            db.commit()
+            db.refresh(cliente_db)
+
         try:
-            upload_result = cloudinary.uploader.upload(comprobante.file)
-            file_url = upload_result.get("secure_url", comprobante.filename)
-        except Exception as e:
-            file_url = comprobante.filename
+            lista_items = json.loads(items) if items else []
+        except Exception:
+            raise HTTPException(status_code=400, detail="El formato de los ítems del carrito es inválido.")
 
-        pago = Pago(
-            factura_id=nueva_factura.id,
-            metodo_pago="TRANSFERENCIA",
-            codigo_transferencia=file_url,
-            monto=total_pedido
+        if not lista_items:
+            raise HTTPException(status_code=400, detail="El carrito está vacío.")
+
+        total_pedido = sum(float(item.get('precio', 0)) * int(item.get('cantidad', 1)) for item in lista_items)
+        
+        num_factura_str = f"FAC-WAPP-{int(date.today().strftime('%Y%m%d'))}-{cliente_db.id}"
+        
+        nueva_factura = Factura(
+            tipo_factura="VENTA WEB WHATSAPP",
+            numero_factura=num_factura_str,
+            entidad_ruc=ruc_cedula,
+            entidad_nombre=razon_social,
+            total_factura=total_pedido,
+            cliente_id=cliente_db.id,
+            provincia=provincia,
+            ciudad=ciudad,
+            direccion_entrega=direccion,
+            referencia_direccion=referencia,
+            courier_nombre="Por Definir",
+            estado_despacho="PENDIENTE"
         )
-        db.add(pago)
+        db.add(nueva_factura)
+        db.commit()
+        db.refresh(nueva_factura)
+
+        for item in lista_items:
+            sku_p = item.get("sku") or item.get("codigo") or item.get("name") or "FAJA-WEB"
+            cant_p = int(item.get("cantidad", 1))
+            prec_p = float(item.get("precio", 0))
+            subtotal_p = cant_p * prec_p
+            
+            nuevo_mov = MovimientoInventario(
+                sku=sku_p,
+                tipo_movimiento="VENTA",
+                cantidad=-cant_p,
+                referencia_factura=num_factura_str,
+                valor_neto=subtotal_p,
+                entidad_asociada=razon_social,
+                fecha_hora=date.today()
+            )
+            db.add(nuevo_mov)
         db.commit()
 
-    detalle_texto = ""
-    for idx, item in enumerate(lista_items, 1):
-        p_precio = float(item.get('precio', 0))
-        p_cant = int(item.get('cantidad', 1))
-        subtotal = p_precio * p_cant
-        detalle_texto += f"{idx}. *{item.get('nombre', 'Prenda')}*%0A   - Talla: {item.get('talla', 'N/D')} | Color: {item.get('color', 'N/D')}%0A   - SKU: {item.get('sku', 'N/D')}%0A   - Cantidad: {p_cant} x ${p_precio:.2f} = ${subtotal:.2f}%0A%0A"
+        if comprobante:
+            try:
+                # Lectura segura de bytes para Cloudinary
+                file_bytes = await comprobante.read()
+                upload_result = cloudinary.uploader.upload(file_bytes)
+                file_url = upload_result.get("secure_url", comprobante.filename)
+            except Exception as e:
+                file_url = comprobante.filename
 
-    mensaje_wapp = f"¡Hola Fajas Isabella! 👋 Acabo de realizar un pedido y transferencia:%0A%0A*Factura:* #{num_factura_str}%0A*Cliente:* {nombre}%0A*RUC/Cédula:* {ruc_cedula}%0A*Destino:* {provincia}, {ciudad} - {direccion}%0A%0A{detalle_texto}💰 *Total Pagado:* ${total_pedido:.2f}%0A%0A"
-    
-    if password_temporal:
-        mensaje_wapp += f"🔐 *Acceso Web Temporal:*%0A- Usuario: {cliente_db.correo}%0A- Clave Temporal: *{password_temporal}*%0A*(Por seguridad se te pedirá cambiarla al iniciar sesión)*%0A%0A"
-    
-    mensaje_wapp += "Adjunto mi comprobante para la verificación."
-    
-    whatsapp_url = f"https://wa.me/{TELEFONO_WHATSAPP}?text={mensaje_wapp}"
+            pago = Pago(
+                factura_id=nueva_factura.id,
+                metodo_pago="TRANSFERENCIA",
+                codigo_transferencia=file_url,
+                monto=total_pedido
+            )
+            db.add(pago)
+            db.commit()
 
-    return {
-        "status": "success",
-        "whatsapp_url": whatsapp_url,
-        "mensaje": "Pedido registrado correctamente."
-    }
+        detalle_texto = ""
+        for idx, item in enumerate(lista_items, 1):
+            p_precio = float(item.get('precio', 0))
+            p_cant = int(item.get('cantidad', 1))
+            subtotal = p_precio * p_cant
+            detalle_texto += f"{idx}. *{item.get('nombre', 'Prenda')}*%0A   - Talla: {item.get('talla', 'N/D')} | Color: {item.get('color', 'N/D')}%0A   - SKU: {item.get('sku', 'N/D')}%0A   - Cantidad: {p_cant} x ${p_precio:.2f} = ${subtotal:.2f}%0A%0A"
+
+        mensaje_wapp = f"¡Hola Fajas Isabella! 👋 Acabo de realizar un pedido y transferencia:%0A%0A*Factura:* #{num_factura_str}%0A*Cliente:* {nombre}%0A*RUC/Cédula:* {ruc_cedula}%0A*Destino:* {provincia}, {ciudad} - {direccion}%0A%0A{detalle_texto}💰 *Total Pagado:* ${total_pedido:.2f}%0A%0A"
+        
+        if password_temporal:
+            mensaje_wapp += f"🔐 *Acceso Web Temporal:*%0A- Usuario: {cliente_db.correo}%0A- Clave Temporal: *{password_temporal}*%0A*(Por seguridad se te pedirá cambiarla al iniciar sesión)*%0A%0A"
+        
+        mensaje_wapp += "Adjunto mi comprobante para la verificación."
+        
+        whatsapp_url = f"https://wa.me/{TELEFONO_WHATSAPP}?text={mensaje_wapp}"
+
+        return {
+            "status": "success",
+            "whatsapp_url": whatsapp_url,
+            "mensaje": "Pedido registrado correctamente."
+        }
+
+    except Exception as db_err:
+        db.rollback()
+        # Esto te mostrará el error exacto en la alerta en caso de que falle la BD
+        raise HTTPException(status_code=500, detail=f"Error en servidor/BD: {str(db_err)}")
 
 
 @router.get("/api/web/auth/pedidos/{cliente_id}")
