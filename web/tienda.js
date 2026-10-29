@@ -233,6 +233,7 @@ async function cargarInventario() {
     }
     productosFiltrados = [...productos];
     cargarCategoriasWeb();
+    renderizarNovedadesEnHome();
 }
 
 function obtenerRutaImagenProducto(imagenUrl) {
@@ -365,12 +366,63 @@ function renderizarCatalogo() {
 
 function irAInicio() {
     categoriaSeleccionadaActual = 'INICIO';
+    
+    // 1. Mostrar las secciones institucionales (Slider 0.5, Historia 1, Redes 2, Publicidad 3)
     const introContainer = document.getElementById('secciones-intro-container');
     if (introContainer) introContainer.style.display = 'block';
+
+    // 2. Ocultar el catálogo masivo de productos
     const catalogoSec = document.getElementById('catalogo');
     if (catalogoSec) catalogoSec.style.display = 'none';
+
+    // 3. Renderizar las prendas nuevas y en promoción justo antes de la Sección 3
+    renderizarNovedadesEnHome();
+
+    // 4. Iniciar el slider y subir arriba del todo
     iniciarHeroSlider();
     window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function renderizarNovedadesEnHome() {
+    let contenedorDestacados = document.getElementById('home-destacados-home');
+    
+    if (!contenedorDestacados) {
+        // Buscamos la sección de publicidad (Sección 3) para insertar el bloque justo antes
+        const seccionesIntro = document.querySelectorAll('#secciones-intro-container > section');
+        const seccionPublicidad = seccionesIntro[seccionesIntro.length - 1]; // La última sección es publicidad
+        
+        if (seccionPublicidad) {
+            contenedorDestacados = document.createElement('section');
+            contenedorDestacados.id = 'home-destacados-home';
+            contenedorDestacados.className = 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10';
+            seccionPublicidad.parentNode.insertBefore(contenedorDestacados, seccionPublicidad);
+        }
+    }
+
+    if (!contenedorDestacados) return;
+
+    // Filtramos los productos nuevos, en oferta o liquidación que ya están en memoria
+    const destacados = productos.filter(p => p.en_oferta || p.es_nuevo || p.en_liquidacion).slice(0, 5);
+
+    if (destacados.length === 0) {
+        contenedorDestacados.innerHTML = '';
+        return;
+    }
+
+    let htmlCards = destacados.map(p => generarHTMLTarjetaProducto(p)).join('');
+
+    contenedorDestacados.innerHTML = `
+        <div class="mb-6 pb-3 border-b border-slate-200 flex items-center justify-between">
+            <div>
+                <span class="text-rose-600 font-bold text-xs uppercase tracking-wider">Colección Exclusiva</span>
+                <h3 class="text-xl font-black text-slate-900">✨ Novedades y Promociones Destacadas</h3>
+            </div>
+            <button onclick="filtrarCategoria('TODAS')" class="text-xs font-bold text-rose-600 hover:text-rose-700 transition cursor-pointer">Ver todo el catálogo →</button>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            ${htmlCards}
+        </div>
+    `;
 }
 
 function filtrarCategoria(cat) {
