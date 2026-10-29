@@ -291,8 +291,7 @@ def listar_categorias_publicas(db: Session = Depends(get_db)):
         resultado = []
         for cat in categorias_db:
             img_clean = getattr(cat, 'imagen_url', '') or ''
-            if img_clean:
-                img_clean = img_clean.split('/')[-1]
+            # No recortamos la URL para conservar la ruta absoluta de Cloudinary
 
             resultado.append({
                 "nombre": getattr(cat, 'nombre', getattr(cat, 'categoria', '')),
