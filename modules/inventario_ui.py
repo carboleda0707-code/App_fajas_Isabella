@@ -138,7 +138,7 @@ def render_inventario():
             porcentaje_oferta = 0.0
             if en_oferta:
                 porcentaje_oferta = st.number_input(
-                    "Porcentaje de Oferta (%):",
+                    "Valor del DescuentoOferta :",
                     min_value=1.0,
                     max_value=50.0,
                     value=10.0,
@@ -346,7 +346,7 @@ def render_inventario():
                             edit_en_oferta = ec3.checkbox("🏷️ En Oferta", value=oferta_def, key="edit_ofe")
 
                             edit_descuento_oferta = st.number_input(
-                                "Porcentaje de Oferta (%)",
+                                "Valor del Descuento",
                                 min_value=0.0,
                                 max_value=50.0,
                                 value=desc_oferta_def,
