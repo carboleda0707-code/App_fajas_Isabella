@@ -733,7 +733,15 @@ function eliminarDelCarrito(index) {
 
 function toggleCarrito() {
     const drawer = document.getElementById("drawer-carrito");
-    if (drawer) drawer.classList.add("hidden");
+    if (!drawer) return;
+    
+    // Si tiene la clase 'hidden', la quitamos para mostrarlo; si no, la ponemos para ocultarlo
+    if (drawer.classList.contains('hidden')) {
+        drawer.classList.remove('hidden');
+        actualizarCarritoUI(); // Asegura que se pinte actualizado al abrir
+    } else {
+        drawer.classList.add('hidden');
+    }
 }
 
 function obtenerUsuarioLogueado() {
