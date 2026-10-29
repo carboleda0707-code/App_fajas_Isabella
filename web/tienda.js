@@ -477,11 +477,11 @@ function renderizarSeccionesSecundariasCategoria(catSeleccionada) {
 
         if (catSeleccionada !== 'NEW' && productosNuevos.length > 0) {
             htmlSecundario += `
-                <div class="mt-12 pt-8 border-t border-slate-200">
-                    <div class="flex items-center justify-between mb-6">
+                <div class="mt-6 pt-4 border-t border-slate-200">
+                    <div class="flex items-center justify-between mb-4">
                         <div>
                             <span class="text-blue-600 font-bold text-xs uppercase tracking-wider">✨ Recién Llegados</span>
-                            <h3 class="text-xl font-black text-slate-900">Lo Nuevo de Fajas Isabella</h3>
+                            <h3 class="text-lg font-black text-slate-900">Lo Nuevo de Fajas Isabella</h3>
                         </div>
                     </div>
                     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -493,11 +493,11 @@ function renderizarSeccionesSecundariasCategoria(catSeleccionada) {
 
         if (catSeleccionada !== 'OFERTAS' && catSeleccionada !== 'LIQUIDACION' && productosOfertas.length > 0) {
             htmlSecundario += `
-                <div class="mt-12 pt-8 border-t border-slate-200">
-                    <div class="flex items-center justify-between mb-6">
+                <div class="mt-6 pt-4 border-t border-slate-200">
+                    <div class="flex items-center justify-between mb-4">
                         <div>
                             <span class="text-amber-600 font-bold text-xs uppercase tracking-wider">🏷️ Descuentos Especiales</span>
-                            <h3 class="text-xl font-black text-slate-900">Prendas en Oferta</h3>
+                            <h3 class="text-lg font-black text-slate-900">Prendas en Oferta</h3>
                         </div>
                     </div>
                     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -511,7 +511,7 @@ function renderizarSeccionesSecundariasCategoria(catSeleccionada) {
     const secPublicidadOriginal = document.querySelector('#secciones-intro-container section:last-child');
     if (secPublicidadOriginal) {
         htmlSecundario += `
-            <div class="mt-12 pt-8 border-t border-slate-200">
+            <div class="mt-6 pt-4 border-t border-slate-200">
                 ${secPublicidadOriginal.outerHTML}
             </div>
         `;
