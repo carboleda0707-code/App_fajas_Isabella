@@ -99,56 +99,56 @@
 
         <!-- 4. CONTENEDOR DE BIENVENIDA / INICIO (Sección 0.5, 1, 2, 3) -->
         <div id="secciones-intro-container">
-            <!-- Hero Slider (Sección 0.5 Reducida un 15% adicional) -->
-            <section class="relative bg-slate-900 text-white overflow-hidden shadow-xl sm:rounded-3xl max-w-7xl mx-auto my-3 h-[260px] sm:h-[320px]">
+            <!-- Hero Slider (Compactado) -->
+            <section class="relative bg-slate-900 text-white overflow-hidden shadow-xl sm:rounded-3xl max-w-7xl mx-auto my-2 h-[240px] sm:h-[300px]">
                 <div id="hero-slider-container" class="relative w-full h-full"></div>
-                <div id="hero-dots-container" class="absolute bottom-3 left-0 right-0 z-20 flex justify-center gap-2"></div>
+                <div id="hero-dots-container" class="absolute bottom-2 left-0 right-0 z-20 flex justify-center gap-2"></div>
             </section>
 
-            <!-- Sección 1 (Historia y Multimedia Reducida un 15% adicional) -->
-            <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-center bg-white p-5 sm:p-6 rounded-3xl border border-slate-100 shadow-sm">
-                    <div class="relative rounded-2xl overflow-hidden bg-slate-900 shadow-inner h-[280px] sm:h-[320px] flex items-center justify-center">
+            <!-- Sección 1 (Historia y Multimedia - Espaciado reducido) -->
+            <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-center bg-white p-4 sm:p-5 rounded-3xl border border-slate-100 shadow-sm">
+                    <div class="relative rounded-2xl overflow-hidden bg-slate-900 shadow-inner h-[240px] sm:h-[280px] flex items-center justify-center">
                         <img id="home-historia-img" src="" alt="Historia Fajas Isabella" class="w-full h-full object-cover rounded-2xl">
                         <video id="home-historia-video" class="w-full h-full object-cover rounded-2xl hidden" autoplay muted loop playsinline>
                             <source id="home-historia-video-source" src="" type="video/mp4">
                         </video>
                     </div>
-                    <div class="space-y-2.5">
-                        <span id="sec1-subtitulo" class="bg-rose-50 text-rose-600 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider"></span>
-                        <h2 id="sec1-titulo" class="text-xl sm:text-2xl font-black text-slate-900"></h2>
+                    <div class="space-y-2">
+                        <span id="sec1-subtitulo" class="bg-rose-50 text-rose-600 text-[10px] font-black px-3 py-0.5 rounded-full uppercase tracking-wider"></span>
+                        <h2 id="sec1-titulo" class="text-lg sm:text-xl font-black text-slate-900"></h2>
                         <p id="sec1-p1" class="text-xs text-slate-600 leading-relaxed"></p>
                         <p id="sec1-p2" class="text-xs text-slate-600 leading-relaxed"></p>
-                        <div class="p-2.5 bg-rose-50/60 border-l-4 border-rose-600 rounded-r-xl">
+                        <div class="p-2 bg-rose-50/60 border-l-4 border-rose-600 rounded-r-xl">
                             <p id="sec1-p3" class="text-[11px] font-bold text-slate-900"></p>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <!-- Sección 2 (Comunidad y Redes - Sin fondo negro y simétrica al tamaño de TikTok) -->
-            <section class="bg-white py-8 my-4 border-y border-slate-100">
+            <!-- Sección 2 (Comunidad y Redes - Compactada) -->
+            <section class="bg-white py-4 my-2 border-y border-slate-100">
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div class="text-center max-w-xl mx-auto mb-6 space-y-1">
+                    <div class="text-center max-w-xl mx-auto mb-4 space-y-0.5">
                         <span class="text-rose-600 font-bold text-xs uppercase tracking-wider">Comunidad y Confianza</span>
-                        <h2 class="text-xl sm:text-2xl font-black text-slate-900">Belleza y Directos</h2>
+                        <h2 class="text-lg sm:text-xl font-black text-slate-900">Belleza y Directos</h2>
                         <p class="text-xs text-slate-500">Sigue nuestras publicaciones diarias y conéctate a nuestras transmisiones en vivo.</p>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
                         <!-- Contenedor Instagram adaptado -->
-                        <div class="bg-slate-50 border border-slate-200 rounded-3xl p-4 flex flex-col items-center justify-center shadow-xs overflow-hidden min-h-[380px]">
-                            <div id="instagram-embed-container" class="w-full flex justify-center overflow-y-auto max-h-[360px] no-scrollbar"></div>
+                        <div class="bg-slate-50 border border-slate-200 rounded-3xl p-3 flex flex-col items-center justify-center shadow-xs overflow-hidden min-h-[340px]">
+                            <div id="instagram-embed-container" class="w-full flex justify-center overflow-y-auto max-h-[320px] no-scrollbar"></div>
                         </div>
                         <!-- Contenedor TikTok simétrico -->
-                        <div class="bg-slate-900 text-white border border-slate-800 rounded-3xl p-6 flex flex-col items-center justify-center text-center space-y-4 shadow-md min-h-[380px]">
-                            <div class="w-14 h-14 bg-rose-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-lg">
+                        <div class="bg-slate-900 text-white border border-slate-800 rounded-3xl p-5 flex flex-col items-center justify-center text-center space-y-3 shadow-md min-h-[340px]">
+                            <div class="w-12 h-12 bg-rose-600 text-white rounded-2xl flex items-center justify-center text-lg shadow-lg">
                                 <i class="fa-brands fa-tiktok"></i>
                             </div>
-                            <div class="space-y-1.5">
-                                <h3 class="text-base font-bold text-white">¡Conéctate a TikTok Live!</h3>
+                            <div class="space-y-1">
+                                <h3 class="text-sm font-bold text-white">¡Conéctate a TikTok Live!</h3>
                                 <p class="text-xs text-slate-300 max-w-xs">Resolvemos tus dudas sobre tallas, modelos y entregas en tiempo real.</p>
                             </div>
-                            <a id="sec2-tk-btn" href="https://tiktok.com" target="_blank" class="inline-block bg-white text-slate-900 hover:bg-rose-600 hover:text-white font-bold text-xs px-5 py-2.5 rounded-xl transition shadow-md">
+                            <a id="sec2-tk-btn" href="https://tiktok.com" target="_blank" class="inline-block bg-white text-slate-900 hover:bg-rose-600 hover:text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-md">
                                 Abrir Transmisión en Vivo →
                             </a>
                         </div>
@@ -157,53 +157,53 @@
             </section>
 
             <!-- Sección 3 (Publicidad - 3 Columnas Compactas) -->
-            <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                <div class="text-center max-w-xl mx-auto mb-6 space-y-1">
+            <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                <div class="text-center max-w-xl mx-auto mb-4 space-y-0.5">
                     <span class="text-rose-600 font-bold text-xs uppercase tracking-wider">Promociones y Estilos</span>
-                    <h2 class="text-xl sm:text-2xl font-black text-slate-900">Destacados de Temporada</h2>
+                    <h2 class="text-lg sm:text-xl font-black text-slate-900">Destacados de Temporada</h2>
                     <p class="text-xs text-slate-500">Explora nuestras colecciones especiales diseñadas para cada momento.</p>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <!-- Tarjeta 1 -->
-                    <div class="relative rounded-3xl overflow-hidden shadow-md group h-64 flex flex-col justify-end p-5 bg-slate-900 text-white">
+                    <div class="relative rounded-3xl overflow-hidden shadow-md group h-56 flex flex-col justify-end p-4 bg-slate-900 text-white">
                         <img id="pub1-img" src="" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-500" alt="Publi 1">
                         <video id="pub1-video" class="absolute inset-0 w-full h-full object-cover hidden" autoplay muted loop playsinline><source id="pub1-video-source" src="" type="video/mp4"></video>
                         <div class="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/30 to-transparent"></div>
-                        <div class="relative z-10 space-y-1.5">
-                            <span id="pub1-tag" class="bg-rose-600 text-white text-[9px] font-extrabold px-2.5 py-0.5 rounded-full uppercase"></span>
-                            <h3 id="pub1-titulo" class="text-base font-black leading-snug"></h3>
+                        <div class="relative z-10 space-y-1">
+                            <span id="pub1-tag" class="bg-rose-600 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase"></span>
+                            <h3 id="pub1-titulo" class="text-sm font-black leading-snug"></h3>
                             <p id="pub1-desc" class="text-[11px] text-slate-300 line-clamp-2"></p>
-                            <button onclick="filtrarCategoria('TODAS')" class="inline-block pt-1 text-xs font-bold text-white hover:text-rose-400 transition cursor-pointer">
+                            <button onclick="filtrarCategoria('TODAS')" class="inline-block pt-0.5 text-xs font-bold text-white hover:text-rose-400 transition cursor-pointer">
                                 <span id="pub1-link">Ver Colección →</span>
                             </button>
                         </div>
                     </div>
 
                     <!-- Tarjeta 2 -->
-                    <div class="relative rounded-3xl overflow-hidden shadow-md group h-64 flex flex-col justify-end p-5 bg-slate-900 text-white">
+                    <div class="relative rounded-3xl overflow-hidden shadow-md group h-56 flex flex-col justify-end p-4 bg-slate-900 text-white">
                         <img id="pub2-img" src="" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-500" alt="Publi 2">
                         <video id="pub2-video" class="absolute inset-0 w-full h-full object-cover hidden" autoplay muted loop playsinline><source id="pub2-video-source" src="" type="video/mp4"></video>
                         <div class="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/30 to-transparent"></div>
-                        <div class="relative z-10 space-y-1.5">
-                            <span id="pub2-tag" class="bg-amber-500 text-white text-[9px] font-extrabold px-2.5 py-0.5 rounded-full uppercase"></span>
-                            <h3 id="pub2-titulo" class="text-base font-black leading-snug"></h3>
+                        <div class="relative z-10 space-y-1">
+                            <span id="pub2-tag" class="bg-amber-500 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase"></span>
+                            <h3 id="pub2-titulo" class="text-sm font-black leading-snug"></h3>
                             <p id="pub2-desc" class="text-[11px] text-slate-300 line-clamp-2"></p>
-                            <button onclick="filtrarCategoria('TODAS')" class="inline-block pt-1 text-xs font-bold text-white hover:text-amber-400 transition cursor-pointer">
+                            <button onclick="filtrarCategoria('TODAS')" class="inline-block pt-0.5 text-xs font-bold text-white hover:text-amber-400 transition cursor-pointer">
                                 <span id="pub2-link">Ver Modelos →</span>
                             </button>
                         </div>
                     </div>
 
                     <!-- Tarjeta 3 -->
-                    <div class="relative rounded-3xl overflow-hidden shadow-md group h-64 flex flex-col justify-end p-5 bg-slate-900 text-white">
+                    <div class="relative rounded-3xl overflow-hidden shadow-md group h-56 flex flex-col justify-end p-4 bg-slate-900 text-white">
                         <img id="pub3-img" src="" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-500" alt="Publi 3">
                         <video id="pub3-video" class="absolute inset-0 w-full h-full object-cover hidden" autoplay muted loop playsinline><source id="pub3-video-source" src="" type="video/mp4"></video>
                         <div class="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/30 to-transparent"></div>
-                        <div class="relative z-10 space-y-1.5">
-                            <span id="pub3-tag" class="bg-blue-600 text-white text-[9px] font-extrabold px-2.5 py-0.5 rounded-full uppercase"></span>
-                            <h3 id="pub3-titulo" class="text-base font-black leading-snug"></h3>
+                        <div class="relative z-10 space-y-1">
+                            <span id="pub3-tag" class="bg-blue-600 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase"></span>
+                            <h3 id="pub3-titulo" class="text-sm font-black leading-snug"></h3>
                             <p id="pub3-desc" class="text-[11px] text-slate-300 line-clamp-2"></p>
-                            <button onclick="filtrarCategoria('TODAS')" class="inline-block pt-1 text-xs font-bold text-white hover:text-blue-400 transition cursor-pointer">
+                            <button onclick="filtrarCategoria('TODAS')" class="inline-block pt-0.5 text-xs font-bold text-white hover:text-blue-400 transition cursor-pointer">
                                 <span id="pub3-link">Descubrir →</span>
                             </button>
                         </div>
