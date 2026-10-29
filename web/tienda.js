@@ -367,18 +367,13 @@ function renderizarCatalogo() {
 function irAInicio() {
     categoriaSeleccionadaActual = 'INICIO';
     
-    // 1. Mostrar las secciones institucionales (Slider 0.5, Historia 1, Redes 2, Publicidad 3)
     const introContainer = document.getElementById('secciones-intro-container');
     if (introContainer) introContainer.style.display = 'block';
 
-    // 2. Ocultar el catálogo masivo de productos
     const catalogoSec = document.getElementById('catalogo');
     if (catalogoSec) catalogoSec.style.display = 'none';
 
-    // 3. Renderizar las prendas nuevas y en promoción justo antes de la Sección 3
     renderizarNovedadesEnHome();
-
-    // 4. Iniciar el slider y subir arriba del todo
     iniciarHeroSlider();
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -387,9 +382,8 @@ function renderizarNovedadesEnHome() {
     let contenedorDestacados = document.getElementById('home-destacados-home');
     
     if (!contenedorDestacados) {
-        // Buscamos la sección de publicidad (Sección 3) para insertar el bloque justo antes
         const seccionesIntro = document.querySelectorAll('#secciones-intro-container > section');
-        const seccionPublicidad = seccionesIntro[seccionesIntro.length - 1]; // La última sección es publicidad
+        const seccionPublicidad = seccionesIntro[seccionesIntro.length - 1];
         
         if (seccionPublicidad) {
             contenedorDestacados = document.createElement('section');
@@ -401,7 +395,6 @@ function renderizarNovedadesEnHome() {
 
     if (!contenedorDestacados) return;
 
-    // Filtramos los productos nuevos, en oferta o liquidación que ya están en memoria
     const destacados = productos.filter(p => p.en_oferta || p.es_nuevo || p.en_liquidacion).slice(0, 5);
 
     if (destacados.length === 0) {
@@ -459,7 +452,71 @@ function filtrarCategoria(cat) {
     }
 
     renderizarCatalogo();
+    renderizarSeccionesSecundariasCategoria(cat);
+
     if (catalogoSec) catalogoSec.scrollIntoView({ behavior: 'smooth' });
+}
+
+function renderizarSeccionesSecundariasCategoria(catSeleccionada) {
+    let contenedor = document.getElementById("secciones-secundarias-container");
+    const catalogoSec = document.getElementById("catalogo");
+
+    if (!contenedor && catalogoSec) {
+        contenedor = document.createElement("div");
+        contenedor.id = "secciones-secundarias-container";
+        catalogoSec.appendChild(contenedor);
+    }
+    if (!contenedor) return;
+
+    let htmlSecundario = '';
+
+    if (catSeleccionada !== 'TODAS') {
+        const productosNuevos = productos.filter(p => p.es_nuevo === true);
+        const productosOfertas = productos.filter(p => p.en_oferta === true || p.en_liquidacion === true);
+
+        if (catSeleccionada !== 'NEW' && productosNuevos.length > 0) {
+            htmlSecundario += `
+                <div class="mt-12 pt-8 border-t border-slate-200">
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <span class="text-blue-600 font-bold text-xs uppercase tracking-wider">✨ Recién Llegados</span>
+                            <h3 class="text-xl font-black text-slate-900">Lo Nuevo de Fajas Isabella</h3>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                        ${productosNuevos.map(p => generarHTMLTarjetaProducto(p)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        if (catSeleccionada !== 'OFERTAS' && catSeleccionada !== 'LIQUIDACION' && productosOfertas.length > 0) {
+            htmlSecundario += `
+                <div class="mt-12 pt-8 border-t border-slate-200">
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <span class="text-amber-600 font-bold text-xs uppercase tracking-wider">🏷️ Descuentos Especiales</span>
+                            <h3 class="text-xl font-black text-slate-900">Prendas en Oferta</h3>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                        ${productosOfertas.map(p => generarHTMLTarjetaProducto(p)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    const secPublicidadOriginal = document.querySelector('#secciones-intro-container section:last-child');
+    if (secPublicidadOriginal) {
+        htmlSecundario += `
+            <div class="mt-12 pt-8 border-t border-slate-200">
+                ${secPublicidadOriginal.outerHTML}
+            </div>
+        `;
+    }
+
+    contenedor.innerHTML = htmlSecundario;
 }
 
 function abrirModal(productoId) {
