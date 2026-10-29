@@ -25,7 +25,7 @@ def redirigir_admin():
     return RedirectResponse(url="http://localhost:8501")
 
 # --- ROUTERS DEL NEGOCIO ---
-app.include_router(web_publica.router, prefix="/api", tags=["Web Pública"])
+app.include_router(web_publica.router, tags=["Web Pública"])  # 👈 Sin prefix="/api" porque web_publica ya lo define en sus rutas
 app.include_router(ventas.router, prefix="/api", tags=["Ventas"])
 app.include_router(clientes.router, prefix="/api", tags=["Clientes"])
 app.include_router(proveedores.router, prefix="/api", tags=["Proveedores"])
