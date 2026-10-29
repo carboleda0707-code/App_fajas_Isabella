@@ -324,17 +324,21 @@ function obtenerRutaImagenProducto(imagenUrl) {
         return SVG_FALLBACK;
     }
     
+    // Si ya es una URL completa (Cloudinary, Unsplash, http/https)
     if (urlLimpia.startsWith("http://") || urlLimpia.startsWith("https://")) {
         return urlLimpia;
     }
     
-    if (urlLimpia.startsWith("/img/") || urlLimpia.startsWith("img/")) {
-        let nombreArchivo = urlLimpia.split('/').pop().trim();
-        return `/img/${nombreArchivo}`;
+    // Si empieza con barra diagonal
+    if (urlLimpia.startsWith("/")) {
+        return urlLimpia;
     }
     
-    if (urlLimpia.includes('.') && !urlLimpia.startsWith('/')) {
-        return `https://res.cloudinary.com/d82ff3dh/image/upload/v1793225915/fajas_isabella/categorias/${urlLimpia}`;
+    // Si viene solo el nombre del archivo (ej: publi_1.jpg, banner_historia.jpg)
+    // Lo redirigimos a Cloudinary o a la carpeta local img/
+    if (urlLimpia.includes('.') && !urlLimpia.startsWith('img/')) {
+        // Si tienes las imágenes de publicidad subidas a Cloudinary en una carpeta específica:
+        return `https://res.cloudinary.com/d82ff3dh/image/upload/v1793225915/fajas_isabella/home/${urlLimpia}`;
     }
     
     let nombreArchivo = urlLimpia.split('/').pop().trim();
