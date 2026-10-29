@@ -16,7 +16,7 @@ DIRECCION_EMPRESA = config.get("EMPRESA", "direccion_local", fallback="Guayaquil
 # Redes Sociales
 INSTAGRAM_URL = config.get("REDES_SOCIALES", "instagram", fallback="https://instagram.com/fajasisabella.ec")
 FACEBOOK_URL = config.get("REDES_SOCIALES", "facebook", fallback="https://facebook.com/FajasIsabella?")
-TIKTOK_URL = config.get("REDES_SOCIALES", "tiktok", fallback="https://tiktok.com")
+TIKTOK_URL = config.get("REDES_SOCIALES", "tiktok", fallback="https://www.tiktok.com/@fajasisabella.ec")
 WHATSAPP_LINK = config.get("REDES_SOCIALES", "whatsapp_url", fallback=f"https://wa.me/{+593985389751}")
 
 # Credenciales de Correo Electrónico (SMTP)
