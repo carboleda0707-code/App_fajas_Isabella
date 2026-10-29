@@ -9,8 +9,9 @@ async function cargarSeccionInicio() {
             const html = await res.text();
             container.innerHTML = html;
             container.style.display = 'block';
-            // Inicializa el slider automático al cargar el HTML de bienvenida
-            iniciarHeroSlider();
+            
+            // Carga la configuración dinámica de la BD (Slider 0.5, Historia, Redes, etc.)
+            await cargarConfiguracionHomeDinamica();
         } else {
             console.error("Error al cargar home.html: Estado", res.status);
         }
@@ -21,6 +22,7 @@ async function cargarSeccionInicio() {
 
 const API_URL = "/api/web/inventario";
 const API_CATEGORIAS = "/api/web/categorias";
+const API_HOME_CONFIG = "/api/web/home-config";
 const SVG_FALLBACK = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100%' height='100%' fill='%23f1f5f9'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-size='10'>Fajas Isabella</text></svg>";
 
 let productos = [];
@@ -82,6 +84,136 @@ function mostrarSlide(index) {
             dot.classList.add('bg-white/50', 'opacity-60');
         }
     });
+}
+
+// --- CARGAR CONFIGURACIÓN DINÁMICA DE LA BD (SECCIÓN 0.5, 1, 2, 3) ---
+async function cargarConfiguracionHomeDinamica() {
+    try {
+        const res = await fetch(API_HOME_CONFIG);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        // 1. Sección 0.5 (Banner Slider)
+        if (data.sec05) {
+            let slidesHtml = '';
+            let dotsHtml = '';
+
+            for (let i = 1; i <= 4; i++) {
+                const slide = data.sec05[`slide${i}`];
+                if (!slide) continue;
+
+                let imgUrl = obtenerRutaImagenProducto(slide.imagen);
+                let isActive = i === 1 ? 'opacity-100' : 'opacity-0';
+
+                slidesHtml += `
+                    <div class="hero-slide absolute inset-0 ${isActive} transition-opacity duration-700 ease-in-out">
+                        <img src="${imgUrl}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-cover" alt="${slide.titulo}">
+                        <div class="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-950/40 to-transparent flex items-center p-6 sm:p-10">
+                            <div class="max-w-lg text-white space-y-2">
+                                <span class="bg-rose-600 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">${slide.tag}</span>
+                                <h2 class="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight">${slide.titulo}</h2>
+                                <p class="text-xs sm:text-sm text-slate-200">${slide.descripcion}</p>
+                                <button onclick="filtrarCategoria('TODAS')" class="mt-2 inline-block bg-white text-slate-900 hover:bg-rose-600 hover:text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-md">${slide.btn_texto}</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                dotsHtml += `
+                    <button onclick="irASlide(${i - 1})" class="hero-dot w-2.5 h-2.5 rounded-full ${i === 1 ? 'bg-white opacity-100' : 'bg-white/50 opacity-60'} transition-all"></button>
+                `;
+            }
+
+            const sliderContainer = document.getElementById('hero-slider-container');
+            const dotsContainer = document.getElementById('hero-dots-container');
+            if (sliderContainer) sliderContainer.innerHTML = slidesHtml;
+            if (dotsContainer) dotsContainer.innerHTML = dotsHtml;
+
+            iniciarHeroSlider();
+        }
+
+        // 2. Sección 1 (Historia y Multimedia)
+        if (data.sec1) {
+            const s1 = data.sec1;
+            if (document.getElementById('sec1-titulo')) document.getElementById('sec1-titulo').innerText = s1.titulo || "HISTORIA";
+            if (document.getElementById('sec1-subtitulo')) document.getElementById('sec1-subtitulo').innerText = s1.subtitulo || "";
+            if (document.getElementById('sec1-p1')) document.getElementById('sec1-p1').innerText = s1.parrafo1 || "";
+            if (document.getElementById('sec1-p2')) document.getElementById('sec1-p2').innerText = s1.parrafo2 || "";
+            if (document.getElementById('sec1-p3')) document.getElementById('sec1-p3').innerText = s1.parrafo3 || "";
+
+            const mediaName = s1.multimedia || "banner_historia.jpg";
+            const mediaUrl = obtenerRutaImagenProducto(mediaName);
+            const imgElem = document.getElementById('home-historia-img');
+            const vidElem = document.getElementById('home-historia-video');
+            const sourceElem = document.getElementById('home-historia-video-source');
+
+            if (mediaName.endsWith('.mp4')) {
+                if (imgElem) imgElem.style.display = 'none';
+                if (vidElem && sourceElem) {
+                    sourceElem.src = mediaUrl;
+                    vidElem.style.display = 'block';
+                    vidElem.load();
+                }
+            } else {
+                if (vidElem) vidElem.style.display = 'none';
+                if (imgElem) {
+                    imgElem.src = mediaUrl;
+                    imgElem.style.display = 'block';
+                }
+            }
+        }
+
+        // 3. Sección 2 (Instagram y TikTok)
+        if (data.sec2) {
+            const s2 = data.sec2;
+            const igContainer = document.getElementById('instagram-embed-container');
+            if (igContainer && s2.instagram_embed) {
+                igContainer.innerHTML = s2.instagram_embed;
+                if (window.instgrm) window.instgrm.Embeds.process();
+            }
+            const tkBtn = document.getElementById('sec2-tk-btn');
+            if (tkBtn && s2.tiktok_url) {
+                tkBtn.href = s2.tiktok_url;
+            }
+        }
+
+        // 4. Sección 3 (Publicidad 3 columnas)
+        if (data.sec3) {
+            for (let i = 1; i <= 3; i++) {
+                const card = data.sec3[`card${i}`];
+                if (!card) continue;
+
+                if (document.getElementById(`pub${i}-tag`)) document.getElementById(`pub${i}-tag`).innerText = card.tag || "";
+                if (document.getElementById(`pub${i}-titulo`)) document.getElementById(`pub${i}-titulo`).innerText = card.titulo || "";
+                if (document.getElementById(`pub${i}-desc`)) document.getElementById(`pub${i}-desc`).innerText = card.descripcion || "";
+                if (document.getElementById(`pub${i}-link`)) document.getElementById(`pub${i}-link`).innerText = card.link_texto || "Ver más →";
+
+                const pubMedia = card.multimedia || `publi_${i}.jpg`;
+                const pubUrl = obtenerRutaImagenProducto(pubMedia);
+                const pubImg = document.getElementById(`pub${i}-img`);
+                const pubVid = document.getElementById(`pub${i}-video`);
+                const pubSource = document.getElementById(`pub${i}-video-source`);
+
+                if (pubMedia.endsWith('.mp4')) {
+                    if (pubImg) pubImg.style.display = 'none';
+                    if (pubVid && pubSource) {
+                        pubSource.src = pubUrl;
+                        pubVid.style.display = 'block';
+                        pubVid.load();
+                    }
+                } else {
+                    if (pubVid) pubVid.style.display = 'none';
+                    if (pubImg) {
+                        pubImg.src = pubUrl;
+                        pubImg.style.display = 'block';
+                    }
+                }
+            }
+        }
+
+    } catch (e) {
+        console.warn("No se pudo cargar la configuración dinámica del home.", e);
+    }
 }
 
 async function inicializarTienda() {
@@ -664,7 +796,6 @@ function buscarProducto() {
     if (!inputBusqueda) return;
     const query = inputBusqueda.value.toLowerCase();
     
-    // Si busca algo, aseguramos que se muestre el catálogo y se oculte el inicio
     if (query.trim() !== "") {
         filtrarCategoria('TODAS');
     }
@@ -754,7 +885,7 @@ function eliminarDelCarrito(index) {
 
 function toggleCarrito() {
     const drawer = document.getElementById("drawer-carrito");
-    if (drawer) drawer.classList.toggle("hidden");
+    if (drawer) drawer.classList.add("hidden"); // Se corrige ocultar por defecto o alternar
 }
 
 function obtenerUsuarioLogueado() {

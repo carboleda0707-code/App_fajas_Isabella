@@ -1,73 +1,18 @@
 <!-- CONTENEDOR DE BIENVENIDA (Sección 0.5, 1 y 2 - Se oculta completo al filtrar categorías) -->
 <div id="secciones-intro-container">
 
-    <!-- SECCIÓN 0.5: HERO BANNER CAROUSEL (4 Fotos rotativas cada 2 segundos) -->
+    <!-- SECCIÓN 0.5: HERO BANNER CAROUSEL (Dinámico desde la BD) -->
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-4">
         <div class="relative w-full h-[240px] sm:h-[320px] lg:h-[380px] rounded-2xl overflow-hidden shadow-xl bg-slate-900 group">
             
-            <!-- Slides Container -->
+            <!-- Slides Container Dinámico -->
             <div id="hero-slider-container" class="relative w-full h-full">
-                
-                <!-- Slide 1 -->
-                <div class="hero-slide absolute inset-0 opacity-100 transition-opacity duration-700 ease-in-out">
-                    <img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80" class="w-full h-full object-cover" alt="Colección Fajas Reductoras">
-                    <div class="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-950/40 to-transparent flex items-center p-6 sm:p-10">
-                        <div class="max-w-lg text-white space-y-2">
-                            <span class="bg-rose-600 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">Alta Compresión</span>
-                            <h2 class="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight">Moldea tu Figura al Instante</h2>
-                            <p class="text-xs sm:text-sm text-slate-200">Descubre la nueva línea de fajas reductoras y postoperatorias de máxima comodidad.</p>
-                            <button onclick="filtrarCategoria('TODAS')" class="mt-2 inline-block bg-white text-slate-900 hover:bg-rose-600 hover:text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-md">Ver Colección &rarr;</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Slide 2 -->
-                <div class="hero-slide absolute inset-0 opacity-0 transition-opacity duration-700 ease-in-out">
-                    <img src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=80" class="w-full h-full object-cover" alt="Fajas Postoperatorias">
-                    <div class="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-950/40 to-transparent flex items-center p-6 sm:p-10">
-                        <div class="max-w-lg text-white space-y-2">
-                            <span class="bg-amber-500 text-slate-950 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">Calidad Colombiana</span>
-                            <h2 class="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight">Recuperación y Cuidado Seguro</h2>
-                            <p class="text-xs sm:text-sm text-slate-200">Diseños especializados con microcápsulas y costuras invisibles para tu diario vivir.</p>
-                            <button onclick="filtrarCategoria('TODAS')" class="mt-2 inline-block bg-white text-slate-900 hover:bg-amber-500 hover:text-slate-950 font-bold text-xs px-4 py-2 rounded-xl transition shadow-md">Explorar Modelos &rarr;</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Slide 3 -->
-                <div class="hero-slide absolute inset-0 opacity-0 transition-opacity duration-700 ease-in-out">
-                    <img src="https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1200&q=80" class="w-full h-full object-cover" alt="Cinturillas y Reloj de Arena">
-                    <div class="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-950/40 to-transparent flex items-center p-6 sm:p-10">
-                        <div class="max-w-lg text-white space-y-2">
-                            <span class="bg-blue-600 text-white text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">Efecto Cintura</span>
-                            <h2 class="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight">Definición Reloj de Arena</h2>
-                            <p class="text-xs sm:text-sm text-slate-200">Cinturillas de látex térmico ideales para moldear postura y reducir medidas.</p>
-                            <button onclick="filtrarCategoria('TODAS')" class="mt-2 inline-block bg-white text-slate-900 hover:bg-blue-600 hover:text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-md">Ver Cinturillas &rarr;</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Slide 4 -->
-                <div class="hero-slide absolute inset-0 opacity-0 transition-opacity duration-700 ease-in-out">
-                    <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=80" class="w-full h-full object-cover" alt="Envíos a todo el Ecuador">
-                    <div class="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-950/40 to-transparent flex items-center p-6 sm:p-10">
-                        <div class="max-w-lg text-white space-y-2">
-                            <span class="bg-emerald-600 text-white text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">Envíos Seguros</span>
-                            <h2 class="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight">Envíos Directos a Todo Ecuador</h2>
-                            <p class="text-xs sm:text-sm text-slate-200">Garantía de fábrica directa hasta la puerta de tu hogar.</p>
-                            <button onclick="filtrarCategoria('TODAS')" class="mt-2 inline-block bg-white text-slate-900 hover:bg-emerald-600 hover:text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-md">Comprar Ahora &rarr;</button>
-                        </div>
-                    </div>
-                </div>
-
+                <!-- Se inyecta dinámicamente desde tienda.js con la configuración de la BD -->
             </div>
 
-            <!-- Indicadores (Puntos del Carousel) -->
-            <div class="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex space-x-2 z-20">
-                <button onclick="irASlide(0)" class="hero-dot w-2.5 h-2.5 rounded-full bg-white opacity-100 transition-all"></button>
-                <button onclick="irASlide(1)" class="hero-dot w-2.5 h-2.5 rounded-full bg-white/50 opacity-60 transition-all"></button>
-                <button onclick="irASlide(2)" class="hero-dot w-2.5 h-2.5 rounded-full bg-white/50 opacity-60 transition-all"></button>
-                <button onclick="irASlide(3)" class="hero-dot w-2.5 h-2.5 rounded-full bg-white/50 opacity-60 transition-all"></button>
+            <!-- Indicadores (Puntos del Carousel) Dinámicos -->
+            <div id="hero-dots-container" class="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex space-x-2 z-20">
+                <!-- Se inyecta dinámicamente -->
             </div>
         </div>
     </section>
@@ -147,7 +92,7 @@
 </div>
 
 <!-- SECCIÓN 4: CATÁLOGO DE PRENDAS (Se muestra al filtrar categorías o entrar a Tienda) -->
-<section id="catalogo" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 border-t border-slate-200">
+<section id="catalogo" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 border-t border-slate-200" style="display:none;">
     <div class="flex items-center justify-between mb-6">
         <h2 id="titulo-categoria" class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">Todas las Prendas Disponibles</h2>
         <span id="total-productos" class="text-xs bg-slate-200 text-slate-700 px-3 py-1 rounded-full font-semibold">0 modelos</span>
