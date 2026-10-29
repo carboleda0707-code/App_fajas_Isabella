@@ -71,7 +71,6 @@ async function cargarSeccionInicio() {
     }
 }
 
-
 async function cargarConfiguracionHomeDinamica() {
     const slidesDefault = [
         { tag: "Alta Compresión", titulo: "Moldea tu Figura al Instante", descripcion: "Descubre la nueva línea de fajas reductoras y postoperatorias de máxima comodidad.", btn_texto: "Ver Colección →", imagen: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80" },
@@ -207,10 +206,10 @@ async function inicializarTienda() {
 
 async function cargarConfiguracionEmpresa() {
     try {
-        const res = await fetch("/api/config/empresa");
+        const res = await fetch("/config/empresa");
         if (res.ok) {
             const data = await res.json();
-            if (data.redes && data.redes.whatsapp) whatsappUrlGlobal = data.redes.whatsapp;
+            if (data.telefono_whatsapp) whatsappUrlGlobal = `https://wa.me/${data.telefono_whatsapp}`;
             if (data.redes) {
                 if (document.getElementById("footer-instagram")) document.getElementById("footer-instagram").href = data.redes.instagram;
                 if (document.getElementById("footer-facebook")) document.getElementById("footer-facebook").href = data.redes.facebook;
@@ -218,9 +217,10 @@ async function cargarConfiguracionEmpresa() {
                 if (document.getElementById("footer-whatsapp")) document.getElementById("footer-whatsapp").href = data.redes.whatsapp;
             }
             if (document.getElementById("footer-direccion")) document.getElementById("footer-direccion").innerText = data.direccion || "";
+            if (document.getElementById("footer-telefono")) document.getElementById("footer-telefono").innerText = data.telefono_whatsapp || "";
             if (document.getElementById("footer-correo")) document.getElementById("footer-correo").innerText = data.correo || "";
         }
-    } catch (e) { console.warn("Error cargando configuración."); }
+    } catch (e) { console.warn("Error cargando configuración de empresa."); }
 }
 
 async function cargarInventario() {
@@ -736,10 +736,9 @@ function toggleCarrito() {
     const drawer = document.getElementById("drawer-carrito");
     if (!drawer) return;
     
-    // Si tiene la clase 'hidden', la quitamos para mostrarlo; si no, la ponemos para ocultarlo
     if (drawer.classList.contains('hidden')) {
         drawer.classList.remove('hidden');
-        actualizarCarritoUI(); // Asegura que se pinte actualizado al abrir
+        actualizarCarritoUI();
     } else {
         drawer.classList.add('hidden');
     }
