@@ -102,6 +102,7 @@ async function cargarConfiguracionHomeDinamica() {
                 const slide = data.sec05[`slide${i}`];
                 if (!slide) continue;
 
+                // Usa la misma lógica de URL de los catálogos (Cloudinary / local / fallback)
                 let imgUrl = obtenerRutaImagenProducto(slide.imagen);
                 let isActive = i === 1 ? 'opacity-100' : 'opacity-0';
 
