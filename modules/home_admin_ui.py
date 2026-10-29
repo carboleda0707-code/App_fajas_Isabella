@@ -89,26 +89,31 @@ def render_home_admin():
                     archivo_subido = data["file_uploader"]
                     
                     if archivo_subido is not None:
-                        # Si tu proyecto ya tiene una función para subir a Cloudinary, úsala aquí.
-                        # Ejemplo: url_nube = subir_imagen_a_cloudinary(archivo_subido)
-                        # Si prefieres manejarlo por nombre en /img/, asegúrate de guardarlo con la ruta completa:
-                        img_url = f"/img/{archivo_subido.name}"
-                        
-                        # Guardar archivo localmente también por respaldo si es necesario
-                        os.makedirs("web/img", exist_ok=True)
-                        with open(os.path.join("web/img", archivo_subido.name), "wb") as f:
-                            f.write(archivo_subido.getbuffer())
+                        try:
+                            import cloudinary.uploader
+                            # Sube el archivo directamente a Cloudinary asegurando la URL en la nube
+                            bytes_data = archivo_subido.getvalue()
+                            resultado = cloudinary.uploader.upload(bytes_data, folder="fajas_isabella/home/slider")
+                            url_nube = resultado.get("secure_url")
+                            if url_nube:
+                                img_url = url_nube
+                        except Exception as e:
+                            st.warning(f"No se pudo subir a Cloudinary (Slide {idx}), usando ruta local: {e}")
+                            img_url = f"/img/{archivo_subido.name}"
+                            os.makedirs("web/img", exist_ok=True)
+                            with open(os.path.join("web/img", archivo_subido.name), "wb") as f:
+                                f.write(archivo_subido.getbuffer())
                     
                     payload_sec05[f"slide{idx}"] = {
                         "tag": data["tag"],
                         "titulo": data["titulo"],
                         "descripcion": data["descripcion"],
                         "btn_texto": data["btn_texto"],
-                        "imagen": img_url
+                        "imagen": img_url  # Guarda la URL absoluta de Cloudinary en la BD
                     }
                 
                 if guardar_seccion_db("sec05", payload_sec05):
-                    st.success("✅ ¡Sección 0.5 (Banner Slider) guardada con éxito en PostgreSQL!")
+                    st.success("✅ ¡Sección 0.5 subida a la nube y guardada con éxito en PostgreSQL!")
 
     # --- SECCIÓN 1: HISTORIA ---
     with tab1:
