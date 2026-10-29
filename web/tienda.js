@@ -253,11 +253,11 @@ function cargarCategoriasWeb() {
     if (!contenedor) return;
     
     let htmlScroll = `
-        <button onclick="irAInicio()" id="btn-cat-INICIO" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none cursor-pointer group w-20">
-            <div class="circle-cat w-14 h-14 min-w-[3.5rem] min-h-[3.5rem] rounded-full overflow-hidden border-2 border-rose-500 p-0.5 transition-all shadow-xs bg-rose-50 flex items-center justify-center shrink-0">
-                <img src="/img/cat-todas.jpg" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-cover rounded-full" alt="Inicio">
+        <button onclick="filtrarCategoria('TODAS')" id="btn-cat-INICIO" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none cursor-pointer group w-20">
+            <div class="circle-cat w-14 h-14 min-w-[3.5rem] min-h-[3.5rem] rounded-full overflow-hidden border-2 border-slate-200 p-0.5 transition-all shadow-xs bg-rose-50 flex items-center justify-center shrink-0">
+                <img src="/img/cat-todas.jpg" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-cover rounded-full" alt="Todas">
             </div>
-            <span class="text-[9px] font-bold text-rose-600 mt-1 uppercase tracking-tight text-center leading-tight line-clamp-2 w-full">Inicio</span>
+            <span class="text-[9px] font-bold text-slate-700 mt-1 uppercase tracking-tight text-center leading-tight line-clamp-2 w-full">Todas</span>
         </button>
     `;
 
