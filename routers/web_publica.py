@@ -55,6 +55,39 @@ def init_web_db_table(db: Session):
 
         default_data = [
             (
+                'sec05',
+                json.dumps({
+                    "slide1": {
+                        "tag": "Alta Compresión",
+                        "titulo": "Moldea tu Figura al Instante",
+                        "descripcion": "Descubre la nueva línea de fajas reductoras y postoperatorias de máxima comodidad.",
+                        "btn_texto": "Ver Colección →",
+                        "imagen": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80"
+                    },
+                    "slide2": {
+                        "tag": "Calidad Colombiana",
+                        "titulo": "Recuperación y Cuidado Seguro",
+                        "descripcion": "Diseños especializados con microcápsulas y costuras invisibles para tu diario vivir.",
+                        "btn_texto": "Explorar Modelos →",
+                        "imagen": "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=80"
+                    },
+                    "slide3": {
+                        "tag": "Efecto Cintura",
+                        "titulo": "Definición Reloj de Arena",
+                        "descripcion": "Cinturillas de látex térmico ideales para moldear postura y reducir medidas.",
+                        "btn_texto": "Ver Cinturillas →",
+                        "imagen": "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1200&q=80"
+                    },
+                    "slide4": {
+                        "tag": "Envíos Seguros",
+                        "titulo": "Envíos Directos a Todo Ecuador",
+                        "descripcion": "Garantía de fábrica directa hasta la puerta de tu hogar.",
+                        "btn_texto": "Comprar Ahora →",
+                        "imagen": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=80"
+                    }
+                })
+            ),
+            (
                 'sec1',
                 json.dumps({
                     "titulo": "HISTORIA",
@@ -62,7 +95,7 @@ def init_web_db_table(db: Session):
                     "parrafo1": "Fajas Isabella empezó vendiendo desde la sala de su casa, con la convicción de que toda mujer merece sentirse segura y hermosa en su cuerpo.",
                     "parrafo2": "Hoy somos un equipo que fabrica directamente fajas colombianas, con ventas al por mayor y al por menor, y más de 80 modelos entre fajas látex reductoras, fajas postoperatorias, cinturillas y accesorios.",
                     "parrafo3": "Nuestra marca está registrada ante el SENADI como \"FAJAS Isabella RESALTA TU BELLEZA\", un respaldo de la calidad y la confianza que nos han dado nuestras clientas.",
-                    "multimedia": "banner_historia.mp4"
+                    "multimedia": "banner_historia.jpg"
                 })
             ),
             (
@@ -111,6 +144,8 @@ def init_web_db_table(db: Session):
         print(f"Error al inicializar tabla web: {e}")
 
 
+@router.get("/api/web/home-config")
+@router.get("/web/home-config")
 @router.get("/web/home")
 def get_web_home(db: Session = Depends(get_db)):
     """Obtiene la configuración completa del Home almacenada en PostgreSQL."""
@@ -129,6 +164,8 @@ def get_web_home(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Error al obtener configuración web: {str(e)}")
 
 
+@router.post("/api/web/home-config")
+@router.post("/web/home-config")
 @router.post("/web/home")
 def update_web_home(config: WebConfigModel, db: Session = Depends(get_db)):
     """Actualiza o guarda una sección de la web en PostgreSQL (UPSERT)."""
