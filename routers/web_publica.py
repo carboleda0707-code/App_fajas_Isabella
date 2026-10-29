@@ -208,6 +208,7 @@ def obtener_info_empresa():
         }
     }
 
+@router.get("/api/web/inventario")
 @router.get("/web/inventario")
 def listar_inventario_publico(categoria: Optional[str] = Query(None), db: Session = Depends(get_db)):
     query = db.query(Producto)
@@ -219,18 +220,19 @@ def listar_inventario_publico(categoria: Optional[str] = Query(None), db: Sessio
     
     resultado = []
     for prod in productos_db:
-        variantes = [v for v in prod.variantes if v.stock_actual > 0]
+        variantes = [v for v in prod.variantes if (getattr(v, 'stock_actual', 0) or getattr(v, 'stock', 0)) > 0]
         
         if variantes:
             variantes_data = []
             for v in variantes:
+                stock_val = getattr(v, 'stock_actual', 0) or getattr(v, 'stock', 0)
                 variantes_data.append({
                     "id": v.id,
                     "sku": v.sku,
                     "talla": v.talla,
                     "color": v.color,
                     "precio": float(v.precio),
-                    "stock": v.stock_actual,
+                    "stock": stock_val,
                     "imagen_url": getattr(v, 'imagen_url', '') or ''
                 })
             
@@ -251,6 +253,7 @@ def listar_inventario_publico(categoria: Optional[str] = Query(None), db: Sessio
             
     return resultado
 
+@router.get("/api/web/producto/{producto_id}")
 @router.get("/web/producto/{producto_id}")
 def obtener_producto_dinamico(producto_id: int, db: Session = Depends(get_db)):
     prod = db.query(Producto).filter(Producto.id == producto_id).first()
@@ -272,8 +275,6 @@ def obtener_producto_dinamico(producto_id: int, db: Session = Depends(get_db)):
         })
 
     img_clean = getattr(prod, 'imagen_url', '') or ''
-    if img_clean:
-        img_clean = img_clean.split('/')[-1]
 
     return {
         "status": "success",
@@ -284,6 +285,7 @@ def obtener_producto_dinamico(producto_id: int, db: Session = Depends(get_db)):
         "variantes": variantes_data
     }
 
+@router.get("/api/web/categorias")
 @router.get("/web/categorias")
 def listar_categorias_publicas(db: Session = Depends(get_db)):
     try:
@@ -291,8 +293,6 @@ def listar_categorias_publicas(db: Session = Depends(get_db)):
         resultado = []
         for cat in categorias_db:
             img_clean = getattr(cat, 'imagen_url', '') or ''
-            # No recortamos la URL para conservar la ruta absoluta de Cloudinary
-
             resultado.append({
                 "nombre": getattr(cat, 'nombre', getattr(cat, 'categoria', '')),
                 "imagen_url": img_clean
