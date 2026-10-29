@@ -71,6 +71,31 @@ async function cargarSeccionInicio() {
     }
 }
 
+
+// Cargar información de la empresa en el footer automáticamente
+async function cargarConfigEmpresa() {
+    try {
+        const res = await fetch('/config/empresa');
+        if (res.ok) {
+            const data = await res.json();
+            if (document.getElementById('footer-direccion')) {
+                document.getElementById('footer-direccion').textContent = data.direccion || 'Guayaquil, Ecuador';
+            }
+            if (document.getElementById('footer-telefono')) {
+                document.getElementById('footer-telefono').textContent = data.telefono_whatsapp || '+593 98 387 0398';
+            }
+            if (document.getElementById('footer-correo')) {
+                document.getElementById('footer-correo').textContent = data.correo || 'ventas@fajasisabella.com';
+            }
+        }
+    } catch (err) {
+        console.error("No se pudo cargar la configuración de empresa:", err);
+    }
+}
+
+// Ejecutar al cargar la página
+document.addEventListener('DOMContentLoaded', cargarConfigEmpresa);
+
 async function cargarConfiguracionHomeDinamica() {
     const slidesDefault = [
         { tag: "Alta Compresión", titulo: "Moldea tu Figura al Instante", descripcion: "Descubre la nueva línea de fajas reductoras y postoperatorias de máxima comodidad.", btn_texto: "Ver Colección →", imagen: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80" },
