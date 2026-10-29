@@ -302,7 +302,7 @@ def listar_categorias_publicas(db: Session = Depends(get_db)):
     except Exception:
         return []
 
-# --- AUTENTICACIÓN Y GESTIÓN DE CLIENTES UNIFICADA (CON VALIDACIÓN DE UNICIDAD) ---
+# --- AUTENTICACIÓN Y GESTIÓN DE CLIENTES UNIFICADA ---
 
 @router.post("/api/web/auth/login")
 def login_cliente(datos: LoginSchema, db: Session = Depends(get_db)):
@@ -311,13 +311,6 @@ def login_cliente(datos: LoginSchema, db: Session = Depends(get_db)):
 
     if not cliente:
         raise HTTPException(status_code=400, detail="Correo no registrado en el sistema.")
-
-    if not cliente.password or str(cliente.cliente_web).upper() == "POR_ACTUALIZAR":
-        return {
-            "status": "requiere_password",
-            "mensaje": "Detectamos una cuenta provisional. Por favor configure su contraseña.",
-            "correo": cliente.correo
-        }
 
     password_hash = generar_hash_sha256(datos.password)
     if cliente.password != password_hash:
@@ -371,24 +364,21 @@ def registrar_cliente_web(
     existente = db.query(Cliente).filter(query_filtro).first()
     
     if existente:
-        if existente.password and str(existente.cliente_web).upper() != "POR_ACTUALIZAR":
-            raise HTTPException(status_code=400, detail="Ya existe una cuenta registrada con este correo o RUC/Cédula.")
-        else:
-            existente.nombre = nombre
-            existente.correo = correo_limpio
-            existente.password = generar_hash_sha256(password)
-            existente.telefono = telefono or existente.telefono
-            existente.direccion = direccion or existente.direccion
-            if ruc_cedula:
-                existente.ruc_cedula = ruc_cedula
-            existente.cliente_web = True
-            db.commit()
-            db.refresh(existente)
-            return {
-                "status": "success",
-                "mensaje": "¡Cuenta activada y registrada exitosamente!",
-                "cliente": {"id": existente.id, "nombre": existente.nombre, "correo": existente.correo}
-            }
+        existente.nombre = nombre
+        existente.correo = correo_limpio
+        existente.password = generar_hash_sha256(password)
+        existente.telefono = telefono or existente.telefono
+        existente.direccion = direccion or existente.direccion
+        if ruc_cedula:
+            existente.ruc_cedula = ruc_cedula
+        existente.cliente_web = True
+        db.commit()
+        db.refresh(existente)
+        return {
+            "status": "success",
+            "mensaje": "¡Cuenta activada y registrada exitosamente!",
+            "cliente": {"id": existente.id, "nombre": existente.nombre, "correo": existente.correo}
+        }
 
     nuevo_cliente = Cliente(
         ruc_cedula=ruc_cedula or correo_limpio[:20],
@@ -439,13 +429,13 @@ async def checkout_whatsapp(
             cliente_db.telefono = telefono
             cliente_db.direccion = direccion
             cliente_db.ciudad = ciudad
+            cliente_db.cliente_web = True  # Asignamos booleano correcto
             if correo_limpio and not cliente_db.correo:
                 cliente_db.correo = correo_limpio
                 
-            if not cliente_db.password or str(cliente_db.cliente_web).upper() == "POR_ACTUALIZAR":
+            if not cliente_db.password:
                 password_temporal = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
                 cliente_db.password = generar_hash_sha256(password_temporal)
-                cliente_db.cliente_web = "POR_ACTUALIZAR"
             db.commit()
         else:
             password_temporal = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
@@ -459,7 +449,7 @@ async def checkout_whatsapp(
                 telefono=telefono,
                 direccion=direccion,
                 ciudad=ciudad,
-                cliente_web="POR_ACTUALIZAR",
+                cliente_web=True,  # Asignamos booleano correcto
                 password=password_hash_temp
             )
             db.add(cliente_db)
@@ -489,8 +479,6 @@ async def checkout_whatsapp(
             ciudad=ciudad,
             direccion_entrega=direccion,
             referencia_direccion=referencia,
-            courier_nombre="Por Definir",
-            estado_despacho="PENDIENTE"
         )
         db.add(nueva_factura)
         db.commit()
@@ -516,7 +504,6 @@ async def checkout_whatsapp(
 
         if comprobante:
             try:
-                # Lectura segura de bytes para Cloudinary
                 file_bytes = await comprobante.read()
                 upload_result = cloudinary.uploader.upload(file_bytes)
                 file_url = upload_result.get("secure_url", comprobante.filename)
@@ -556,7 +543,6 @@ async def checkout_whatsapp(
 
     except Exception as db_err:
         db.rollback()
-        # Esto te mostrará el error exacto en la alerta en caso de que falle la BD
         raise HTTPException(status_code=500, detail=f"Error en servidor/BD: {str(db_err)}")
 
 
