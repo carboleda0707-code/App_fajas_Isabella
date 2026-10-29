@@ -88,7 +88,6 @@ function mostrarSlide(index) {
 
 // --- CARGAR CONFIGURACIÓN DINÁMICA DE LA BD (SECCIÓN 0.5, 1, 2, 3) ---
 async function cargarConfiguracionHomeDinamica() {
-    // Slides de respaldo por defecto para evitar pantallas negras si la BD está vacía
     const slidesDefault = [
         { tag: "Alta Compresión", titulo: "Moldea tu Figura al Instante", descripcion: "Descubre la nueva línea de fajas reductoras y postoperatorias de máxima comodidad.", btn_texto: "Ver Colección →", imagen: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80" },
         { tag: "Calidad Colombiana", titulo: "Recuperación y Cuidado Seguro", descripcion: "Diseños especializados con microcápsulas y costuras invisibles para tu diario vivir.", btn_texto: "Explorar Modelos →", imagen: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=80" },
@@ -97,15 +96,18 @@ async function cargarConfiguracionHomeDinamica() {
     ];
 
     let slidesUsar = slidesDefault;
+    let dataGlobal = {};
 
     try {
         const res = await fetch(API_HOME_CONFIG);
         if (res.ok) {
-            const data = await res.json();
-            if (data.sec05 && typeof data.sec05 === 'object') {
+            dataGlobal = await res.json();
+            
+            // 1. Sección 0.5 (Banner Slider)
+            if (dataGlobal.sec05 && typeof dataGlobal.sec05 === 'object') {
                 let slidesDinamicos = [];
                 for (let i = 1; i <= 4; i++) {
-                    const slide = data.sec05[`slide${i}`];
+                    const slide = dataGlobal.sec05[`slide${i}`];
                     if (slide && slide.titulo) {
                         let rawImg = slide.imagen || "";
                         let imgUrl = "";
@@ -135,10 +137,10 @@ async function cargarConfiguracionHomeDinamica() {
             }
         }
     } catch (e) {
-        console.warn("Aviso: Usando slides por defecto por error en API Home Config:", e);
+        console.warn("Aviso: Usando configuración por defecto por error en API Home Config:", e);
     }
 
-    // Renderizar Slides y Dots de forma limpia
+    // Renderizar Slides y Dots
     let slidesHtml = '';
     let dotsHtml = '';
 
@@ -171,8 +173,8 @@ async function cargarConfiguracionHomeDinamica() {
     iniciarHeroSlider();
 
     // 2. Sección 1 (Historia y Multimedia)
-    if (data && data.sec1) {
-        const s1 = data.sec1;
+    if (dataGlobal.sec1) {
+        const s1 = dataGlobal.sec1;
         if (document.getElementById('sec1-titulo')) document.getElementById('sec1-titulo').innerText = s1.titulo || "HISTORIA";
         if (document.getElementById('sec1-subtitulo')) document.getElementById('sec1-subtitulo').innerText = s1.subtitulo || "";
         if (document.getElementById('sec1-p1')) document.getElementById('sec1-p1').innerText = s1.parrafo1 || "";
@@ -202,8 +204,8 @@ async function cargarConfiguracionHomeDinamica() {
     }
 
     // 3. Sección 2 (Instagram y TikTok)
-    if (data && data.sec2) {
-        const s2 = data.sec2;
+    if (dataGlobal.sec2) {
+        const s2 = dataGlobal.sec2;
         const igContainer = document.getElementById('instagram-embed-container');
         if (igContainer && s2.instagram_embed) {
             igContainer.innerHTML = s2.instagram_embed;
@@ -216,9 +218,9 @@ async function cargarConfiguracionHomeDinamica() {
     }
 
     // 4. Sección 3 (Publicidad 3 columnas)
-    if (data && data.sec3) {
+    if (dataGlobal.sec3) {
         for (let i = 1; i <= 3; i++) {
-            const card = data.sec3[`card${i}`];
+            const card = dataGlobal.sec3[`card${i}`];
             if (!card) continue;
 
             if (document.getElementById(`pub${i}-tag`)) document.getElementById(`pub${i}-tag`).innerText = card.tag || "";
