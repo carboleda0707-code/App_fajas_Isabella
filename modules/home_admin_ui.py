@@ -46,9 +46,62 @@ def render_home_admin():
     st.markdown("### 🌐 Panel de Gestión del Home Web (PostgreSQL)")
     st.markdown("Actualiza el contenido multimedia, los textos y los enlaces dinámicos de tu tienda online directamente en la base de datos.")
 
-    tab1, tab2, tab3 = st.tabs(["📌 Sección 1: Historia", "💬 Sección 2: Testimonios / En Vivo", "📢 Sección 3: Publicidad (3 Cols)"])
+    tab0, tab1, tab2, tab3 = st.tabs(["🖼️ Sección 0.5: Banner Slider", "📌 Sección 1: Historia", "💬 Sección 2: Testimonios / En Vivo", "📢 Sección 3: Publicidad (3 Cols)"])
 
     config = cargar_config_db()
+
+    # --- SECCIÓN 0.5: BANNER SLIDER ---
+    with tab0:
+        st.subheader("Administrar Sección 0.5 (Banner Slider Rotativo - 4 Diapositivas)")
+        st.info("Configura las 4 imágenes, etiquetas, títulos y descripciones del banner principal que rota cada 2 segundos.")
+        
+        with st.form("form_sec05"):
+            sec05_cfg = config.get("sec05", {})
+            
+            slides_data = []
+            for i in range(1, 5):
+                st.markdown(f"---")
+                st.markdown(f"#### 🖼️ Diapositiva (Slide) {i}")
+                s_cfg = sec05_cfg.get(f"slide{i}", {})
+                
+                archivo_slide = st.file_uploader(f"Subir Imagen Slide {i} (.jpg/.png)", type=["jpg", "jpeg", "png"], key=f"up_slide_{i}")
+                s_tag = st.text_input(f"Etiqueta / Badge {i}", value=s_cfg.get("tag", f"Colección {i}"))
+                s_titulo = st.text_input(f"Título Principal {i}", value=s_cfg.get("titulo", f"Título de Ejemplo {i}"))
+                s_desc = st.text_area(f"Descripción {i}", value=s_cfg.get("descripcion", f"Descripción de la diapositiva {i}..."))
+                s_btn = st.text_input(f"Texto del Botón {i}", value=s_cfg.get("btn_texto", "Ver Colección →"))
+                
+                slides_data.append({
+                    "file_uploader": archivo_slide,
+                    "tag": s_tag,
+                    "titulo": s_titulo,
+                    "descripcion": s_desc,
+                    "btn_texto": s_btn,
+                    "imagen_actual": s_cfg.get("imagen", f"slide_{i}.jpg")
+                })
+
+            subm_sec05 = st.form_submit_button("💾 Guardar Cambios de Sección 0.5 en BD", use_container_width=True)
+            
+            if subm_sec05:
+                os.makedirs("web/img", exist_ok=True)
+                payload_sec05 = {}
+                
+                for idx, data in enumerate(slides_data, start=1):
+                    img_name = data["imagen_actual"]
+                    if data["file_uploader"] is not None:
+                        img_name = data["file_uploader"].name
+                        with open(os.path.join("web/img", img_name), "wb") as f:
+                            f.write(data["file_uploader"].getbuffer())
+                    
+                    payload_sec05[f"slide{idx}"] = {
+                        "tag": data["tag"],
+                        "titulo": data["titulo"],
+                        "descripcion": data["descripcion"],
+                        "btn_texto": data["btn_texto"],
+                        "imagen": img_name
+                    }
+                
+                if guardar_seccion_db("sec05", payload_sec05):
+                    st.success("✅ ¡Sección 0.5 (Banner Slider) guardada con éxito en PostgreSQL!")
 
     # --- SECCIÓN 1: HISTORIA ---
     with tab1:
@@ -73,7 +126,6 @@ def render_home_admin():
             if subm_sec1:
                 multimedia_actual = sec1_cfg.get("multimedia", "banner_historia.jpg")
                 if archivo_sec1 is not None:
-                    # Usar el nombre original del archivo subido
                     nombre_archivo = archivo_sec1.name
                     ruta_destino = os.path.join("web/img", nombre_archivo)
                     os.makedirs("web/img", exist_ok=True)
@@ -161,24 +213,21 @@ def render_home_admin():
             if subm_sec3:
                 os.makedirs("web/img", exist_ok=True)
                 
-                # Procesar Tarjeta 1
                 m1 = p1_cfg.get("multimedia", "publi_1.jpg")
                 if p1_file is not None:
-                    m1 = p1_file.name  # Nombre real original
+                    m1 = p1_file.name
                     with open(os.path.join("web/img", m1), "wb") as f:
                         f.write(p1_file.getbuffer())
 
-                # Procesar Tarjeta 2
                 m2 = p2_cfg.get("multimedia", "publi_2.jpg")
                 if p2_file is not None:
-                    m2 = p2_file.name  # Nombre real original
+                    m2 = p2_file.name
                     with open(os.path.join("web/img", m2), "wb") as f:
                         f.write(p2_file.getbuffer())
 
-                # Procesar Tarjeta 3
                 m3 = p3_cfg.get("multimedia", "publi_3.jpg")
                 if p3_file is not None:
-                    m3 = p3_file.name  # Nombre real original
+                    m3 = p3_file.name
                     with open(os.path.join("web/img", m3), "wb") as f:
                         f.write(p3_file.getbuffer())
 
