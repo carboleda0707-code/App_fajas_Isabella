@@ -1,9 +1,80 @@
-<!-- CONTENEDOR DE BIENVENIDA (Sección 1 y 2 - Se ocultan automáticamente al filtrar categorías) -->
+<!-- CONTENEDOR DE BIENVENIDA (Sección 0.5, 1 y 2 - Se oculta completo al filtrar categorías) -->
 <div id="secciones-intro-container">
+
+    <!-- SECCIÓN 0.5: HERO BANNER CAROUSEL (4 Fotos rotativas cada 2 segundos) -->
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-4">
+        <div class="relative w-full h-[240px] sm:h-[320px] lg:h-[380px] rounded-2xl overflow-hidden shadow-xl bg-slate-900 group">
+            
+            <!-- Slides Container -->
+            <div id="hero-slider-container" class="relative w-full h-full">
+                
+                <!-- Slide 1 -->
+                <div class="hero-slide absolute inset-0 opacity-100 transition-opacity duration-700 ease-in-out">
+                    <img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80" class="w-full h-full object-cover" alt="Colección Fajas Reductoras">
+                    <div class="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-950/40 to-transparent flex items-center p-6 sm:p-10">
+                        <div class="max-w-lg text-white space-y-2">
+                            <span class="bg-rose-600 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">Alta Compresión</span>
+                            <h2 class="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight">Moldea tu Figura al Instante</h2>
+                            <p class="text-xs sm:text-sm text-slate-200">Descubre la nueva línea de fajas reductoras y postoperatorias de máxima comodidad.</p>
+                            <button onclick="filtrarCategoria('TODAS')" class="mt-2 inline-block bg-white text-slate-900 hover:bg-rose-600 hover:text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-md">Ver Colección &rarr;</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 2 -->
+                <div class="hero-slide absolute inset-0 opacity-0 transition-opacity duration-700 ease-in-out">
+                    <img src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=80" class="w-full h-full object-cover" alt="Fajas Postoperatorias">
+                    <div class="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-950/40 to-transparent flex items-center p-6 sm:p-10">
+                        <div class="max-w-lg text-white space-y-2">
+                            <span class="bg-amber-500 text-slate-950 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">Calidad Colombiana</span>
+                            <h2 class="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight">Recuperación y Cuidado Seguro</h2>
+                            <p class="text-xs sm:text-sm text-slate-200">Diseños especializados con microcápsulas y costuras invisibles para tu diario vivir.</p>
+                            <button onclick="filtrarCategoria('TODAS')" class="mt-2 inline-block bg-white text-slate-900 hover:bg-amber-500 hover:text-slate-950 font-bold text-xs px-4 py-2 rounded-xl transition shadow-md">Explorar Modelos &rarr;</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 3 -->
+                <div class="hero-slide absolute inset-0 opacity-0 transition-opacity duration-700 ease-in-out">
+                    <img src="https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1200&q=80" class="w-full h-full object-cover" alt="Cinturillas y Reloj de Arena">
+                    <div class="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-950/40 to-transparent flex items-center p-6 sm:p-10">
+                        <div class="max-w-lg text-white space-y-2">
+                            <span class="bg-blue-600 text-white text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">Efecto Cintura</span>
+                            <h2 class="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight">Definición Reloj de Arena</h2>
+                            <p class="text-xs sm:text-sm text-slate-200">Cinturillas de látex térmico ideales para moldear postura y reducir medidas.</p>
+                            <button onclick="filtrarCategoria('TODAS')" class="mt-2 inline-block bg-white text-slate-900 hover:bg-blue-600 hover:text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-md">Ver Cinturillas &rarr;</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 4 -->
+                <div class="hero-slide absolute inset-0 opacity-0 transition-opacity duration-700 ease-in-out">
+                    <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=80" class="w-full h-full object-cover" alt="Envíos a todo el Ecuador">
+                    <div class="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-950/40 to-transparent flex items-center p-6 sm:p-10">
+                        <div class="max-w-lg text-white space-y-2">
+                            <span class="bg-emerald-600 text-white text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">Envíos Seguros</span>
+                            <h2 class="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight">Envíos Directos a Todo Ecuador</h2>
+                            <p class="text-xs sm:text-sm text-slate-200">Garantía de fábrica directa hasta la puerta de tu hogar.</p>
+                            <button onclick="filtrarCategoria('TODAS')" class="mt-2 inline-block bg-white text-slate-900 hover:bg-emerald-600 hover:text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-md">Comprar Ahora &rarr;</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Indicadores (Puntos del Carousel) -->
+            <div class="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex space-x-2 z-20">
+                <button onclick="irASlide(0)" class="hero-dot w-2.5 h-2.5 rounded-full bg-white opacity-100 transition-all"></button>
+                <button onclick="irASlide(1)" class="hero-dot w-2.5 h-2.5 rounded-full bg-white/50 opacity-60 transition-all"></button>
+                <button onclick="irASlide(2)" class="hero-dot w-2.5 h-2.5 rounded-full bg-white/50 opacity-60 transition-all"></button>
+                <button onclick="irASlide(3)" class="hero-dot w-2.5 h-2.5 rounded-full bg-white/50 opacity-60 transition-all"></button>
+            </div>
+        </div>
+    </section>
+
     <!-- SECCIÓN 1: HISTORIA -->
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-3">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-            <!-- Columna Izquierda: Video o Imagen Dinámica (Reducido simétricamente) -->
             <div class="relative rounded-2xl overflow-hidden shadow-lg bg-slate-100 flex items-center justify-center h-[220px] sm:h-[260px] lg:h-[300px] max-w-md mx-auto lg:max-w-none w-full">
                 <video id="home-historia-video" autoplay muted loop playsinline class="w-full h-full object-cover rounded-2xl" style="display:none;">
                     <source id="home-historia-video-source" src="" type="video/mp4">
@@ -11,7 +82,6 @@
                 <img id="home-historia-img" src="img/banner_historia.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=800&q=80'" alt="Historia Fajas Isabella" class="w-full h-full object-cover rounded-2xl transition-transform duration-500 hover:scale-105">
             </div>
 
-            <!-- Columna Derecha: Título, Subtítulo y Párrafos (Compactos) -->
             <div class="flex flex-col justify-center space-y-3">
                 <div>
                     <span class="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-0.5">Conoce nuestra...</span>
@@ -37,7 +107,6 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
-            <!-- Columna 1: Instagram Embed Controlado -->
             <div class="bg-white border border-rose-100 rounded-2xl p-4 shadow-sm flex flex-col justify-between relative overflow-hidden h-full">
                 <div>
                     <div class="flex items-center justify-between mb-2">
@@ -49,14 +118,11 @@
                     <h3 class="text-base font-extrabold text-slate-900 mb-1">Reel Destacado en Directo</h3>
                 </div>
 
-                <div id="instagram-embed-container" class="w-full bg-slate-50 rounded-xl p-1 my-1 overflow-hidden flex justify-center items-start max-h-[280px] border border-slate-100">
-                    <!-- El embed de IG se inyecta aquí -->
-                </div>
+                <div id="instagram-embed-container" class="w-full bg-slate-50 rounded-xl p-1 my-1 overflow-hidden flex justify-center items-start max-h-[280px] border border-slate-100"></div>
 
                 <p class="text-[9px] text-slate-400 text-center mt-1">Publicación oficial sincronizada desde @fajasisabella.ec</p>
             </div>
 
-            <!-- Columna 2: TikTok Live -->
             <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white border border-slate-800 rounded-2xl p-4 shadow-md flex flex-col justify-between relative overflow-hidden group h-full">
                 <div class="absolute top-0 right-0 transform translate-x-4 -translate-y-4 w-20 h-20 bg-rose-500/20 rounded-full blur-xl pointer-events-none"></div>
                 <div>
@@ -80,7 +146,7 @@
     <script async src="//www.instagram.com/embed.js"></script>
 </div>
 
-<!-- SECCIÓN 4: CATÁLOGO DE PRENDAS (ANTES DE LA PUBLICIDAD) -->
+<!-- SECCIÓN 4: CATÁLOGO DE PRENDAS (Se muestra al filtrar categorías o entrar a Tienda) -->
 <section id="catalogo" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 border-t border-slate-200">
     <div class="flex items-center justify-between mb-6">
         <h2 id="titulo-categoria" class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">Todas las Prendas Disponibles</h2>

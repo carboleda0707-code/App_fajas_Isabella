@@ -1,4 +1,4 @@
-// tienda.js - Carga dinámica del catálogo de Fajas Isabella
+// tienda.js - Carga dinámica del catálogo y flujo visual de Fajas Isabella
 async function cargarSeccionInicio() {
     const container = document.getElementById('home-dinamico-container');
     if (!container) return;
@@ -9,15 +9,13 @@ async function cargarSeccionInicio() {
             const html = await res.text();
             container.innerHTML = html;
             container.style.display = 'block';
+            // Inicializa el slider automático al cargar el HTML de bienvenida
+            iniciarHeroSlider();
         } else {
             console.error("Error al cargar home.html: Estado", res.status);
         }
     } catch (err) {
         console.error("No se pudo cargar home.html", err);
-    }
-
-    if (typeof filtrarCategoria === 'function') {
-        filtrarCategoria('TODAS');
     }
 }
 
@@ -36,15 +34,70 @@ let carrito = [];
 let categoriaSeleccionadaActual = "TODAS";
 let whatsappUrlGlobal = "https://wa.me/593983870398";
 
+// --- LÓGICA DEL SLIDER AUTOMÁTICO (SECCIÓN 0.5 - 2 SEGUNDOS) ---
+let currentSlide = 0;
+let slideInterval = null;
+
+function iniciarHeroSlider() {
+    if (slideInterval) clearInterval(slideInterval);
+    slideInterval = setInterval(() => {
+        siguienteSlide();
+    }, 2000); // Cambia cada 2 segundos (2000 ms)
+}
+
+function siguienteSlide() {
+    const slides = document.querySelectorAll('.hero-slide');
+    if (!slides.length) return;
+    currentSlide = (currentSlide + 1) % slides.length;
+    mostrarSlide(currentSlide);
+}
+
+function irASlide(index) {
+    currentSlide = index;
+    mostrarSlide(currentSlide);
+    iniciarHeroSlider(); // Reinicia el temporizador de 2 segundos tras clic manual
+}
+
+function mostrarSlide(index) {
+    const slides = document.querySelectorAll('.hero-slide');
+    const dots = document.querySelectorAll('.hero-dot');
+    if (!slides.length) return;
+    
+    slides.forEach((slide, i) => {
+        if (i === index) {
+            slide.classList.remove('opacity-0');
+            slide.classList.add('opacity-100');
+        } else {
+            slide.classList.remove('opacity-100');
+            slide.classList.add('opacity-0');
+        }
+    });
+
+    dots.forEach((dot, i) => {
+        if (i === index) {
+            dot.classList.remove('bg-white/50', 'opacity-60');
+            dot.classList.add('bg-white', 'opacity-100');
+        } else {
+            dot.classList.remove('bg-white', 'opacity-100');
+            dot.classList.add('bg-white/50', 'opacity-60');
+        }
+    });
+}
+
 async function inicializarTienda() {
     await cargarConfiguracionEmpresa();
     await cargarSeccionInicio();
+    
     setTimeout(async () => {
         if (typeof window.inicializarHome === 'function') {
             window.inicializarHome();
         }
         await cargarInventario();
+        
+        // Estado inicial por defecto: Mostrar bienvenida (Inicio) y ocultar catálogo
+        irAInicio();
     }, 100);
+    
     actualizarBotonCuentaNav();
 }
 
@@ -71,8 +124,6 @@ async function cargarConfiguracionEmpresa() {
 }
 
 async function cargarInventario() {
-    const catalogContainer = document.getElementById('catalog-container');
-
     try {
         const [resProductos, resCategorias] = await Promise.allSettled([
             fetch(API_URL),
@@ -98,7 +149,6 @@ async function cargarInventario() {
     }
 
     productosFiltrados = [...productos];
-    
     cargarCategoriasWeb();
     renderizarCatalogo();
 }
@@ -111,23 +161,19 @@ function obtenerRutaImagenProducto(imagenUrl) {
         return SVG_FALLBACK;
     }
     
-    // Si ya es una URL absoluta (Cloudinary u otra fuente externa), se retorna intacta
     if (urlLimpia.startsWith("http://") || urlLimpia.startsWith("https://")) {
         return urlLimpia;
     }
     
-    // Si es una ruta local explícita en /img/
     if (urlLimpia.startsWith("/img/") || urlLimpia.startsWith("img/")) {
         let nombreArchivo = urlLimpia.split('/').pop().trim();
         return `/img/${nombreArchivo}`;
     }
     
-    // Si la base de datos guardó solo el nombre de archivo de Cloudinary (ej. fqhy0omimblqxfoqpa7o.jpg)
     if (urlLimpia.includes('.') && !urlLimpia.startsWith('/')) {
         return `https://res.cloudinary.com/d82ff3dh/image/upload/v1793225915/fajas_isabella/categorias/${urlLimpia}`;
     }
     
-    // Fallback por defecto a local
     let nombreArchivo = urlLimpia.split('/').pop().trim();
     return `/img/${nombreArchivo}`;
 }
@@ -138,15 +184,16 @@ function cargarCategoriasWeb() {
     if (!contenedor) return;
     
     let htmlScroll = `
-        <button onclick="filtrarCategoria('TODAS')" id="btn-cat-TODAS" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none cursor-pointer group w-20">
+        <button onclick="irAInicio()" id="btn-cat-INICIO" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none cursor-pointer group w-20">
             <div class="circle-cat w-14 h-14 min-w-[3.5rem] min-h-[3.5rem] rounded-full overflow-hidden border-2 border-rose-500 p-0.5 transition-all shadow-xs bg-rose-50 flex items-center justify-center shrink-0">
-                <img src="/img/cat-todas.jpg" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-cover rounded-full" alt="Todas">
+                <img src="/img/cat-todas.jpg" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-cover rounded-full" alt="Inicio">
             </div>
-            <span class="text-[9px] font-bold text-rose-600 mt-1 uppercase tracking-tight text-center leading-tight line-clamp-2 w-full">Todas</span>
+            <span class="text-[9px] font-bold text-rose-600 mt-1 uppercase tracking-tight text-center leading-tight line-clamp-2 w-full">Inicio</span>
         </button>
     `;
 
     let htmlDropdown = `
+        <a href="#inicio" onclick="irAInicio()" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">🏠 Inicio / Bienvenida</a>
         <a href="#catalogo" onclick="filtrarCategoria('TODAS')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">✨ Ver Todo el Catálogo</a>
         <div class="border-t border-slate-100 my-1"></div>
     `;
@@ -289,7 +336,7 @@ function renderizarCatalogo() {
     if (contenedorSeccionesSecundarias) {
         let htmlSecundario = '';
 
-        if (categoriaSeleccionadaActual !== 'TODAS') {
+        if (categoriaSeleccionadaActual !== 'TODAS' && categoriaSeleccionadaActual !== 'INICIO') {
             const productosNuevos = productos.filter(p => p.es_nuevo === true);
             const productosOfertas = productos.filter(p => p.en_oferta === true);
 
@@ -327,6 +374,66 @@ function renderizarCatalogo() {
         }
         
         contenedorSeccionesSecundarias.innerHTML = htmlSecundario;
+    }
+}
+
+// --- CONTROL DE VISTA INICIO VS CATEGORÍA ---
+function irAInicio() {
+    categoriaSeleccionadaActual = 'INICIO';
+    
+    // 1. Muestra el contenedor de bienvenida (Sección 0.5, 1 y 2)
+    const introContainer = document.getElementById('secciones-intro-container');
+    if (introContainer) introContainer.style.display = 'block';
+
+    // 2. Oculta el catálogo principal de productos
+    const catalogoSec = document.getElementById('catalogo');
+    if (catalogoSec) catalogoSec.style.display = 'none';
+
+    // 3. Reinicia el slider automático de la sección 0.5
+    iniciarHeroSlider();
+
+    // 4. Scroll suave hacia arriba
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function filtrarCategoria(cat) {
+    categoriaSeleccionadaActual = cat;
+    const tituloCatElem = document.getElementById("titulo-categoria");
+    const introContainer = document.getElementById("secciones-intro-container");
+    const catalogoSec = document.getElementById("catalogo");
+
+    if (cat === 'INICIO' || cat === 'HOME') {
+        irAInicio();
+        return;
+    }
+
+    // Al seleccionar cualquier categoría o ver todo: Oculta bienvenida y muestra catálogo
+    if (introContainer) introContainer.style.display = 'none';
+    if (catalogoSec) catalogoSec.style.display = 'block';
+
+    if (cat === 'TODAS') {
+        if (tituloCatElem) tituloCatElem.innerText = "Todas las Prendas Disponibles";
+        productosFiltrados = [...productos];
+    } else {
+        if (cat === 'LIQUIDACION') {
+            if (tituloCatElem) tituloCatElem.innerText = "🔥 Productos en Liquidación";
+            productosFiltrados = productos.filter(p => p.en_liquidacion === true);
+        } else if (cat === 'OFERTAS') {
+            if (tituloCatElem) tituloCatElem.innerText = "🏷️ Productos en Oferta Especial";
+            productosFiltrados = productos.filter(p => p.en_oferta === true);
+        } else if (cat === 'NEW') {
+            if (tituloCatElem) tituloCatElem.innerText = "✨ Nuevos Modelos (New)";
+            productosFiltrados = productos.filter(p => p.es_nuevo === true);
+        } else {
+            if (tituloCatElem) tituloCatElem.innerText = `Colección: ${cat}`;
+            productosFiltrados = productos.filter(p => (p.categoria || '').toUpperCase().trim() === cat.toUpperCase().trim());
+        }
+    }
+
+    renderizarCatalogo();
+
+    if (catalogoSec) {
+        catalogoSec.scrollIntoView({ behavior: 'smooth' });
     }
 }
 
@@ -552,45 +659,16 @@ function scrollCategorias(distancia) {
     }
 }
 
-function filtrarCategoria(cat) {
-    categoriaSeleccionadaActual = cat;
-    const tituloCatElem = document.getElementById("titulo-categoria");
-    const introContainer = document.getElementById("secciones-intro-container");
-
-    if (cat === 'TODAS') {
-        if (introContainer) introContainer.style.display = 'block';
-        if (tituloCatElem) tituloCatElem.innerText = "Todas las Prendas Disponibles";
-        productosFiltrados = [...productos];
-    } else {
-        if (introContainer) introContainer.style.display = 'none';
-
-        if (cat === 'LIQUIDACION') {
-            if (tituloCatElem) tituloCatElem.innerText = "🔥 Productos en Liquidación";
-            productosFiltrados = productos.filter(p => p.en_liquidacion === true);
-        } else if (cat === 'OFERTAS') {
-            if (tituloCatElem) tituloCatElem.innerText = "🏷️ Productos en Oferta Especial";
-            productosFiltrados = productos.filter(p => p.en_oferta === true);
-        } else if (cat === 'NEW') {
-            if (tituloCatElem) tituloCatElem.innerText = "✨ Nuevos Modelos (New)";
-            productosFiltrados = productos.filter(p => p.es_nuevo === true);
-        } else {
-            if (tituloCatElem) tituloCatElem.innerText = `Colección: ${cat}`;
-            productosFiltrados = productos.filter(p => (p.categoria || '').toUpperCase().trim() === cat.toUpperCase().trim());
-        }
-    }
-
-    renderizarCatalogo();
-
-    const catalogElem = document.getElementById("catalogo") || document.getElementById("catalog-container");
-    if (catalogElem) {
-        catalogElem.scrollIntoView({ behavior: 'smooth' });
-    }
-}
-
 function buscarProducto() {
     const inputBusqueda = document.getElementById("input-busqueda");
     if (!inputBusqueda) return;
     const query = inputBusqueda.value.toLowerCase();
+    
+    // Si busca algo, aseguramos que se muestre el catálogo y se oculte el inicio
+    if (query.trim() !== "") {
+        filtrarCategoria('TODAS');
+    }
+
     productosFiltrados = productos.filter(p => 
         p.nombre.toLowerCase().includes(query) || 
         p.categoria.toLowerCase().includes(query) ||
@@ -867,4 +945,5 @@ async function cerrarSesion() {
     alert("Has cerrado sesión correctamente.");
 }
 
+// Inicializa la tienda al cargar el script
 inicializarTienda();
