@@ -1,25 +1,3 @@
-// tienda.js - Carga dinámica del catálogo y flujo visual de Fajas Isabella
-async function cargarSeccionInicio() {
-    const container = document.getElementById('home-dinamico-container');
-    if (!container) return;
-
-    try {
-        const res = await fetch('./home.html');
-        if (res.ok) {
-            const html = await res.text();
-            container.innerHTML = html;
-            container.style.display = 'block';
-            
-            // Carga la configuración dinámica de la BD (Slider 0.5, Historia, Redes, etc.)
-            await cargarConfiguracionHomeDinamica();
-        } else {
-            console.error("Error al cargar home.html: Estado", res.status);
-        }
-    } catch (err) {
-        console.error("No se pudo cargar home.html", err);
-    }
-}
-
 const API_URL = "/api/web/inventario";
 const API_CATEGORIAS = "/api/web/categorias";
 const API_HOME_CONFIG = "/api/web/home-config";
@@ -33,18 +11,15 @@ let tallaSeleccionada = "";
 let colorSeleccionado = "";
 let cantidadSeleccionada = 1;
 let carrito = [];
-let categoriaSeleccionadaActual = "TODAS";
+let categoriaSeleccionadaActual = "INICIO";
 let whatsappUrlGlobal = "https://wa.me/593983870398";
 
-// --- LÓGICA DEL SLIDER AUTOMÁTICO (SECCIÓN 0.5 - 2 SEGUNDOS) ---
 let currentSlide = 0;
 let slideInterval = null;
 
 function iniciarHeroSlider() {
     if (slideInterval) clearInterval(slideInterval);
-    slideInterval = setInterval(() => {
-        siguienteSlide();
-    }, 2000); // Cambia cada 2 segundos (2000 ms)
+    slideInterval = setInterval(() => { siguienteSlide(); }, 3000);
 }
 
 function siguienteSlide() {
@@ -86,7 +61,16 @@ function mostrarSlide(index) {
     });
 }
 
-// --- CARGAR CONFIGURACIÓN DINÁMICA DE LA BD (SECCIÓN 0.5, 1, 2, 3) ---
+async function cargarSeccionInicio() {
+    const container = document.getElementById('secciones-intro-container');
+    if (!container) return;
+    try {
+        await cargarConfiguracionHomeDinamica();
+    } catch (err) {
+        console.error("Error al cargar la estructura del home:", err);
+    }
+}
+
 async function cargarConfiguracionHomeDinamica() {
     const slidesDefault = [
         { tag: "Alta Compresión", titulo: "Moldea tu Figura al Instante", descripcion: "Descubre la nueva línea de fajas reductoras y postoperatorias de máxima comodidad.", btn_texto: "Ver Colección →", imagen: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80" },
@@ -102,26 +86,13 @@ async function cargarConfiguracionHomeDinamica() {
         const res = await fetch(API_HOME_CONFIG);
         if (res.ok) {
             dataGlobal = await res.json();
-            
-            // 1. Sección 0.5 (Banner Slider)
             if (dataGlobal.sec05 && typeof dataGlobal.sec05 === 'object') {
                 let slidesDinamicos = [];
                 for (let i = 1; i <= 4; i++) {
                     const slide = dataGlobal.sec05[`slide${i}`];
                     if (slide && slide.titulo) {
                         let rawImg = slide.imagen || "";
-                        let imgUrl = "";
-
-                        if (rawImg.startsWith("http://") || rawImg.startsWith("https://")) {
-                            imgUrl = rawImg;
-                        } else if (rawImg.startsWith("/")) {
-                            imgUrl = rawImg;
-                        } else if (rawImg !== "") {
-                            imgUrl = obtenerRutaImagenProducto(rawImg);
-                        } else {
-                            imgUrl = slidesDefault[i - 1].imagen;
-                        }
-
+                        let imgUrl = rawImg ? obtenerRutaImagenProducto(rawImg) : slidesDefault[i - 1].imagen;
                         slidesDinamicos.push({
                             tag: slide.tag || "Colección",
                             titulo: slide.titulo,
@@ -131,16 +102,13 @@ async function cargarConfiguracionHomeDinamica() {
                         });
                     }
                 }
-                if (slidesDinamicos.length > 0) {
-                    slidesUsar = slidesDinamicos;
-                }
+                if (slidesDinamicos.length > 0) slidesUsar = slidesDinamicos;
             }
         }
     } catch (e) {
-        console.warn("Aviso: Usando configuración por defecto en slider:", e);
+        console.warn("Usando slider por defecto.");
     }
 
-    // Renderizar Slides y Dots
     let slidesHtml = '';
     let dotsHtml = '';
 
@@ -154,25 +122,20 @@ async function cargarConfiguracionHomeDinamica() {
                         <span class="bg-rose-600 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">${slide.tag}</span>
                         <h2 class="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight">${slide.titulo}</h2>
                         <p class="text-xs sm:text-sm text-slate-200">${slide.descripcion}</p>
-                        <button onclick="filtrarCategoria('TODAS')" class="mt-2 inline-block bg-white text-slate-900 hover:bg-rose-600 hover:text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-md">${slide.btn_texto}</button>
+                        <button onclick="filtrarCategoria('TODAS')" class="mt-2 inline-block bg-white text-slate-900 hover:bg-rose-600 hover:text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-md cursor-pointer">${slide.btn_texto}</button>
                     </div>
                 </div>
             </div>
         `;
-
-        dotsHtml += `
-            <button onclick="irASlide(${idx})" class="hero-dot w-2.5 h-2.5 rounded-full ${idx === 0 ? 'bg-white opacity-100' : 'bg-white/50 opacity-60'} transition-all"></button>
-        `;
+        dotsHtml += `<button onclick="irASlide(${idx})" class="hero-dot w-2.5 h-2.5 rounded-full ${idx === 0 ? 'bg-white opacity-100' : 'bg-white/50 opacity-60'} transition-all cursor-pointer"></button>`;
     });
 
     const sliderContainer = document.getElementById('hero-slider-container');
     const dotsContainer = document.getElementById('hero-dots-container');
     if (sliderContainer) sliderContainer.innerHTML = slidesHtml;
     if (dotsContainer) dotsContainer.innerHTML = dotsHtml;
-
     iniciarHeroSlider();
 
-    // 2. Sección 1 (Historia y Multimedia)
     if (dataGlobal.sec1) {
         const s1 = dataGlobal.sec1;
         if (document.getElementById('sec1-titulo')) document.getElementById('sec1-titulo').innerText = s1.titulo || "HISTORIA";
@@ -189,21 +152,13 @@ async function cargarConfiguracionHomeDinamica() {
 
         if (mediaName.endsWith('.mp4')) {
             if (imgElem) imgElem.style.display = 'none';
-            if (vidElem && sourceElem) {
-                sourceElem.src = mediaUrl;
-                vidElem.style.display = 'block';
-                vidElem.load();
-            }
+            if (vidElem && sourceElem) { sourceElem.src = mediaUrl; vidElem.style.display = 'block'; vidElem.load(); }
         } else {
             if (vidElem) vidElem.style.display = 'none';
-            if (imgElem) {
-                imgElem.src = mediaUrl;
-                imgElem.style.display = 'block';
-            }
+            if (imgElem) { imgElem.src = mediaUrl; imgElem.style.display = 'block'; }
         }
     }
 
-    // 3. Sección 2 (Instagram y TikTok)
     if (dataGlobal.sec2) {
         const s2 = dataGlobal.sec2;
         const igContainer = document.getElementById('instagram-embed-container');
@@ -212,17 +167,13 @@ async function cargarConfiguracionHomeDinamica() {
             if (window.instgrm) window.instgrm.Embeds.process();
         }
         const tkBtn = document.getElementById('sec2-tk-btn');
-        if (tkBtn && s2.tiktok_url) {
-            tkBtn.href = s2.tiktok_url;
-        }
+        if (tkBtn && s2.tiktok_url) tkBtn.href = s2.tiktok_url;
     }
 
-    // 4. Sección 3 (Publicidad 3 columnas)
     if (dataGlobal.sec3) {
         for (let i = 1; i <= 3; i++) {
             const card = dataGlobal.sec3[`card${i}`];
             if (!card) continue;
-
             if (document.getElementById(`pub${i}-tag`)) document.getElementById(`pub${i}-tag`).innerText = card.tag || "";
             if (document.getElementById(`pub${i}-titulo`)) document.getElementById(`pub${i}-titulo`).innerText = card.titulo || "";
             if (document.getElementById(`pub${i}-desc`)) document.getElementById(`pub${i}-desc`).innerText = card.descripcion || "";
@@ -236,17 +187,10 @@ async function cargarConfiguracionHomeDinamica() {
 
             if (pubMedia.endsWith('.mp4')) {
                 if (pubImg) pubImg.style.display = 'none';
-                if (pubVid && pubSource) {
-                    pubSource.src = pubUrl;
-                    pubVid.style.display = 'block';
-                    pubVid.load();
-                }
+                if (pubVid && pubSource) { pubSource.src = pubUrl; pubVid.style.display = 'block'; pubVid.load(); }
             } else {
                 if (pubVid) pubVid.style.display = 'none';
-                if (pubImg) {
-                    pubImg.src = pubUrl;
-                    pubImg.style.display = 'block';
-                }
+                if (pubImg) { pubImg.src = pubUrl; pubImg.style.display = 'block'; }
             }
         }
     }
@@ -255,12 +199,8 @@ async function cargarConfiguracionHomeDinamica() {
 async function inicializarTienda() {
     await cargarConfiguracionEmpresa();
     await cargarSeccionInicio();
-    
-    setTimeout(async () => {
-        await cargarInventario();
-        irAInicio();
-    }, 100);
-    
+    await cargarInventario();
+    irAInicio();
     actualizarBotonCuentaNav();
 }
 
@@ -269,9 +209,7 @@ async function cargarConfiguracionEmpresa() {
         const res = await fetch("/api/config/empresa");
         if (res.ok) {
             const data = await res.json();
-            if (data.redes && data.redes.whatsapp) {
-                whatsappUrlGlobal = data.redes.whatsapp;
-            }
+            if (data.redes && data.redes.whatsapp) whatsappUrlGlobal = data.redes.whatsapp;
             if (data.redes) {
                 if (document.getElementById("footer-instagram")) document.getElementById("footer-instagram").href = data.redes.instagram;
                 if (document.getElementById("footer-facebook")) document.getElementById("footer-facebook").href = data.redes.facebook;
@@ -281,68 +219,31 @@ async function cargarConfiguracionEmpresa() {
             if (document.getElementById("footer-direccion")) document.getElementById("footer-direccion").innerText = data.direccion || "";
             if (document.getElementById("footer-correo")) document.getElementById("footer-correo").innerText = data.correo || "";
         }
-    } catch (e) {
-        console.warn("No se pudo cargar la configuración de empresa.");
-    }
+    } catch (e) { console.warn("Error cargando configuración."); }
 }
 
 async function cargarInventario() {
     try {
-        const [resProductos, resCategorias] = await Promise.allSettled([
-            fetch(API_URL),
-            fetch(API_CATEGORIAS)
-        ]);
-
-        if (resProductos.status === 'fulfilled' && resProductos.value.ok) {
-            productos = await resProductos.value.json();
-        } else {
-            productos = [];
-        }
-
-        if (resCategorias.status === 'fulfilled' && resCategorias.value.ok) {
-            categoriasOficiales = await resCategorias.value.json();
-        } else {
-            categoriasOficiales = [];
-        }
-
+        const [resProductos, resCategorias] = await Promise.allSettled([fetch(API_URL), fetch(API_CATEGORIAS)]);
+        productos = (resProductos.status === 'fulfilled' && resProductos.value.ok) ? await resProductos.value.json() : [];
+        categoriasOficiales = (resCategorias.status === 'fulfilled' && resCategorias.value.ok) ? await resCategorias.value.json() : [];
     } catch (e) {
-        console.error("Error al conectar:", e);
         productos = [];
         categoriasOficiales = [];
     }
-
     productosFiltrados = [...productos];
     cargarCategoriasWeb();
-    renderizarCatalogo();
 }
 
 function obtenerRutaImagenProducto(imagenUrl) {
     if (!imagenUrl) return SVG_FALLBACK;
-    
     let urlLimpia = String(imagenUrl).trim();
-    if (urlLimpia === "" || urlLimpia === "/logo.png" || urlLimpia === "logo.png") {
-        return SVG_FALLBACK;
-    }
-    
-    // Si ya es una URL completa (Cloudinary, Unsplash, http/https)
-    if (urlLimpia.startsWith("http://") || urlLimpia.startsWith("https://")) {
-        return urlLimpia;
-    }
-    
-    // Si empieza con barra diagonal
-    if (urlLimpia.startsWith("/")) {
-        return urlLimpia;
-    }
-    
-    // Si viene solo el nombre del archivo (ej: publi_1.jpg, banner_historia.jpg)
-    // Lo redirigimos a Cloudinary o a la carpeta local img/
+    if (urlLimpia === "" || urlLimpia === "/logo.png" || urlLimpia === "logo.png") return SVG_FALLBACK;
+    if (urlLimpia.startsWith("http://") || urlLimpia.startsWith("https://") || urlLimpia.startsWith("/")) return urlLimpia;
     if (urlLimpia.includes('.') && !urlLimpia.startsWith('img/')) {
-        // Si tienes las imágenes de publicidad subidas a Cloudinary en una carpeta específica:
         return `https://res.cloudinary.com/d82ff3dh/image/upload/v1793225915/fajas_isabella/home/${urlLimpia}`;
     }
-    
-    let nombreArchivo = urlLimpia.split('/').pop().trim();
-    return `/img/${nombreArchivo}`;
+    return `/img/${urlLimpia.split('/').pop().trim()}`;
 }
 
 function cargarCategoriasWeb() {
@@ -365,13 +266,11 @@ function cargarCategoriasWeb() {
         <div class="border-t border-slate-100 my-1"></div>
     `;
 
-    if (Array.isArray(categoriasOficiales) && categoriasOficiales.length > 0) {
+    if (Array.isArray(categoriasOficiales)) {
         categoriasOficiales.forEach(catObj => {
             const nombreCat = catObj.nombre || catObj.categoria;
             if (!nombreCat) return;
-
-            const rawImg = catObj.imagen_url || catObj.imagen || catObj.foto || "";
-            let imgCat = obtenerRutaImagenProducto(rawImg);
+            let imgCat = obtenerRutaImagenProducto(catObj.imagen_url || catObj.imagen || "");
 
             htmlScroll += `
                 <button onclick="filtrarCategoria('${nombreCat}')" id="btn-cat-${nombreCat}" class="btn-categoria flex flex-col items-center shrink-0 focus:outline-none cursor-pointer group w-20">
@@ -381,30 +280,23 @@ function cargarCategoriasWeb() {
                     <span class="text-[9px] font-bold text-slate-700 mt-1 uppercase tracking-tight text-center leading-tight line-clamp-2 w-full">${nombreCat}</span>
                 </button>
             `;
-
-            htmlDropdown += `
-                <a href="#catalogo" onclick="filtrarCategoria('${nombreCat}')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">${nombreCat}</a>
-            `;
+            htmlDropdown += `<a href="#catalogo" onclick="filtrarCategoria('${nombreCat}')" class="block px-4 py-2 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium">${nombreCat}</a>`;
         });
     }
 
     contenedor.innerHTML = htmlScroll;
-    if (dropdownContainer) {
-        dropdownContainer.innerHTML = htmlDropdown;
-    }
+    if (dropdownContainer) dropdownContainer.innerHTML = htmlDropdown;
 }
 
 function generarHTMLTarjetaProducto(p) {
     const variantes = p.variantes || [];
     const descuento = Number(p.descuento_oferta || 0);
-    
     let preciosTextoHtml = "";
+
     if (variantes.length > 0) {
         const preciosCalculados = variantes.map(v => {
             let precioV = Number(v.precio || 0);
-            if ((p.en_oferta || p.en_liquidacion) && descuento > 0) {
-                precioV = Math.max(0, precioV - descuento);
-            }
+            if ((p.en_oferta || p.en_liquidacion) && descuento > 0) precioV = Math.max(0, precioV - descuento);
             return precioV;
         });
 
@@ -413,43 +305,23 @@ function generarHTMLTarjetaProducto(p) {
         const precioMinOrig = Math.min(...variantes.map(v => Number(v.precio || 0)));
 
         if ((p.en_oferta || p.en_liquidacion) && descuento > 0) {
-            if (precioMin === precioMax) {
-                preciosTextoHtml = `
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs text-slate-400 line-through">$${precioMinOrig.toFixed(2)}</span>
-                        <span class="text-sm font-black text-rose-600">$${precioMin.toFixed(2)}</span>
-                    </div>
-                `;
-            } else {
-                preciosTextoHtml = `
-                    <div class="flex items-center gap-1">
-                        <span class="text-[10px] text-slate-400 line-through">$${precioMinOrig.toFixed(2)}</span>
-                        <span class="text-sm font-black text-rose-600">$${precioMin.toFixed(2)} - $${precioMax.toFixed(2)}</span>
-                    </div>
-                `;
-            }
+            preciosTextoHtml = precioMin === precioMax 
+                ? `<div class="flex items-center gap-2"><span class="text-xs text-slate-400 line-through">$${precioMinOrig.toFixed(2)}</span><span class="text-sm font-black text-rose-600">$${precioMin.toFixed(2)}</span></div>`
+                : `<div class="flex items-center gap-1"><span class="text-[10px] text-slate-400 line-through">$${precioMinOrig.toFixed(2)}</span><span class="text-sm font-black text-rose-600">$${precioMin.toFixed(2)} - $${precioMax.toFixed(2)}</span></div>`;
         } else {
-            if (precioMin === precioMax) {
-                preciosTextoHtml = `<span class="text-sm font-black text-slate-900">$${precioMin.toFixed(2)}</span>`;
-            } else {
-                preciosTextoHtml = `<span class="text-sm font-black text-slate-900">$${precioMin.toFixed(2)} - $${precioMax.toFixed(2)}</span>`;
-            }
+            preciosTextoHtml = precioMin === precioMax 
+                ? `<span class="text-sm font-black text-slate-900">$${precioMin.toFixed(2)}</span>`
+                : `<span class="text-sm font-black text-slate-900">$${precioMin.toFixed(2)} - $${precioMax.toFixed(2)}</span>`;
         }
     } else {
         preciosTextoHtml = `<span class="text-sm font-black text-slate-900">$0.00</span>`;
     }
 
     const coloresUnicos = variantes.length > 0 ? [...new Set(variantes.map(v => v.color))].join(", ") : "Variados";
-
     let badgePromo = '';
-    if (p.en_liquidacion) {
-        badgePromo = `<span class="absolute top-2 left-2 bg-rose-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md animate-pulse">🔥 LIQUIDACIÓN</span>`;
-    } else if (p.en_oferta) {
-        const descTxt = descuento > 0 ? ` -$${descuento.toFixed(2)}` : '';
-        badgePromo = `<span class="absolute top-2 left-2 bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md">🏷️ OFERTA${descTxt}</span>`;
-    } else if (p.es_nuevo) {
-        badgePromo = `<span class="absolute top-2 left-2 bg-blue-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md">✨ NUEVO</span>`;
-    }
+    if (p.en_liquidacion) badgePromo = `<span class="absolute top-2 left-2 bg-rose-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md animate-pulse">🔥 LIQUIDACIÓN</span>`;
+    else if (p.en_oferta) badgePromo = `<span class="absolute top-2 left-2 bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md">🏷️ OFERTA</span>`;
+    else if (p.es_nuevo) badgePromo = `<span class="absolute top-2 left-2 bg-blue-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md">✨ NUEVO</span>`;
 
     const imgSrc = obtenerRutaImagenProducto(p.imagen_url);
 
@@ -458,26 +330,20 @@ function generarHTMLTarjetaProducto(p) {
             <div class="relative bg-slate-50 h-64 w-full flex items-center justify-center p-3 overflow-hidden">
                 ${badgePromo}
                 <img src="${imgSrc}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-contain group-hover:scale-105 transition-all duration-300" alt="${p.nombre}">
-                <span class="absolute top-2 right-2 bg-slate-900/80 text-white text-[9px] font-bold px-2 py-0.5 rounded-full backdrop-blur-xs">
-                    ${variantes.length} Opciones
-                </span>
+                <span class="absolute top-2 right-2 bg-slate-900/80 text-white text-[9px] font-bold px-2 py-0.5 rounded-full backdrop-blur-xs">${variantes.length} Opciones</span>
             </div>
-
             <div class="p-3.5 flex-1 flex flex-col justify-between">
                 <div>
                     <span class="text-[9px] font-bold text-rose-600 tracking-wider uppercase">${p.categoria}</span>
                     <h3 class="text-xs font-bold text-slate-800 line-clamp-1 mb-1">${p.nombre}</h3>
                     <p class="text-[10px] text-slate-500 mb-2">Colores: <span class="font-medium text-slate-700">${coloresUnicos}</span></p>
                 </div>
-
                 <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
                     <div>
                         <span class="text-[9px] text-slate-400 block">${(p.en_liquidacion || p.en_oferta) ? 'Precio Oferta' : 'Precio'}</span>
                         ${preciosTextoHtml}
                     </div>
-                    <button onclick="abrirModal(${p.id})" class="bg-slate-900 hover:bg-rose-600 text-white font-bold text-[10px] px-2.5 py-1.5 rounded-xl transition shadow-xs cursor-pointer">
-                        Ver Tallas y Colores
-                    </button>
+                    <button onclick="abrirModal(${p.id})" class="bg-slate-900 hover:bg-rose-600 text-white font-bold text-[10px] px-2.5 py-1.5 rounded-xl transition shadow-xs cursor-pointer">Ver Tallas</button>
                 </div>
             </div>
         </div>
@@ -488,78 +354,22 @@ function renderizarCatalogo() {
     const container = document.getElementById("catalog-container");
     const contadorElem = document.getElementById("total-productos");
     if (!container) return;
-
-    if (contadorElem) {
-        contadorElem.innerText = `${productosFiltrados.length} modelos`;
-    }
+    if (contadorElem) contadorElem.innerText = `${productosFiltrados.length} modelos`;
 
     if (productosFiltrados.length === 0) {
         container.innerHTML = `<div class="col-span-full text-center py-12 text-slate-400 text-sm">No encontramos modelos en esta categoría.</div>`;
     } else {
         container.innerHTML = productosFiltrados.map(p => generarHTMLTarjetaProducto(p)).join('');
     }
-
-    const contenedorSeccionesSecundarias = document.getElementById("secciones-secundarias-container");
-    if (contenedorSeccionesSecundarias) {
-        let htmlSecundario = '';
-
-        if (categoriaSeleccionadaActual !== 'TODAS' && categoriaSeleccionadaActual !== 'INICIO') {
-            const productosNuevos = productos.filter(p => p.es_nuevo === true);
-            const productosOfertas = productos.filter(p => p.en_oferta === true);
-
-            if (categoriaSeleccionadaActual !== 'NEW' && productosNuevos.length > 0) {
-                htmlSecundario += `
-                    <div class="mt-16 pt-8 border-t border-slate-200">
-                        <div class="flex items-center justify-between mb-6">
-                            <div class="flex items-center gap-2">
-                                <span class="bg-blue-100 text-blue-700 p-2 rounded-xl text-xs"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
-                                <h3 class="text-base font-extrabold text-slate-900">✨ Mira lo Nuevo de Fajas Isabella</h3>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                            ${productosNuevos.map(p => generarHTMLTarjetaProducto(p)).join('')}
-                        </div>
-                    </div>
-                `;
-            }
-
-            if (categoriaSeleccionadaActual !== 'OFERTAS' && categoriaSeleccionadaActual !== 'LIQUIDACION' && productosOfertas.length > 0) {
-                htmlSecundario += `
-                    <div class="mt-12 pt-8 border-t border-slate-200">
-                        <div class="flex items-center justify-between mb-6">
-                            <div class="flex items-center gap-2">
-                                <span class="bg-amber-100 text-amber-700 p-2 rounded-xl text-xs"><i class="fa-solid fa-tags"></i></span>
-                                <h3 class="text-base font-extrabold text-slate-900">🏷️ ¡Aprovecha nuestras Ofertas Especiales!</h3>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                            ${productosOfertas.map(p => generarHTMLTarjetaProducto(p)).join('')}
-                        </div>
-                    </div>
-                `;
-            }
-        }
-        
-        contenedorSeccionesSecundarias.innerHTML = htmlSecundario;
-    }
 }
 
-// --- CONTROL DE VISTA INICIO VS CATEGORÍA ---
 function irAInicio() {
     categoriaSeleccionadaActual = 'INICIO';
-    
-    // 1. Muestra el contenedor de bienvenida (Sección 0.5, 1 y 2)
     const introContainer = document.getElementById('secciones-intro-container');
     if (introContainer) introContainer.style.display = 'block';
-
-    // 2. Oculta el catálogo principal de productos
     const catalogoSec = document.getElementById('catalogo');
     if (catalogoSec) catalogoSec.style.display = 'none';
-
-    // 3. Reinicia el slider automático de la sección 0.5
     iniciarHeroSlider();
-
-    // 4. Scroll suave hacia arriba
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -574,7 +384,6 @@ function filtrarCategoria(cat) {
         return;
     }
 
-    // Al seleccionar cualquier categoría o ver todo: Oculta bienvenida y muestra catálogo
     if (introContainer) introContainer.style.display = 'none';
     if (catalogoSec) catalogoSec.style.display = 'block';
 
@@ -598,10 +407,7 @@ function filtrarCategoria(cat) {
     }
 
     renderizarCatalogo();
-
-    if (catalogoSec) {
-        catalogoSec.scrollIntoView({ behavior: 'smooth' });
-    }
+    if (catalogoSec) catalogoSec.scrollIntoView({ behavior: 'smooth' });
 }
 
 function abrirModal(productoId) {
@@ -617,44 +423,31 @@ function abrirModal(productoId) {
     cantidadSeleccionada = 1;
 
     const varianteInicial = obtenerVarianteActual();
-    const imgSrcModal = (varianteInicial && varianteInicial.imagen_url) 
-        ? obtenerRutaImagenProducto(varianteInicial.imagen_url) 
-        : obtenerRutaImagenProducto(productoSeleccionado.imagen_url);
-
+    const imgSrcModal = (varianteInicial && varianteInicial.imagen_url) ? obtenerRutaImagenProducto(varianteInicial.imagen_url) : obtenerRutaImagenProducto(productoSeleccionado.imagen_url);
     const primerPrecio = varianteInicial ? varianteInicial.precio : (variantes[0] ? variantes[0].precio : 0);
     const descuento = Number(productoSeleccionado.descuento_oferta || 0);
-    const precioFinalModal = (productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0 
-        ? Math.max(0, primerPrecio - descuento) 
-        : primerPrecio;
+    const precioFinalModal = (productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0 ? Math.max(0, primerPrecio - descuento) : primerPrecio;
 
     const contenido = `
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
             <div class="flex flex-col items-center justify-center bg-slate-50 rounded-2xl p-4 border border-slate-100 h-full min-h-[300px]">
                 <img id="modal-imagen-producto" src="${imgSrcModal}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-72 object-contain rounded-xl transition-all duration-300">
             </div>
-
             <div class="flex flex-col justify-between space-y-3">
                 <div>
                     <span class="text-[10px] font-bold text-rose-600 tracking-wider uppercase">${productoSeleccionado.categoria}</span>
                     <h3 class="text-base font-extrabold text-slate-900 leading-snug mb-1">${productoSeleccionado.nombre}</h3>
                     <p id="modal-precio" class="text-2xl font-black text-rose-600">$${precioFinalModal.toFixed(2)}</p>
                 </div>
-
                 <div class="space-y-3 border-t border-slate-100 pt-3">
                     <div>
                         <label class="text-xs font-bold text-slate-800 block mb-1">Talla:</label>
                         <div class="flex gap-2 flex-wrap" id="selector-tallas">
-                            ${tallas.map((t, idx) => `
-                                <button onclick="seleccionarTalla('${t}')" id="btn-talla-${t}" type="button"
-                                    class="btn-talla px-3 py-1 text-xs rounded-xl font-bold border ${idx === 0 ? 'bg-rose-600 text-white border-rose-600 shadow-xs' : 'bg-white text-slate-700 border-slate-300'} transition cursor-pointer">
-                                    ${t}
-                                </button>
-                            `).join('')}
+                            ${tallas.map((t, idx) => `<button onclick="seleccionarTalla('${t}')" id="btn-talla-${t}" type="button" class="btn-talla px-3 py-1 text-xs rounded-xl font-bold border ${idx === 0 ? 'bg-rose-600 text-white border-rose-600 shadow-xs' : 'bg-white text-slate-700 border-slate-300'} transition cursor-pointer">${t}</button>`).join('')}
                         </div>
                     </div>
-
                     <div>
-                        <label class="text-xs font-bold text-slate-800 block mb-1">Color (Círculos Interactivos):</label>
+                        <label class="text-xs font-bold text-slate-800 block mb-1">Color:</label>
                         <div class="flex gap-2 flex-wrap" id="selector-colores">
                             ${colores.map((c, idx) => {
                                 let bgHex = "#1e293b";
@@ -664,84 +457,40 @@ function abrirModal(productoId) {
                                 else if (cLower.includes('azul')) bgHex = "#2563eb";
                                 else if (cLower.includes('vino') || cLower.includes('rojo')) bgHex = "#9f1239";
                                 else if (cLower.includes('gris')) bgHex = "#64748b";
-
-                                const esSeleccionado = idx === 0;
-                                return `
-                                    <button onclick="seleccionarColor('${c}')" id="btn-color-${c}" type="button"
-                                        class="btn-color flex items-center gap-1.5 px-3 py-1 text-xs rounded-xl font-bold border ${esSeleccionado ? 'bg-slate-900 text-white border-slate-900 shadow-xs' : 'bg-white text-slate-700 border-slate-300'} transition cursor-pointer">
-                                        <span class="w-3 h-3 rounded-full border border-slate-300 inline-block shadow-2xs" style="background-color: ${bgHex};"></span>
-                                        <span>${c}</span>
-                                    </button>
-                                `;
+                                return `<button onclick="seleccionarColor('${c}')" id="btn-color-${c}" type="button" class="btn-color flex items-center gap-1.5 px-3 py-1 text-xs rounded-xl font-bold border ${idx === 0 ? 'bg-slate-900 text-white border-slate-900 shadow-xs' : 'bg-white text-slate-700 border-slate-300'} transition cursor-pointer"><span class="w-3 h-3 rounded-full border border-slate-300 inline-block shadow-2xs" style="background-color: ${bgHex};"></span><span>${c}</span></button>`;
                             }).join('')}
                         </div>
                     </div>
-
                     <div class="bg-rose-50/60 border border-rose-100 p-2.5 rounded-xl">
-                        <span class="text-[10px] font-bold text-rose-600 uppercase tracking-wider block mb-1">📋 Resumen de Selección:</span>
                         <div class="text-xs text-slate-800 space-y-1">
-                            <div class="flex justify-between">
-                                <span class="text-slate-500">Variante:</span>
-                                <span class="font-bold text-slate-900"><span id="resumen-talla">${tallaSeleccionada}</span> / <span id="resumen-color">${colorSeleccionado}</span></span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-slate-500">Disponibilidad:</span>
-                                <span class="font-mono text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded" id="modal-stock">Consultando...</span>
-                            </div>
-                            <div class="flex justify-between items-center pt-1">
-                                <span class="text-slate-700 font-bold">Cantidad:</span>
-                                <div class="flex items-center border border-slate-300 rounded-lg bg-white overflow-hidden shadow-2xs">
-                                    <button onclick="cambiarCantidadModal(-1)" type="button" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold transition cursor-pointer">-</button>
-                                    <input id="modal-cantidad-input" type="number" value="1" min="1" class="w-8 text-center text-xs font-black border-none outline-none bg-transparent" readonly>
-                                    <button onclick="cambiarCantidadModal(1)" type="button" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold transition cursor-pointer">+</button>
-                                </div>
-                            </div>
-                            <div class="flex justify-between items-center pt-1 text-sm font-black text-slate-900 border-t border-rose-200/60 mt-1">
-                                <span>Total Selección:</span>
-                                <span id="modal-total-seleccion" class="text-rose-600 text-base">$0.00</span>
-                            </div>
+                            <div class="flex justify-between"><span class="text-slate-500">Variante:</span><span class="font-bold text-slate-900"><span id="resumen-talla">${tallaSeleccionada}</span> / <span id="resumen-color">${colorSeleccionado}</span></span></div>
+                            <div class="flex justify-between"><span class="text-slate-500">Disponibilidad:</span><span class="font-mono text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded" id="modal-stock">Consultando...</span></div>
+                            <div class="flex justify-between items-center pt-1"><span class="text-slate-700 font-bold">Cantidad:</span><div class="flex items-center border border-slate-300 rounded-lg bg-white overflow-hidden shadow-2xs"><button onclick="cambiarCantidadModal(-1)" type="button" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold transition cursor-pointer">-</button><input id="modal-cantidad-input" type="number" value="1" min="1" class="w-8 text-center text-xs font-black border-none outline-none bg-transparent" readonly><button onclick="cambiarCantidadModal(1)" type="button" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold transition cursor-pointer">+</button></div></div>
+                            <div class="flex justify-between items-center pt-1 text-sm font-black text-slate-900 border-t border-rose-200/60 mt-1"><span>Total:</span><span id="modal-total-seleccion" class="text-rose-600 text-base">$0.00</span></div>
                         </div>
                     </div>
                 </div>
-
                 <div class="grid grid-cols-2 gap-2 pt-2">
-                    <button onclick="agregarAlCarrito(false)" type="button"
-                        class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-[11px] py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition cursor-pointer">
-                        <i class="fa-solid fa-plus"></i>
-                        <span>Seguir Comprando</span>
-                    </button>
-
-                    <button onclick="agregarAlCarrito(true)" type="button"
-                        class="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-md shadow-rose-600/20 transition cursor-pointer">
-                        <i class="fa-solid fa-cart-shopping"></i>
-                        <span>Ir al Carrito</span>
-                    </button>
+                    <button onclick="agregarAlCarrito(false)" type="button" class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-[11px] py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition cursor-pointer"><span>Seguir Comprando</span></button>
+                    <button onclick="agregarAlCarrito(true)" type="button" class="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-md shadow-rose-600/20 transition cursor-pointer"><span>Ir al Carrito</span></button>
                 </div>
             </div>
         </div>
     `;
 
-    const modalContenido = document.getElementById("modal-contenido");
-    const modalProducto = document.getElementById("modal-producto");
-    
-    if (modalContenido) modalContenido.innerHTML = contenido;
-    if (modalProducto) modalProducto.classList.remove("hidden");
-    
+    document.getElementById("modal-contenido").innerHTML = contenido;
+    document.getElementById("modal-producto").classList.remove("hidden");
     actualizarDetalleVariante();
 }
 
 function cambiarCantidadModal(delta) {
     const variante = obtenerVarianteActual();
     const stockMax = variante ? variante.stock : 99;
-
     cantidadSeleccionada += delta;
     if (cantidadSeleccionada < 1) cantidadSeleccionada = 1;
     if (cantidadSeleccionada > stockMax && stockMax > 0) cantidadSeleccionada = stockMax;
-
     const inputElem = document.getElementById("modal-cantidad-input");
-    if (inputElem) {
-        inputElem.value = cantidadSeleccionada;
-    }
+    if (inputElem) inputElem.value = cantidadSeleccionada;
     actualizarDetalleVariante();
 }
 
@@ -777,40 +526,26 @@ function seleccionarColor(color) {
         btn.classList.remove("bg-white", "text-slate-700", "border-slate-300");
         btn.classList.add("bg-slate-900", "text-white", "border-slate-900");
     }
-
     const variante = obtenerVarianteActual();
     const imgElem = document.getElementById("modal-imagen-producto");
     if (imgElem && productoSeleccionado) {
-        if (variante && variante.imagen_url && variante.imagen_url.trim() !== "") {
-            imgElem.src = obtenerRutaImagenProducto(variante.imagen_url);
-        } else {
-            imgElem.src = obtenerRutaImagenProducto(productoSeleccionado.imagen_url);
-        }
+        imgElem.src = (variante && variante.imagen_url && variante.imagen_url.trim() !== "") ? obtenerRutaImagenProducto(variante.imagen_url) : obtenerRutaImagenProducto(productoSeleccionado.imagen_url);
     }
-
     actualizarDetalleVariante();
 }
 
 function actualizarDetalleVariante() {
     const variante = obtenerVarianteActual();
-
     if (variante && productoSeleccionado) {
         let precioUnitario = variante.precio;
         const descuento = Number(productoSeleccionado.descuento_oferta || 0);
-        if ((productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0) {
-            precioUnitario = Math.max(0, precioUnitario - descuento);
-        }
-
+        if ((productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0) precioUnitario = Math.max(0, precioUnitario - descuento);
         const totalLinea = precioUnitario * cantidadSeleccionada;
         document.getElementById("modal-precio").innerText = `$${precioUnitario.toFixed(2)}`;
         document.getElementById("resumen-talla").innerText = tallaSeleccionada;
         document.getElementById("resumen-color").innerText = colorSeleccionado;
-        document.getElementById("modal-stock").innerText = `Stock: ${variante.stock} disp. (${variante.sku})`;
-        
-        const elemTotal = document.getElementById("modal-total-seleccion");
-        if (elemTotal) {
-            elemTotal.innerText = `$${totalLinea.toFixed(2)}`;
-        }
+        document.getElementById("modal-stock").innerText = `Stock: ${variante.stock} disp.`;
+        document.getElementById("modal-total-seleccion").innerText = `$${totalLinea.toFixed(2)}`;
     }
 }
 
@@ -821,96 +556,65 @@ function cerrarModal() {
 
 function scrollCategorias(distancia) {
     const contenedor = document.getElementById("categorias-scroll");
-    if (contenedor) {
-        contenedor.scrollBy({ left: distancia, behavior: 'smooth' });
-    }
+    if (contenedor) contenedor.scrollBy({ left: distancia, behavior: 'smooth' });
 }
 
 function buscarProducto() {
     const inputBusqueda = document.getElementById("input-busqueda");
     if (!inputBusqueda) return;
     const query = inputBusqueda.value.toLowerCase();
-    
-    if (query.trim() !== "") {
-        filtrarCategoria('TODAS');
-    }
-
-    productosFiltrados = productos.filter(p => 
-        p.nombre.toLowerCase().includes(query) || 
-        p.categoria.toLowerCase().includes(query) ||
-        (p.variantes && p.variantes.some(v => v.sku.toLowerCase().includes(query)))
-    );
+    if (query.trim() !== "") filtrarCategoria('TODAS');
+    productosFiltrados = productos.filter(p => p.nombre.toLowerCase().includes(query) || p.categoria.toLowerCase().includes(query) || (p.variantes && p.variantes.some(v => v.sku.toLowerCase().includes(query))));
     renderizarCatalogo();
 }
 
-function agregarAlCarrito(abrirCarritoDrawer = false) {
+function agregarAlCarrito(abrirDrawer = false) {
     const variante = obtenerVarianteActual();
     const cantAgregar = cantidadSeleccionada > 0 ? cantidadSeleccionada : 1;
     let precioFinalUnitario = variante.precio;
     const descuento = Number(productoSeleccionado.descuento_oferta || 0);
-    if ((productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0) {
-        precioFinalUnitario = Math.max(0, precioFinalUnitario - descuento);
-    }
+    if ((productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0) precioFinalUnitario = Math.max(0, precioFinalUnitario - descuento);
 
     const itemExistente = carrito.find(item => item.sku === variante.sku);
     if (itemExistente) {
         itemExistente.cantidad += cantAgregar;
     } else {
         carrito.push({
-            nombre: productoSeleccionado.nombre,
-            sku: variante.sku,
-            talla: tallaSeleccionada,
-            color: colorSeleccionado,
-            precio: precioFinalUnitario,
-            imagen_url: productoSeleccionado.imagen_url || SVG_FALLBACK,
-            categoria: productoSeleccionado.categoria,
-            cantidad: cantAgregar
+            nombre: productoSeleccionado.nombre, sku: variante.sku, talla: tallaSeleccionada, color: colorSeleccionado,
+            precio: precioFinalUnitario, imagen_url: productoSeleccionado.imagen_url || SVG_FALLBACK, categoria: productoSeleccionado.categoria, cantidad: cantAgregar
         });
     }
-
     cerrarModal();
     actualizarCarritoUI();
-
-    if (abrirCarritoDrawer) {
-        toggleCarrito();
-    }
+    if (abrirDrawer) toggleCarrito();
 }
 
 function actualizarCarritoUI() {
     const count = carrito.reduce((acc, item) => acc + item.cantidad, 0);
     const total = carrito.reduce((acc, item) => acc + (item.precio * item.cantidad), 0);
-
-    const cartCountElem = document.getElementById("cart-count");
-    const carritoTotalElem = document.getElementById("carrito-total");
-    if (cartCountElem) cartCountElem.innerText = count;
-    if (carritoTotalElem) carritoTotalElem.innerText = `$${total.toFixed(2)}`;
+    if (document.getElementById("cart-count")) document.getElementById("cart-count").innerText = count;
+    if (document.getElementById("carrito-total")) document.getElementById("carrito-total").innerText = `$${total.toFixed(2)}`;
 
     const container = document.getElementById("carrito-items");
     if (!container) return;
-
     if (carrito.length === 0) {
-        container.innerHTML = `<div class="text-center py-12 text-slate-400 text-xs">Tu carrito está vacío por el momento.</div>`;
+        container.innerHTML = `<div class="text-center py-12 text-slate-400 text-xs">Tu carrito está vacío.</div>`;
         return;
     }
 
-    container.innerHTML = carrito.map((item, index) => {
-        const imgItem = obtenerRutaImagenProducto(item.imagen_url);
-        return `
-            <div class="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
-                <div class="flex items-center gap-3">
-                    <img src="${imgItem}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-12 h-12 object-contain rounded-lg bg-white p-1 border">
-                    <div>
-                        <h4 class="text-xs font-bold text-slate-800 line-clamp-1">${item.nombre}</h4>
-                        <p class="text-[10px] text-slate-500">Talla: <b>${item.talla}</b> | Color: <b>${item.color}</b></p>
-                        <span class="text-xs font-black text-rose-600">$${item.precio.toFixed(2)} x ${item.cantidad}</span>
-                    </div>
+    container.innerHTML = carrito.map((item, index) => `
+        <div class="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
+            <div class="flex items-center gap-3">
+                <img src="${obtenerRutaImagenProducto(item.imagen_url)}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-12 h-12 object-contain rounded-lg bg-white p-1 border">
+                <div>
+                    <h4 class="text-xs font-bold text-slate-800 line-clamp-1">${item.nombre}</h4>
+                    <p class="text-[10px] text-slate-500">Talla: <b>${item.talla}</b> | Color: <b>${item.color}</b></p>
+                    <span class="text-xs font-black text-rose-600">$${item.precio.toFixed(2)} x ${item.cantidad}</span>
                 </div>
-                <button onclick="eliminarDelCarrito(${index})" class="text-slate-400 hover:text-rose-600 text-xs p-1 cursor-pointer">
-                    <i class="fa-solid fa-trash-can"></i>
-                </button>
             </div>
-        `;
-    }).join('');
+            <button onclick="eliminarDelCarrito(${index})" class="text-slate-400 hover:text-rose-600 text-xs p-1 cursor-pointer"><i class="fa-solid fa-trash-can"></i></button>
+        </div>
+    `).join('');
 }
 
 function eliminarDelCarrito(index) {
@@ -932,21 +636,12 @@ function actualizarBotonCuentaNav() {
     const usuario = obtenerUsuarioLogueado();
     const nombreNav = document.getElementById('nombre-usuario-nav');
     if (!nombreNav) return;
-    if (usuario) {
-        const primerNombre = usuario.nombre.split(' ')[0];
-        nombreNav.innerText = primerNombre;
-    } else {
-        nombreNav.innerText = "Mi Cuenta";
-    }
+    nombreNav.innerText = usuario ? usuario.nombre.split(' ')[0] : "Mi Cuenta";
 }
 
 function gestionarClicCuenta() {
-    const usuario = obtenerUsuarioLogueado();
-    if (usuario) {
-        abrirModalPerfil();
-    } else {
-        abrirModalAuth();
-    }
+    if (obtenerUsuarioLogueado()) abrirModalPerfil();
+    else abrirModalAuth();
 }
 
 function abrirModalAuth() {
@@ -967,15 +662,15 @@ function cambiarTabAuth(tipo) {
     if (!btnLogin || !btnReg || !boxLogin || !boxReg) return;
 
     if (tipo === 'login') {
-        btnLogin.className = "flex-1 pb-2 font-bold text-sm text-rose-600 border-b-2 border-rose-600";
-        btnReg.className = "flex-1 pb-2 font-bold text-sm text-slate-400";
+        btnLogin.className = "flex-1 pb-2 font-bold text-sm text-rose-600 border-b-2 border-rose-600 cursor-pointer";
+        btnReg.className = "flex-1 pb-2 font-bold text-sm text-slate-400 cursor-pointer";
         boxLogin.classList.remove('hidden');
         boxReg.classList.add('hidden');
     } else {
-        btnReg.className = "flex-1 pb-2 font-bold text-sm text-rose-600 border-b-2 border-rose-600";
-        btnLogin.className = "flex-1 pb-2 font-bold text-sm text-slate-400";
-        boxReg.classList.add('hidden');
-        boxLogin.classList.remove('hidden');
+        btnReg.className = "flex-1 pb-2 font-bold text-sm text-rose-600 border-b-2 border-rose-600 cursor-pointer";
+        btnLogin.className = "flex-1 pb-2 font-bold text-sm text-slate-400 cursor-pointer";
+        boxReg.classList.remove('hidden');
+        boxLogin.classList.add('hidden');
     }
 }
 
@@ -998,7 +693,6 @@ async function ejecutarLogin(event) {
     event.preventDefault();
     const correo = document.getElementById('login-correo').value;
     const password = document.getElementById('login-password').value;
-
     try {
         const res = await fetch('/api/web/auth/login', {
             method: 'POST',
@@ -1006,23 +700,19 @@ async function ejecutarLogin(event) {
             body: JSON.stringify({ correo, password })
         });
         const data = await res.json();
-
         if (res.ok && data.status === 'success') {
             localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
             cerrarModalAuth();
             actualizarBotonCuentaNav();
             alert(data.mensaje);
         } else {
-            alert("Error: " + (data.detail || JSON.stringify(data)));
+            alert("Error: " + (data.detail || "Credenciales incorrectas"));
         }
-    } catch (e) {
-        alert("Error de conexión con el servidor.");
-    }
+    } catch (e) { alert("Error de conexión."); }
 }
 
 async function ejecutarRegistro(event) {
     event.preventDefault();
-
     const nombre = document.getElementById('reg-nombre').value;
     const correo = document.getElementById('reg-correo').value;
     const password = document.getElementById('reg-password').value;
@@ -1030,10 +720,7 @@ async function ejecutarRegistro(event) {
     const telefono = document.getElementById('reg-telefono').value;
     const direccion = document.getElementById('reg-direccion').value;
 
-    if (password !== passwordConfirm) {
-        alert("⚠️ Las contraseñas no coinciden.");
-        return;
-    }
+    if (password !== passwordConfirm) { alert("⚠️ Las contraseñas no coinciden."); return; }
 
     try {
         const res = await fetch('/api/web/auth/registro', {
@@ -1042,25 +729,20 @@ async function ejecutarRegistro(event) {
             body: JSON.stringify({ nombre, correo, password, telefono, direccion })
         });
         const data = await res.json();
-
         if (res.ok && data.status === 'success') {
             localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
             cerrarModalAuth();
             actualizarBotonCuentaNav();
             alert(data.mensaje);
         } else {
-            let errorMsg = data.detail || "Error al registrarse.";
-            alert("Error: " + errorMsg);
+            alert("Error: " + (data.detail || "No se pudo completar el registro."));
         }
-    } catch (e) {
-        alert("Error de conexión con el servidor.");
-    }
+    } catch (e) { alert("Error de conexión."); }
 }
 
 async function abrirModalPerfil() {
     const usuario = obtenerUsuarioLogueado();
     if (!usuario) return;
-
     document.getElementById('perfil-nombre').innerText = usuario.nombre;
     document.getElementById('perfil-correo').innerText = usuario.correo;
     document.getElementById('perfil-inicial').innerText = usuario.nombre.charAt(0).toUpperCase();
@@ -1072,46 +754,32 @@ async function abrirModalPerfil() {
     try {
         const res = await fetch(`/api/web/auth/pedidos/${usuario.id}`);
         const pedidos = await res.json();
-
         if (pedidos.length === 0) {
             container.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">Aún no tienes compras registradas.</div>`;
             return;
         }
-
         container.innerHTML = pedidos.map(p => `
             <div class="bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs space-y-1">
-                <div class="flex justify-between font-bold text-slate-900">
-                    <span>Factura #${p.numero_factura}</span>
-                    <span class="text-rose-600">$${p.total.toFixed(2)}</span>
-                </div>
-                <div class="flex justify-between text-slate-500 text-[11px]">
-                    <span>Fecha: ${p.fecha}</span>
-                    <span class="font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">${p.estado_despacho}</span>
-                </div>
-                <div class="pt-1 border-t border-slate-200 text-[11px] flex justify-between">
-                    <span>Courier: <b>${p.courier}</b></span>
-                    <span>Guía: <b>${p.numero_guia}</b></span>
-                </div>
+                <div class="flex justify-between font-bold text-slate-900"><span>Factura #${p.numero_factura}</span><span class="text-rose-600">$${p.total.toFixed(2)}</span></div>
+                <div class="flex justify-between text-slate-500 text-[11px]"><span>Fecha: ${p.fecha}</span><span class="font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">${p.estado_despacho}</span></div>
+                <div class="pt-1 border-t border-slate-200 text-[11px] flex justify-between"><span>Courier: <b>${p.courier}</b></span><span>Guía: <b>${p.numero_guia}</b></span></div>
             </div>
         `).join('');
-    } catch (e) {
-        container.innerHTML = `<div class="text-center py-8 text-rose-500 text-xs">Error al cargar el historial.</div>`;
-    }
+    } catch (e) { container.innerHTML = `<div class="text-center py-8 text-rose-500 text-xs">Error al cargar historial.</div>`; }
 }
 
-async function cerrarModalPerfil() {
+function cerrarModalPerfil() {
     const modal = document.getElementById('modal-perfil');
     if (modal) modal.classList.add('hidden');
 }
 
-async function cerrarSesion() {
+function cerrarSesion() {
     localStorage.removeItem('usuario_fajas');
     cerrarModalPerfil();
     actualizarBotonCuentaNav();
-    alert("Has cerrado sesión correctamente.");
+    alert("Has cerrado sesión.");
 }
 
-// Inicializa la tienda al cargar el script
 document.addEventListener("DOMContentLoaded", () => {
     inicializarTienda();
 });

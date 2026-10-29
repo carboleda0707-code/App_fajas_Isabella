@@ -4,14 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fajas Isabella | Tienda Online</title>
-
-    <!-- FAVICON OFICIAL -->
     <link rel="icon" type="image/png" href="/img/logo.png">
-
-    <!-- Tailwind CSS & FontAwesome -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-
     <style>
         .dropdown:hover .dropdown-menu { display: block; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -19,28 +14,22 @@
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased min-h-screen font-sans flex flex-col justify-between">
-
     <div>
-        <!-- 1. BARRA SUPERIOR PROMOCIONAL -->
         <div class="bg-black text-white text-[11px] py-1.5 px-4 text-center font-semibold tracking-wide flex justify-center items-center gap-2">
             <span>✨ PAGOS 100% SEGUROS Y ENVÍOS A TODO EL ECUADOR</span>
         </div>
 
-        <!-- CONTENEDOR FIJO SUPERIOR: Menú + Barra de Categorías -->
         <div class="sticky top-0 z-40 bg-white shadow-sm">
-            <!-- 2. ENCABEZADO PRINCIPAL -->
             <header class="bg-white border-b border-slate-200">
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div class="flex items-center justify-between h-20">
                         <div class="flex items-center">
-                            <a href="#" onclick="filtrarCategoria('TODAS')" class="flex items-center py-2">
+                            <a href="#" onclick="irAInicio()" class="flex items-center py-2 cursor-pointer">
                                 <img src="/img/logo.png" onerror="this.onerror=null; this.src='../img/logo.png';" alt="Fajas Isabella Logo" class="h-12 sm:h-16 w-auto object-contain transition-transform hover:scale-105">
                             </a>
                         </div>
-
                         <nav class="hidden md:flex items-center space-x-6 text-sm font-semibold text-slate-700">
-                            <a href="#" onclick="filtrarCategoria('TODAS')" class="hover:text-rose-600 transition">INICIO</a>
-                            
+                            <a href="#" onclick="irAInicio()" class="hover:text-rose-600 transition cursor-pointer">INICIO</a>
                             <div class="relative dropdown py-5 cursor-pointer">
                                 <div class="flex items-center gap-1 hover:text-rose-600 transition">
                                     <span>TIENDA / CATEGORÍAS</span>
@@ -50,31 +39,20 @@
                                     <div id="dropdown-categorias-dinamico"></div>
                                 </div>
                             </div>
-
-                            <a href="#" onclick="filtrarCategoria('LIQUIDACION')" class="text-rose-600 font-bold hover:text-rose-700 transition flex items-center gap-1">
-                                <span>🔥 LIQUIDACIÓN</span>
-                            </a>
-                            <a href="#" onclick="filtrarCategoria('OFERTAS')" class="text-amber-600 font-bold hover:text-amber-700 transition flex items-center gap-1">
-                                <span>🏷️ OFERTAS</span>
-                            </a>
-                            <a href="#" onclick="filtrarCategoria('NEW')" class="text-blue-600 font-bold hover:text-blue-700 transition flex items-center gap-1">
-                                <span>✨ NEW</span>
-                            </a>
+                            <a href="#" onclick="filtrarCategoria('LIQUIDACION')" class="text-rose-600 font-bold hover:text-rose-700 transition flex items-center gap-1 cursor-pointer"><span>🔥 LIQUIDACIÓN</span></a>
+                            <a href="#" onclick="filtrarCategoria('OFERTAS')" class="text-amber-600 font-bold hover:text-amber-700 transition flex items-center gap-1 cursor-pointer"><span>🏷️ OFERTAS</span></a>
+                            <a href="#" onclick="filtrarCategoria('NEW')" class="text-blue-600 font-bold hover:text-blue-700 transition flex items-center gap-1 cursor-pointer"><span>✨ NEW</span></a>
                         </nav>
-
                         <div class="flex items-center gap-3">
                             <div class="relative hidden sm:block">
-                                <input type="text" id="input-busqueda" onkeyup="buscarProducto()" placeholder="Buscar faja, SKU..." 
-                                    class="bg-slate-100 text-xs text-slate-800 rounded-full pl-8 pr-4 py-2 w-44 focus:w-60 focus:bg-white focus:ring-2 focus:ring-rose-500 border border-transparent focus:border-rose-500 transition-all outline-none">
+                                <input type="text" id="input-busqueda" onkeyup="buscarProducto()" placeholder="Buscar faja, SKU..." class="bg-slate-100 text-xs text-slate-800 rounded-full pl-8 pr-4 py-2 w-44 focus:w-60 focus:bg-white focus:ring-2 focus:ring-rose-500 border border-transparent focus:border-rose-500 transition-all outline-none">
                                 <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-400"></i>
                             </div>
-
-                            <button onclick="gestionarClicCuenta()" id="btn-cuenta-nav" class="relative p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full transition flex items-center justify-center gap-1.5 px-3">
+                            <button onclick="gestionarClicCuenta()" id="btn-cuenta-nav" class="relative p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full transition flex items-center justify-center gap-1.5 px-3 cursor-pointer">
                                 <i class="fa-solid fa-user text-sm"></i>
                                 <span id="nombre-usuario-nav" class="text-xs font-bold hidden sm:inline">Mi Cuenta</span>
                             </button>
-
-                            <button onclick="toggleCarrito()" class="relative p-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-full transition flex items-center justify-center">
+                            <button onclick="toggleCarrito()" class="relative p-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-full transition flex items-center justify-center cursor-pointer">
                                 <i class="fa-solid fa-bag-shopping text-xl"></i>
                                 <span id="cart-count" class="absolute -top-1 -right-1 bg-rose-600 text-white text-[10px] font-extrabold rounded-full w-5 h-5 flex items-center justify-center shadow-xs">0</span>
                             </button>
@@ -83,33 +61,114 @@
                 </div>
             </header>
 
-            <!-- 3. BARRA SECUNDARIA DE CATEGORÍAS -->
             <div class="bg-white border-b border-slate-200 py-3 relative">
                 <div class="max-w-7xl mx-auto px-2 relative flex items-center">
-                    <button onclick="scrollCategorias(-180)" class="absolute left-1 z-20 w-7 h-7 rounded-full bg-white shadow-md border border-slate-200 flex items-center justify-center text-slate-700 hover:text-rose-600 hover:scale-110 transition shrink-0 cursor-pointer">
-                        <i class="fa-solid fa-chevron-left text-[11px]"></i>
-                    </button>
+                    <button onclick="scrollCategorias(-180)" class="absolute left-1 z-20 w-7 h-7 rounded-full bg-white shadow-md border border-slate-200 flex items-center justify-center text-slate-700 hover:text-rose-600 hover:scale-110 transition shrink-0 cursor-pointer"><i class="fa-solid fa-chevron-left text-[11px]"></i></button>
                     <div id="categorias-scroll" class="overflow-x-auto no-scrollbar scroll-smooth flex items-center space-x-4 py-1 px-8 w-full select-none"></div>
-                    <button onclick="scrollCategorias(180)" class="absolute right-1 z-20 w-7 h-7 rounded-full bg-white shadow-md border border-slate-200 flex items-center justify-center text-slate-700 hover:text-rose-600 hover:scale-110 transition shrink-0 cursor-pointer">
-                        <i class="fa-solid fa-chevron-right text-[11px]"></i>
-                    </button>
+                    <button onclick="scrollCategorias(180)" class="absolute right-1 z-20 w-7 h-7 rounded-full bg-white shadow-md border border-slate-200 flex items-center justify-center text-slate-700 hover:text-rose-600 hover:scale-110 transition shrink-0 cursor-pointer"><i class="fa-solid fa-chevron-right text-[11px]"></i></button>
                 </div>
             </div>
         </div>
 
-        <!-- 4. CONTENIDO PRINCIPAL (HOME DINÁMICO Y CATÁLOGO) -->
-        <div id="home-dinamico-container" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6"></div>
+        <!-- CONTENEDOR INICIO / BIENVENIDA -->
+        <div id="secciones-intro-container">
+            <section class="relative bg-slate-900 text-white overflow-hidden shadow-xl sm:rounded-3xl max-w-7xl mx-auto my-6 h-[420px] sm:h-[500px]">
+                <div id="hero-slider-container" class="relative w-full h-full"></div>
+                <div id="hero-dots-container" class="absolute bottom-4 left-0 right-0 z-20 flex justify-center gap-2"></div>
+            </section>
 
-        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <!-- Contenedor del Catálogo de la Categoría Seleccionada -->
+            <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center bg-white p-6 sm:p-10 rounded-3xl border border-slate-100 shadow-sm">
+                    <div class="relative rounded-2xl overflow-hidden bg-slate-100 shadow-inner min-h-[320px] flex items-center justify-center">
+                        <img id="home-historia-img" src="" alt="Historia Fajas Isabella" class="w-full h-full object-cover rounded-2xl">
+                        <video id="home-historia-video" class="w-full h-full object-cover rounded-2xl hidden" autoplay muted loop playsinline><source id="home-historia-video-source" src="" type="video/mp4"></video>
+                    </div>
+                    <div class="space-y-4">
+                        <span id="sec1-subtitulo" class="bg-rose-50 text-rose-600 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider"></span>
+                        <h2 id="sec1-titulo" class="text-2xl sm:text-3xl font-black text-slate-900"></h2>
+                        <p id="sec1-p1" class="text-xs sm:text-sm text-slate-600 leading-relaxed"></p>
+                        <p id="sec1-p2" class="text-xs sm:text-sm text-slate-600 leading-relaxed"></p>
+                        <div class="p-4 bg-rose-50/60 border-l-4 border-rose-600 rounded-r-2xl"><p id="sec1-p3" class="text-xs font-bold text-slate-900"></p></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="bg-slate-900 text-white py-14 my-8">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="text-center max-w-xl mx-auto mb-10 space-y-2">
+                        <span class="text-rose-500 font-bold text-xs uppercase tracking-wider">Comunidad y Confianza</span>
+                        <h2 class="text-2xl sm:text-3xl font-black">Belleza y Directos</h2>
+                        <p class="text-xs text-slate-400">Sigue nuestras publicaciones diarias y conéctate a nuestras transmisiones en vivo.</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                        <div class="bg-white rounded-2xl p-4 text-slate-900 flex justify-center shadow-lg"><div id="instagram-embed-container" class="w-full flex justify-center"></div></div>
+                        <div class="bg-slate-800/80 border border-slate-700/80 rounded-3xl p-8 text-center space-y-6">
+                            <div class="w-16 h-16 bg-rose-600 text-white rounded-2xl mx-auto flex items-center justify-center text-2xl shadow-lg"><i class="fa-brands fa-tiktok"></i></div>
+                            <div class="space-y-2">
+                                <h3 class="text-lg font-bold text-white">¡Conéctate a TikTok Live!</h3>
+                                <p class="text-xs text-slate-300">Resolvemos tus dudas sobre tallas, modelos y entregas en tiempo real.</p>
+                            </div>
+                            <a id="sec2-tk-btn" href="https://tiktok.com" target="_blank" class="inline-block bg-white text-slate-900 hover:bg-rose-600 hover:text-white font-bold text-xs px-6 py-3 rounded-xl transition shadow-md">Abrir Transmisión en Vivo →</a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+                <div class="text-center max-w-xl mx-auto mb-10 space-y-2">
+                    <span class="text-rose-600 font-bold text-xs uppercase tracking-wider">Promociones y Estilos</span>
+                    <h2 class="text-2xl sm:text-3xl font-black text-slate-900">Destacados de Temporada</h2>
+                    <p class="text-xs text-slate-500">Explora nuestras colecciones especiales diseñadas para cada momento.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="relative rounded-3xl overflow-hidden shadow-md group h-96 flex flex-col justify-end p-6 bg-slate-900 text-white">
+                        <img id="pub1-img" src="" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-500" alt="Publi 1">
+                        <video id="pub1-video" class="absolute inset-0 w-full h-full object-cover hidden" autoplay muted loop playsinline><source id="pub1-video-source" src="" type="video/mp4"></video>
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/30 to-transparent"></div>
+                        <div class="relative z-10 space-y-2">
+                            <span id="pub1-tag" class="bg-rose-600 text-white text-[9px] font-extrabold px-3 py-1 rounded-full uppercase"></span>
+                            <h3 id="pub1-titulo" class="text-lg font-black leading-snug"></h3>
+                            <p id="pub1-desc" class="text-xs text-slate-300 line-clamp-2"></p>
+                            <button onclick="filtrarCategoria('TODAS')" class="inline-block pt-2 text-xs font-bold text-white hover:text-rose-400 transition cursor-pointer"><span id="pub1-link">Ver Colección →</span></button>
+                        </div>
+                    </div>
+                    <div class="relative rounded-3xl overflow-hidden shadow-md group h-96 flex flex-col justify-end p-6 bg-slate-900 text-white">
+                        <img id="pub2-img" src="" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-500" alt="Publi 2">
+                        <video id="pub2-video" class="absolute inset-0 w-full h-full object-cover hidden" autoplay muted loop playsinline><source id="pub2-video-source" src="" type="video/mp4"></video>
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/30 to-transparent"></div>
+                        <div class="relative z-10 space-y-2">
+                            <span id="pub2-tag" class="bg-amber-500 text-white text-[9px] font-extrabold px-3 py-1 rounded-full uppercase"></span>
+                            <h3 id="pub2-titulo" class="text-lg font-black leading-snug"></h3>
+                            <p id="pub2-desc" class="text-xs text-slate-300 line-clamp-2"></p>
+                            <button onclick="filtrarCategoria('TODAS')" class="inline-block pt-2 text-xs font-bold text-white hover:text-amber-400 transition cursor-pointer"><span id="pub2-link">Ver Modelos →</span></button>
+                        </div>
+                    </div>
+                    <div class="relative rounded-3xl overflow-hidden shadow-md group h-96 flex flex-col justify-end p-6 bg-slate-900 text-white">
+                        <img id="pub3-img" src="" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-500" alt="Publi 3">
+                        <video id="pub3-video" class="absolute inset-0 w-full h-full object-cover hidden" autoplay muted loop playsinline><source id="pub3-video-source" src="" type="video/mp4"></video>
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/30 to-transparent"></div>
+                        <div class="relative z-10 space-y-2">
+                            <span id="pub3-tag" class="bg-blue-600 text-white text-[9px] font-extrabold px-3 py-1 rounded-full uppercase"></span>
+                            <h3 id="pub3-titulo" class="text-lg font-black leading-snug"></h3>
+                            <p id="pub3-desc" class="text-xs text-slate-300 line-clamp-2"></p>
+                            <button onclick="filtrarCategoria('TODAS')" class="inline-block pt-2 text-xs font-bold text-white hover:text-blue-400 transition cursor-pointer"><span id="pub3-link">Descubrir →</span></button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- CATÁLOGO GENERAL -->
+        <main id="catalogo" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" style="display: none;">
+            <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-200">
+                <h2 id="titulo-categoria" class="text-lg font-black text-slate-900 uppercase">Catálogo de Prendas</h2>
+                <span id="total-productos" class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">0 modelos</span>
+            </div>
             <div id="catalog-container" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"></div>
-
-            <!-- Contenedor dinámico en renglón seguido para "Lo Nuevo" y "Ofertas" cuando se selecciona categoría -->
-            <div id="secciones-secundarias-container"></div>
         </main>
     </div>
 
-    <!-- 5. PIE DE PÁGINA (FOOTER) -->
+    <!-- FOOTER -->
     <footer class="bg-slate-900 text-slate-300 mt-16 border-t border-slate-800 pt-12 pb-6">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
@@ -118,65 +177,39 @@
                         <img src="/img/logo.png" onerror="this.onerror=null; this.src='../img/logo.png';" alt="Fajas Isabella" class="h-10 w-auto bg-white p-1 rounded-lg">
                         <span class="text-white font-extrabold text-lg">FAJAS ISABELLA</span>
                     </div>
-                    <p class="text-xs text-slate-400 leading-relaxed">
-                        Especialistas en prendas reductoras, moldeadoras y de uso posquirúrgico con estándares de alta calidad. Resalta tu belleza con total comodidad.
-                    </p>
-                    <div class="flex items-center gap-3 pt-2">
-                        <a id="footer-instagram" href="https://instagram.com" target="_blank" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-rose-600 text-white flex items-center justify-center transition"><i class="fa-brands fa-instagram text-sm"></i></a>
-                        <a id="footer-facebook" href="https://facebook.com" target="_blank" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-blue-600 text-white flex items-center justify-center transition"><i class="fa-brands fa-facebook-f text-sm"></i></a>
-                        <a id="footer-tiktok" href="https://tiktok.com" target="_blank" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-black text-white flex items-center justify-center transition"><i class="fa-brands fa-tiktok text-sm"></i></a>
-                        <a id="footer-whatsapp" href="https://wa.me/593983870398" target="_blank" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-emerald-600 text-white flex items-center justify-center transition"><i class="fa-brands fa-whatsapp text-sm"></i></a>
-                    </div>
+                    <p class="text-xs text-slate-400 leading-relaxed">Especialistas en prendas reductoras, moldeadoras y de uso posquirúrgico con estándares de alta calidad.</p>
                 </div>
-
                 <div>
                     <h4 class="text-white font-bold text-xs uppercase tracking-wider mb-4 border-l-2 border-rose-500 pl-2">Secciones Destacadas</h4>
                     <ul class="space-y-2 text-xs">
                         <li><a href="#" onclick="filtrarCategoria('TODAS')" class="hover:text-white transition">🛍️ Ver Todo el Catálogo</a></li>
-                        <li><a href="#" onclick="filtrarCategoria('LIQUIDACION')" class="hover:text-rose-400 transition">🔥 Productos en Liquidación</a></li>
-                        <li><a href="#" onclick="filtrarCategoria('OFERTAS')" class="hover:text-amber-400 transition">🏷️ Ofertas Especiales</a></li>
+                        <li><a href="#" onclick="filtrarCategoria('LIQUIDACION')" class="hover:text-rose-400 transition">🔥 Liquidación</a></li>
+                        <li><a href="#" onclick="filtrarCategoria('OFERTAS')" class="hover:text-amber-400 transition">🏷️ Ofertas</a></li>
                         <li><a href="#" onclick="filtrarCategoria('NEW')" class="hover:text-blue-400 transition">✨ Nuevas Colecciones</a></li>
                     </ul>
                 </div>
-
                 <div>
                     <h4 class="text-white font-bold text-xs uppercase tracking-wider mb-4 border-l-2 border-rose-500 pl-2">Información Legal</h4>
                     <ul class="space-y-2 text-xs">
                         <li><a href="#" class="hover:text-white transition">Términos y Condiciones</a></li>
                         <li><a href="#" class="hover:text-white transition">Políticas de Privacidad</a></li>
-                        <li><a href="#" class="hover:text-white transition">Envíos y Devoluciones</a></li>
-                        <li><a href="#" class="hover:text-white transition">Preguntas Frecuentes (FAQ)</a></li>
                     </ul>
                 </div>
-
                 <div>
                     <h4 class="text-white font-bold text-xs uppercase tracking-wider mb-4 border-l-2 border-rose-500 pl-2">Contacto y Envíos</h4>
                     <ul class="space-y-2 text-xs text-slate-400">
                         <li class="flex items-center gap-2"><i class="fa-solid fa-location-dot text-rose-500"></i> <span id="footer-direccion">Guayaquil, Ecuador</span></li>
                         <li class="flex items-center gap-2"><i class="fa-solid fa-phone text-emerald-500"></i> +593 98 387 0398</li>
-                        <li class="flex items-center gap-2"><i class="fa-solid fa-envelope text-blue-500"></i> <span id="footer-correo">ventas@fajasisabella.com</span></li>
                     </ul>
-                    <div class="mt-4 pt-3 border-t border-slate-800">
-                        <span class="text-[10px] font-bold text-slate-400 uppercase block mb-1.5">Aceptamos:</span>
-                        <div class="flex items-center gap-2 text-lg text-slate-400">
-                            <i class="fa-brands fa-cc-visa hover:text-white transition"></i>
-                            <i class="fa-brands fa-cc-mastercard hover:text-white transition"></i>
-                            <i class="fa-brands fa-cc-diners-club hover:text-white transition"></i>
-                            <i class="fa-solid fa-money-bill-transfer hover:text-white transition text-sm"></i>
-                        </div>
-                    </div>
                 </div>
             </div>
-
             <div class="border-t border-slate-800 pt-6 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500">
                 <p>© 2026 Fajas Isabella. Todos los derechos reservados.</p>
-                <p class="mt-2 sm:mt-0">Diseñado con dedicación para el confort y elegancia femenina.</p>
             </div>
         </div>
     </footer>
 
-    <!-- 6. MODALES -->
-    <!-- MODAL DE PRODUCTO -->
+    <!-- MODALES Y CHECKOUT -->
     <div id="modal-producto" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl p-5 relative">
             <button onclick="cerrarModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
@@ -184,54 +217,24 @@
         </div>
     </div>
 
-    <!-- MODAL FLOTANTE DE INSTAGRAM -->
-    <div id="instagram-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm hidden p-4">
-        <div class="bg-white rounded-3xl max-w-lg w-full p-6 relative shadow-2xl border border-rose-100 flex flex-col items-center">
-            <button onclick="cerrarModalInstagram()" class="absolute top-4 right-4 w-9 h-9 rounded-full bg-slate-100 hover:bg-rose-600 hover:text-white text-slate-700 font-bold flex items-center justify-center transition cursor-pointer">
-                <i class="fa-solid fa-xmark text-lg"></i>
-            </button>
-            <div class="flex items-center gap-2 mb-4">
-                <span class="inline-flex items-center gap-1.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs font-bold px-3 py-1 rounded-full">
-                    <i class="fa-brands fa-instagram"></i> Fajas Isabella Oficial
-                </span>
-            </div>
-            <div id="modal-ig-container" class="w-full flex justify-center max-h-[480px] overflow-y-auto bg-slate-50 rounded-2xl p-2"></div>
-            <p class="text-[11px] text-slate-400 mt-4 text-center">Publicación oficial sincronizada desde @fajasisabella.ec</p>
-        </div>
-    </div>
-    <script async src="//www.instagram.com/embed.js"></script>
-
-    <!-- DRAWER DEL CARRITO -->
     <div id="drawer-carrito" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs hidden transition-opacity">
         <div class="fixed top-0 right-0 h-full max-w-md w-full bg-white shadow-2xl flex flex-col justify-between p-5 transform transition-transform">
             <div>
                 <div class="flex items-center justify-between pb-4 border-b border-slate-200">
-                    <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-bag-shopping text-rose-600 text-xl"></i>
-                        <h3 class="text-base font-extrabold text-slate-900">Tu Carrito de Compras</h3>
-                    </div>
+                    <div class="flex items-center gap-2"><i class="fa-solid fa-bag-shopping text-rose-600 text-xl"></i><h3 class="text-base font-extrabold text-slate-900">Tu Carrito de Compras</h3></div>
                     <button onclick="toggleCarrito()" class="text-slate-400 hover:text-slate-700 text-lg cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
                 </div>
                 <div id="carrito-items" class="py-4 space-y-3 max-h-[50vh] overflow-y-auto no-scrollbar"></div>
             </div>
             <div class="border-t border-slate-200 pt-4 space-y-3">
-                <div class="flex justify-between items-center text-base font-black text-slate-900">
-                    <span>Total Estimado:</span>
-                    <span id="carrito-total" class="text-rose-600 text-xl">$0.00</span>
-                </div>
+                <div class="flex justify-between items-center text-base font-black text-slate-900"><span>Total Estimado:</span><span id="carrito-total" class="text-rose-600 text-xl">$0.00</span></div>
                 <div class="grid grid-cols-1 gap-2">
-                    <button id="btnPedidoWapp" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition cursor-pointer">
-                        <i class="fa-brands fa-whatsapp text-xl"></i><span>Pedido y Pago por WhatsApp</span>
-                    </button>
-                    <button onclick="toggleCarrito()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2.5 rounded-xl flex items-center justify-center gap-2 transition cursor-pointer">
-                        <i class="fa-solid fa-arrow-left"></i><span>Seguir Comprando</span>
-                    </button>
+                    <button id="btnPedidoWapp" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition cursor-pointer"><i class="fa-brands fa-whatsapp text-xl"></i><span>Pedido y Pago por WhatsApp</span></button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- MODAL DE CHECKOUT / DATOS DE ENVÍO Y FACTURACIÓN -->
     <div id="modalWhatsAppCheckout" style="display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center;">
         <div style="background:white; padding:25px; border-radius:12px; width:90%; max-width:500px; max-height:90vh; overflow-y:auto; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
@@ -239,67 +242,27 @@
                 <button onclick="cerrarModalCheckout()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#64748b;">&times;</button>
             </div>
             <form id="formCheckoutWapp" onsubmit="procesarPedidoWapp(event)">
-                <h4 style="margin:0 0 8px 0; color:#334155; font-size:13px; font-weight:bold; border-bottom:1px solid #e2e8f0; padding-bottom:4px;">1. Datos Personales</h4>
-                <div style="margin-bottom:10px;">
-                    <label style="font-size:12px; font-weight:bold; color:#475569;">Nombre Completo:</label>
-                    <input type="text" id="wapp_nombre" required style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none;">
+                <div style="margin-bottom:10px;"><label style="font-size:12px; font-weight:bold; color:#475569;">Nombre Completo:</label><input type="text" id="wapp_nombre" required style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none;"></div>
+                <div style="margin-bottom:10px; display:flex; gap:10px;">
+                    <div style="flex:1;"><label style="font-size:12px; font-weight:bold; color:#475569;">Teléfono:</label><input type="text" id="wapp_telefono" required style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none;"></div>
+                    <div style="flex:1;"><label style="font-size:12px; font-weight:bold; color:#475569;">Correo:</label><input type="email" id="wapp_correo" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none;"></div>
                 </div>
                 <div style="margin-bottom:10px; display:flex; gap:10px;">
-                    <div style="flex:1;">
-                        <label style="font-size:12px; font-weight:bold; color:#475569;">Teléfono / WhatsApp:</label>
-                        <input type="text" id="wapp_telefono" required style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none;">
-                    </div>
-                    <div style="flex:1;">
-                        <label style="font-size:12px; font-weight:bold; color:#475569;">Correo:</label>
-                        <input type="email" id="wapp_correo" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none;">
-                    </div>
+                    <div style="flex:1;"><label style="font-size:12px; font-weight:bold; color:#475569;">RUC/Cédula:</label><input type="text" id="wapp_ruc" required style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none;"></div>
+                    <div style="flex:1;"><label style="font-size:12px; font-weight:bold; color:#475569;">Razón Social:</label><input type="text" id="wapp_razon" required style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none;"></div>
                 </div>
-
-                <h4 style="margin:15px 0 8px 0; color:#334155; font-size:13px; font-weight:bold; border-bottom:1px solid #e2e8f0; padding-bottom:4px;">2. Datos de Facturación</h4>
                 <div style="margin-bottom:10px; display:flex; gap:10px;">
-                    <div style="flex:1;">
-                        <label style="font-size:12px; font-weight:bold; color:#475569;">RUC o Cédula:</label>
-                        <input type="text" id="wapp_ruc" required style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none;">
-                    </div>
-                    <div style="flex:1;">
-                        <label style="font-size:12px; font-weight:bold; color:#475569;">Razón Social / Nombre:</label>
-                        <input type="text" id="wapp_razon" required style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none;">
-                    </div>
+                    <div style="flex:1;"><label style="font-size:12px; font-weight:bold; color:#475569;">Provincia:</label><input type="text" id="wapp_provincia" required style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none;"></div>
+                    <div style="flex:1;"><label style="font-size:12px; font-weight:bold; color:#475569;">Ciudad:</label><input type="text" id="wapp_ciudad" required style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none;"></div>
                 </div>
-
-                <h4 style="margin:15px 0 8px 0; color:#334155; font-size:13px; font-weight:bold; border-bottom:1px solid #e2e8f0; padding-bottom:4px;">3. Datos de Envío</h4>
-                <div style="margin-bottom:10px; display:flex; gap:10px;">
-                    <div style="flex:1;">
-                        <label style="font-size:12px; font-weight:bold; color:#475569;">Provincia:</label>
-                        <input type="text" id="wapp_provincia" required style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none;">
-                    </div>
-                    <div style="flex:1;">
-                        <label style="font-size:12px; font-weight:bold; color:#475569;">Ciudad:</label>
-                        <input type="text" id="wapp_ciudad" required style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none;">
-                    </div>
-                </div>
-                <div style="margin-bottom:10px;">
-                    <label style="font-size:12px; font-weight:bold; color:#475569;">Dirección de Entrega:</label>
-                    <input type="text" id="wapp_direccion" required style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none;">
-                </div>
-                <div style="margin-bottom:12px;">
-                    <label style="font-size:12px; font-weight:bold; color:#475569;">Referencia:</label>
-                    <input type="text" id="wapp_referencia" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none;">
-                </div>
-
-                <div style="margin-bottom:15px; background:#f8fafc; padding:12px; border-radius:8px; border:1px dashed #cbd5e1;">
-                    <label style="font-size:12px; font-weight:bold; color:#1e293b; display:block; margin-bottom:4px;">📸 Subir Comprobante de Pago:</label>
-                    <input type="file" id="wapp_comprobante" accept="image/*,application/pdf" style="width:100%; font-size:11px; color:#475569;">
-                </div>
-
-                <button type="submit" style="width:100%; background:#16a34a; color:white; border:none; padding:12px; font-size:14px; font-weight:bold; border-radius:8px; cursor:pointer;">
-                    ✅ Registrar y Enviar Pedido por WhatsApp
-                </button>
+                <div style="margin-bottom:10px;"><label style="font-size:12px; font-weight:bold; color:#475569;">Dirección:</label><input type="text" id="wapp_direccion" required style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none;"></div>
+                <div style="margin-bottom:12px;"><label style="font-size:12px; font-weight:bold; color:#475569;">Referencia:</label><input type="text" id="wapp_referencia" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none;"></div>
+                <div style="margin-bottom:15px; background:#f8fafc; padding:12px; border-radius:8px; border:1px dashed #cbd5e1;"><label style="font-size:12px; font-weight:bold; color:#1e293b; display:block; margin-bottom:4px;">📸 Comprobante de Pago:</label><input type="file" id="wapp_comprobante" accept="image/*,application/pdf" style="width:100%; font-size:11px;"></div>
+                <button type="submit" style="width:100%; background:#16a34a; color:white; border:none; padding:12px; font-size:14px; font-weight:bold; border-radius:8px; cursor:pointer;">✅ Enviar Pedido por WhatsApp</button>
             </form>
         </div>
     </div>
 
-    <!-- MODAL DE AUTENTICACIÓN -->
     <div id="modal-auth" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto no-scrollbar">
             <button onclick="cerrarModalAuth()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
@@ -307,102 +270,45 @@
                 <button onclick="cambiarTabAuth('login')" id="tab-login-btn" class="flex-1 pb-2 font-bold text-sm text-rose-600 border-b-2 border-rose-600 cursor-pointer">Iniciar Sesión</button>
                 <button onclick="cambiarTabAuth('registro')" id="tab-registro-btn" class="flex-1 pb-2 font-bold text-sm text-slate-400 cursor-pointer">Registrarse</button>
             </div>
-            
             <div id="form-login-container">
                 <form onsubmit="ejecutarLogin(event)" class="space-y-3">
-                    <div>
-                        <label class="text-xs font-bold text-slate-700 block mb-1">Correo Electrónico</label>
-                        <input type="email" id="login-correo" required class="w-full bg-slate-100 text-xs rounded-xl p-3 border border-slate-200 outline-none focus:border-rose-500">
-                    </div>
-                    <div>
-                        <label class="text-xs font-bold text-slate-700 block mb-1">Contraseña</label>
-                        <div class="relative">
-                            <input type="password" id="login-password" required class="w-full bg-slate-100 text-xs rounded-xl p-3 pr-10 border border-slate-200 outline-none focus:border-rose-500">
-                            <button type="button" onclick="toggleVisibilidadPassword('login-password', 'ico-login-eye')" class="absolute right-3 top-3 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"><i class="fa-solid fa-eye" id="ico-login-eye"></i></button>
-                        </div>
-                    </div>
+                    <div><label class="text-xs font-bold text-slate-700 block mb-1">Correo</label><input type="email" id="login-correo" required class="w-full bg-slate-100 text-xs rounded-xl p-3 border border-slate-200 outline-none focus:border-rose-500"></div>
+                    <div><label class="text-xs font-bold text-slate-700 block mb-1">Contraseña</label><div class="relative"><input type="password" id="login-password" required class="w-full bg-slate-100 text-xs rounded-xl p-3 pr-10 border border-slate-200 outline-none focus:border-rose-500"><button type="button" onclick="toggleVisibilidadPassword('login-password', 'ico-login-eye')" class="absolute right-3 top-3 text-slate-400 text-xs cursor-pointer"><i class="fa-solid fa-eye" id="ico-login-eye"></i></button></div></div>
                     <button type="submit" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-3 rounded-xl shadow-md transition cursor-pointer">Entrar a mi Cuenta</button>
                 </form>
             </div>
-
             <div id="form-registro-container" class="hidden">
                 <form onsubmit="ejecutarRegistro(event)" class="space-y-3">
-                    <div><label class="text-xs font-bold text-slate-700 block mb-1">Nombre Completo</label><input type="text" id="reg-nombre" required class="w-full bg-slate-100 text-xs rounded-xl p-2.5 border border-slate-200 outline-none focus:border-rose-500"></div>
-                    <div><label class="text-xs font-bold text-slate-700 block mb-1">Correo Electrónico</label><input type="email" id="reg-correo" required class="w-full bg-slate-100 text-xs rounded-xl p-2.5 border border-slate-200 outline-none focus:border-rose-500"></div>
-                    <div>
-                        <label class="text-xs font-bold text-slate-700 block mb-1">Contraseña</label>
-                        <div class="relative"><input type="password" id="reg-password" required class="w-full bg-slate-100 text-xs rounded-xl p-2.5 pr-10 border border-slate-200 outline-none focus:border-rose-500"><button type="button" onclick="toggleVisibilidadPassword('reg-password', 'ico-reg-eye')" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"><i class="fa-solid fa-eye" id="ico-reg-eye"></i></button></div>
-                    </div>
-                    <div>
-                        <label class="text-xs font-bold text-slate-700 block mb-1">Confirmar Contraseña</label>
-                        <div class="relative"><input type="password" id="reg-password-confirm" required class="w-full bg-slate-100 text-xs rounded-xl p-2.5 pr-10 border border-slate-200 outline-none focus:border-rose-500"><button type="button" onclick="toggleVisibilidadPassword('reg-password-confirm', 'ico-reg-confirm-eye')" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"><i class="fa-solid fa-eye" id="ico-reg-confirm-eye"></i></button></div>
-                    </div>
-                    <div><label class="text-xs font-bold text-slate-700 block mb-1">Teléfono / WhatsApp</label><input type="text" id="reg-telefono" class="w-full bg-slate-100 text-xs rounded-xl p-2.5 border border-slate-200 outline-none focus:border-rose-500"></div>
-                    <div><label class="text-xs font-bold text-slate-700 block mb-1">Dirección de Envío</label><input type="text" id="reg-direccion" class="w-full bg-slate-100 text-xs rounded-xl p-2.5 border border-slate-200 outline-none focus:border-rose-500"></div>
+                    <div><label class="text-xs font-bold text-slate-700 block mb-1">Nombre</label><input type="text" id="reg-nombre" required class="w-full bg-slate-100 text-xs rounded-xl p-2.5 border border-slate-200 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-700 block mb-1">Correo</label><input type="email" id="reg-correo" required class="w-full bg-slate-100 text-xs rounded-xl p-2.5 border border-slate-200 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-700 block mb-1">Contraseña</label><input type="password" id="reg-password" required class="w-full bg-slate-100 text-xs rounded-xl p-2.5 border border-slate-200 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-700 block mb-1">Confirmar Contraseña</label><input type="password" id="reg-password-confirm" required class="w-full bg-slate-100 text-xs rounded-xl p-2.5 border border-slate-200 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-700 block mb-1">Teléfono</label><input type="text" id="reg-telefono" class="w-full bg-slate-100 text-xs rounded-xl p-2.5 border border-slate-200 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-700 block mb-1">Dirección</label><input type="text" id="reg-direccion" class="w-full bg-slate-100 text-xs rounded-xl p-2.5 border border-slate-200 outline-none"></div>
                     <button type="submit" class="w-full bg-slate-900 hover:bg-rose-600 text-white font-bold text-xs py-3 rounded-xl shadow-md transition cursor-pointer">Crear Cuenta</button>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- MODAL DE PERFIL -->
     <div id="modal-perfil" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl p-6 relative max-h-[85vh] flex flex-col">
             <button onclick="cerrarModalPerfil()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
             <div class="flex items-center gap-3 pb-4 border-b border-slate-200 mb-4">
                 <div class="w-12 h-12 bg-rose-100 rounded-full flex items-center justify-center text-rose-600 font-extrabold text-lg" id="perfil-inicial">U</div>
-                <div>
-                    <h3 class="text-base font-extrabold text-slate-900" id="perfil-nombre">Nombre de Usuario</h3>
-                    <p class="text-xs text-slate-500" id="perfil-correo">correo@ejemplo.com</p>
-                </div>
+                <div><h3 class="text-base font-extrabold text-slate-900" id="perfil-nombre">Usuario</h3><p class="text-xs text-slate-500" id="perfil-correo">correo@ejemplo.com</p></div>
             </div>
-            <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">📦 Mis Pedidos y Compras Anteriores</h4>
-            <div id="historial-pedidos-container" class="space-y-3 overflow-y-auto no-scrollbar flex-1 pr-1">
-                <div class="text-center py-8 text-slate-400 text-xs">Cargando tus pedidos...</div>
-            </div>
-            <div class="pt-4 border-t border-slate-200 mt-4">
-                <button onclick="cerrarSesion()" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs py-2.5 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer">
-                    <i class="fa-solid fa-right-from-bracket"></i><span>Cerrar Sesión</span>
-                </button>
-            </div>
+            <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">📦 Mis Pedidos</h4>
+            <div id="historial-pedidos-container" class="space-y-3 overflow-y-auto no-scrollbar flex-1 pr-1"><div class="text-center py-8 text-slate-400 text-xs">Cargando...</div></div>
+            <div class="pt-4 border-t border-slate-200 mt-4"><button onclick="cerrarSesion()" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs py-2.5 rounded-xl transition cursor-pointer"><i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión</button></div>
         </div>
     </div>
 
-    <!-- SCRIPTS DE APOYO Y CHECKOUT -->
     <script>
-        let globalInstagramEmbed = "";
-
-        window.abrirModalInstagram = function() {
-            const modal = document.getElementById('instagram-modal');
-            const container = document.getElementById('modal-ig-container');
-            if (modal && container) {
-                if (globalInstagramEmbed) {
-                    container.innerHTML = globalInstagramEmbed;
-                } else {
-                    container.innerHTML = `<p class="text-xs text-rose-600 font-bold p-4">Cargando publicación...</p>`;
-                }
-                modal.classList.remove('hidden');
-                setTimeout(() => {
-                    if (window.instgrm && window.instgrm.Embeds) {
-                        window.instgrm.Embeds.process();
-                    }
-                }, 150);
-            }
-        };
-
-        window.cerrarModalInstagram = function() {
-            const modal = document.getElementById('instagram-modal');
-            if (modal) modal.classList.add('hidden');
-        };
-
         document.addEventListener('click', function(e) {
             if (e.target && (e.target.id === 'btnPedidoWapp' || e.target.closest('#btnPedidoWapp'))) {
                 e.preventDefault();
-                const productosCarrito = (typeof carrito !== 'undefined' && carrito.length > 0) ? carrito : [];
-                if (productosCarrito.length === 0) {
-                    alert("Tu carrito está vacío.");
-                    return;
-                }
+                if (typeof carrito === 'undefined' || carrito.length === 0) { alert("Tu carrito está vacío."); return; }
                 const usuarioStr = localStorage.getItem('usuario_fajas');
                 if (usuarioStr) {
                     try {
@@ -413,21 +319,15 @@
                             if (document.getElementById('wapp_correo') && usuario.correo) document.getElementById('wapp_correo').value = usuario.correo;
                             if (document.getElementById('wapp_direccion') && usuario.direccion) document.getElementById('wapp_direccion').value = usuario.direccion;
                         }
-                    } catch (err) { console.error(err); }
+                    } catch (err) {}
                 }
                 document.getElementById('modalWhatsAppCheckout').style.display = 'flex';
             }
         });
-
-        function cerrarModalCheckout() {
-            document.getElementById('modalWhatsAppCheckout').style.display = 'none';
-        }
-
+        function cerrarModalCheckout() { document.getElementById('modalWhatsAppCheckout').style.display = 'none'; }
         async function procesarPedidoWapp(e) {
             e.preventDefault();
-            const productosCarrito = (typeof carrito !== 'undefined' && carrito.length > 0) ? carrito : [];
-            if (productosCarrito.length === 0) { alert("Tu carrito está vacío."); return; }
-
+            if (typeof carrito === 'undefined' || carrito.length === 0) { alert("Tu carrito está vacío."); return; }
             const formData = new FormData();
             formData.append('nombre', document.getElementById('wapp_nombre').value);
             formData.append('telefono', document.getElementById('wapp_telefono').value);
@@ -438,11 +338,9 @@
             formData.append('ciudad', document.getElementById('wapp_ciudad').value);
             formData.append('direccion', document.getElementById('wapp_direccion').value);
             formData.append('referencia', document.getElementById('wapp_referencia').value);
-            formData.append('items', JSON.stringify(productosCarrito));
-
+            formData.append('items', JSON.stringify(carrito));
             const inputFile = document.getElementById('wapp_comprobante');
             if (inputFile.files[0]) formData.append('comprobante', inputFile.files[0]);
-
             try {
                 const response = await fetch('/api/web/auth/checkout-whatsapp', { method: 'POST', body: formData });
                 const resultado = await response.json();
@@ -453,67 +351,12 @@
                     document.getElementById('formCheckoutWapp').reset();
                     cerrarModalCheckout();
                     document.getElementById('drawer-carrito').classList.add('hidden');
-                    alert("¡Pedido registrado con éxito! Redirigiendo a WhatsApp...");
-                } else {
-                    alert("Error al procesar el pedido: " + (resultado.detail || "Error"));
-                }
-            } catch (err) { alert("Error de conexión con el servidor."); }
-        }
-
-        async function ejecutarLogin(event) {
-            event.preventDefault();
-            const correo = document.getElementById('login-correo').value;
-            const password = document.getElementById('login-password').value;
-            try {
-                const res = await fetch('/api/web/auth/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ correo, password })
-                });
-                const data = await res.json();
-                if (res.ok && data.status === 'success') {
-                    localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
-                    cerrarModalAuth();
-                    if (typeof actualizarBotonCuentaNav === 'function') actualizarBotonCuentaNav();
-                    alert(data.mensaje || "¡Bienvenido!");
-                } else {
-                    alert("Error: " + (data.detail || "Credenciales incorrectas."));
-                }
-            } catch (e) { alert("Error de conexión."); }
-        }
-
-        async function ejecutarRegistro(event) {
-            event.preventDefault();
-            const nombre = document.getElementById('reg-nombre').value;
-            const correo = document.getElementById('reg-correo').value;
-            const password = document.getElementById('reg-password').value;
-            const passwordConfirm = document.getElementById('reg-password-confirm').value;
-            const telefono = document.getElementById('reg-telefono').value;
-            const direccion = document.getElementById('reg-direccion').value;
-
-            if (password !== passwordConfirm) { alert("⚠️ Las contraseñas no coinciden."); return; }
-
-            try {
-                const res = await fetch('/api/web/auth/registro', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nombre, correo, password, telefono, direccion })
-                });
-                const data = await res.json();
-                if (res.ok && data.status === 'success') {
-                    localStorage.setItem('usuario_fajas', JSON.stringify(data.cliente));
-                    cerrarModalAuth();
-                    if (typeof actualizarBotonCuentaNav === 'function') actualizarBotonCuentaNav();
-                    alert(data.mensaje || "¡Registro exitoso!");
-                } else {
-                    alert("Error: " + (data.detail || "Error al registrarse"));
-                }
-            } catch (e) { alert("Error de conexión."); }
+                    alert("¡Pedido registrado con éxito!");
+                } else { alert("Error: " + (resultado.detail || "Error")); }
+            } catch (err) { alert("Error de conexión."); }
         }
     </script>
-
-    <!-- ARCHIVOS JS EXTERNOS -->
     <script src="tienda.js"></script>
-    <script src="home.js" defer></script>
+    <script async src="//www.instagram.com/embed.js"></script>
 </body>
 </html>
