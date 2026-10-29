@@ -11,6 +11,7 @@ import shutil
 from datetime import date
 import secrets
 import string
+import cloudinary.uploader
 from config import (
     NOMBRE_EMPRESA, TELEFONO_WHATSAPP, CORREO_EMPRESA, DIRECCION_EMPRESA,
     INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL, WHATSAPP_LINK
@@ -506,15 +507,16 @@ async def checkout_whatsapp(
     db.commit()
 
     if comprobante:
-        os.makedirs("static/comprobantes", exist_ok=True)
-        file_path = f"static/comprobantes/{nueva_factura.id}_{comprobante.filename}"
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(comprobante.file, buffer)
-        
+        try:
+            upload_result = cloudinary.uploader.upload(comprobante.file)
+            file_url = upload_result.get("secure_url", comprobante.filename)
+        except Exception as e:
+            file_url = comprobante.filename
+
         pago = Pago(
             factura_id=nueva_factura.id,
             metodo_pago="TRANSFERENCIA",
-            codigo_transferencia=file_path,
+            codigo_transferencia=file_url,
             monto=total_pedido
         )
         db.add(pago)
