@@ -465,8 +465,16 @@ async def checkout_whatsapp(
         db.commit()
         db.refresh(cliente_db)
 
-    lista_items = json.loads(items)
-    total_pedido = sum(item['precio'] * item['cantidad'] for item in lista_items)
+    # Validación segura del JSON de items para evitar errores 500
+    try:
+        lista_items = json.loads(items) if items else []
+    except Exception:
+        raise HTTPException(status_code=400, detail="El formato de los ítems del carrito es inválido.")
+
+    if not lista_items:
+        raise HTTPException(status_code=400, detail="El carrito está vacío.")
+
+    total_pedido = sum(float(item.get('precio', 0)) * int(item.get('cantidad', 1)) for item in lista_items)
     
     num_factura_str = f"FAC-WAPP-{int(date.today().strftime('%Y%m%d'))}-{cliente_db.id}"
     
@@ -524,8 +532,10 @@ async def checkout_whatsapp(
 
     detalle_texto = ""
     for idx, item in enumerate(lista_items, 1):
-        subtotal = item['precio'] * item['cantidad']
-        detalle_texto += f"{idx}. *{item['nombre']}*%0A   - Talla: {item['talla']} | Color: {item['color']}%0A   - SKU: {item['sku']}%0A   - Cantidad: {item['cantidad']} x ${item['precio']:.2f} = ${subtotal:.2f}%0A%0A"
+        p_precio = float(item.get('precio', 0))
+        p_cant = int(item.get('cantidad', 1))
+        subtotal = p_precio * p_cant
+        detalle_texto += f"{idx}. *{item.get('nombre', 'Prenda')}*%0A   - Talla: {item.get('talla', 'N/D')} | Color: {item.get('color', 'N/D')}%0A   - SKU: {item.get('sku', 'N/D')}%0A   - Cantidad: {p_cant} x ${p_precio:.2f} = ${subtotal:.2f}%0A%0A"
 
     mensaje_wapp = f"¡Hola Fajas Isabella! 👋 Acabo de realizar un pedido y transferencia:%0A%0A*Factura:* #{num_factura_str}%0A*Cliente:* {nombre}%0A*RUC/Cédula:* {ruc_cedula}%0A*Destino:* {provincia}, {ciudad} - {direccion}%0A%0A{detalle_texto}💰 *Total Pagado:* ${total_pedido:.2f}%0A%0A"
     
@@ -541,6 +551,7 @@ async def checkout_whatsapp(
         "whatsapp_url": whatsapp_url,
         "mensaje": "Pedido registrado correctamente."
     }
+
 
 @router.get("/api/web/auth/pedidos/{cliente_id}")
 def obtener_pedidos_cliente(cliente_id: int, db: Session = Depends(get_db)):
