@@ -1,345 +1,167 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from typing import Optional, List
-from datetime import datetime
+import streamlit as st
+import requests
 import os
-from database import get_db, Cliente, Factura, Pago, VarianteProducto, MovimientoInventario, AbonoPlanAcumulativo
+import pandas as pd
+import json
+from datetime import date
 
-router = APIRouter(tags=["Ventas y Clientes"])
-
-# --- ESQUEMAS PARA CLIENTES ---
-class ClienteSchema(BaseModel):
-    ruc_cedula: str
-    nombre: str
-    ciudad: Optional[str] = None
-    telefono: Optional[str] = None
-    correo: Optional[str] = None
-    direccion: Optional[str] = None
-    tipo_precio: Optional[str] = "REGULAR"
-    descuento_porcentaje: Optional[float] = 0.0
-
-# --- ESQUEMAS PARA VENTAS ---
-class ItemVentaSchema(BaseModel):
-    sku: str
-    cantidad: int
-    precio_unitario: float
-
-class VentaFacturaSchema(BaseModel):
-    numero_factura: str
-    numero_autorizacion: Optional[str] = ""
-    fecha_factura: str
-    metodo_pago: str  # Incluye "Plan Acumulativo"
-    codigo_transferencia: Optional[str] = ""
+def render_ventas():
+    st.markdown("### 💳 Módulo de Ventas y Facturación")
     
-    # Datos de facturación (Cliente)
-    ruc_cliente: str
-    nombre_cliente: str
-    direccion_cliente: Optional[str] = ""
-    telefono_cliente: Optional[str] = ""
+    API_URL = st.session_state.get("API_URL", "http://localhost:8000/api")
     
-    # Datos logísticos específicos de la orden (Envío)
-    provincia: Optional[str] = "Guayas"
-    ciudad: Optional[str] = "Guayaquil"
-    direccion_entrega: Optional[str] = ""
-    referencia_direccion: Optional[str] = ""
-    courier_nombre: Optional[str] = "Servientrega"
+    # Pestañas de control de ventas
+    tab_nueva, tab_historial = st.tabs(["🛒 Registrar Venta / Plan Acumulativo", "📋 Historial de Ventas"])
     
-    # Abono inicial unificado
-    abono_inicial: Optional[float] = 0.0
-    
-    items: List[ItemVentaSchema]
-
-
-# --- ENDPOINTS CRUD DE CLIENTES ---
-
-@router.get("/clientes")
-def obtener_clientes(db: Session = Depends(get_db)):
-    clientes = db.query(Cliente).all()
-    resultado = []
-    for c in clientes:
-        resultado.append({
-            "id": c.id,
-            "ruc_cedula": c.ruc_cedula,
-            "nombre": c.nombre,
-            "ciudad": c.ciudad or "",
-            "telefono": c.telefono or "",
-            "correo": c.correo or "",
-            "direccion": c.direccion or "",
-            "tipo_precio": c.tipo_precio or "REGULAR",
-            "descuento_porcentaje": float(c.descuento_porcentaje or 0.0)
-        })
-    return resultado
-
-@router.post("/clientes")
-def crear_cliente(data: ClienteSchema, db: Session = Depends(get_db)):
-    existente = db.query(Cliente).filter(Cliente.ruc_cedula == data.ruc_cedula).first()
-    if existente:
-        raise HTTPException(status_code=400, detail="El RUC o Cédula ya se encuentra registrado.")
-    
-    nuevo_cliente = Cliente(
-        ruc_cedula=data.ruc_cedula,
-        nombre=data.nombre,
-        ciudad=data.ciudad.strip().title() if data.ciudad else None,
-        telefono=data.telefono.strip() if data.telefono else None,
-        correo=data.correo.strip().lower() if data.correo else None,
-        direccion=data.direccion.strip() if data.direccion else None,
-        tipo_precio=data.tipo_precio or "REGULAR",
-        descuento_porcentaje=data.descuento_porcentaje or 0.0
-    )
-    db.add(nuevo_cliente)
-    db.commit()
-    db.refresh(nuevo_cliente)
-    return nuevo_cliente
-
-@router.put("/clientes/{cliente_id}")
-def actualizar_cliente(cliente_id: int, data: ClienteSchema, db: Session = Depends(get_db)):
-    cliente = db.query(Cliente).filter(Cliente.id == cliente_id).first()
-    if not cliente:
-        raise HTTPException(status_code=404, detail="Cliente no encontrado.")
-    
-    cliente.ruc_cedula = data.ruc_cedula.strip()
-    cliente.nombre = data.nombre.strip()
-    cliente.ciudad = data.ciudad.strip().title() if data.ciudad else None
-    cliente.telefono = data.telefono.strip() if data.telefono else None
-    cliente.correo = data.correo.strip().lower() if data.correo else None
-    cliente.direccion = data.direccion.strip() if data.direccion else None
-    cliente.tipo_precio = data.tipo_precio or "REGULAR"
-    cliente.descuento_porcentaje = data.descuento_porcentaje or 0.0
-    
-    db.commit()
-    db.refresh(cliente)
-    return {"status": "success", "mensaje": "Cliente actualizado correctamente.", "cliente_id": cliente.id}
-
-@router.delete("/clientes/{cliente_id}")
-def eliminar_cliente(cliente_id: int, db: Session = Depends(get_db)):
-    cliente = db.query(Cliente).filter(Cliente.id == cliente_id).first()
-    if not cliente:
-        raise HTTPException(status_code=404, detail="Cliente no encontrado.")
-    
-    db.delete(cliente)
-    db.commit()
-    return {"status": "success", "mensaje": f"Cliente ID {cliente_id} eliminado correctamente."}
-
-
-# --- ENDPOINT DE REPORTE Y LISTADO DE VENTAS ---
-
-@router.get("/ventas/reporte")
-def obtener_reporte_ventas(db: Session = Depends(get_db)):
-    facturas = db.query(Factura).filter(Factura.tipo_factura == "VENTA").all()
-    resultado = []
-    for f in facturas:
-        total_real = f.total_factura
-        if not total_real or total_real == 0.0:
-            total_real = sum(p.monto for p in f.pagos) if f.pagos else 0.0
-            
-        resultado.append({
-            "id": f.id,
-            "numero_factura": f.numero_factura,
-            "fecha": str(f.fecha_factura),
-            "ruc_cedula": f.entidad_ruc,
-            "cliente": f.entidad_nombre,
-            "total_factura": float(total_real),
-            "provincia": f.provincia or "Guayas",
-            "ciudad": f.ciudad or "Guayaquil",
-            "direccion_entrega": f.direccion_entrega or "",
-            "referencia_direccion": f.referencia_direccion or "",
-            "courier": f.courier_nombre or "Servientrega",
-            "numero_guia": f.numero_guia or "",
-            "estado_despacho": f.estado_despacho or "PENDIENTE",
-            "es_plan_acumulativo": bool(f.es_plan_acumulativo),
-            "saldo_pendiente": float(f.saldo_pendiente or 0.0),
-            "estado_acumulativo": f.estado_acumulativo or "COMPLETADO"
-        })
-    return resultado
-
-
-# --- ENDPOINT REGISTRO DE VENTA ---
-
-@router.post("/ventas-factura")
-def registrar_venta(venta: VentaFacturaSchema, db: Session = Depends(get_db)):
-    try:
-        existe = db.query(Factura).filter(
-            Factura.numero_factura == venta.numero_factura, 
-            Factura.tipo_factura == "VENTA"
-        ).first()
+    with tab_nueva:
+        st.markdown("##### 📝 Registro Manual de Venta o Abono Inicial")
         
-        if existe:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"La factura de venta Nº {venta.numero_factura} ya se encuentra registrada en el sistema."
-            )
+        # 1. Datos del Cliente
+        st.markdown("###### 1. Información del Cliente")
+        col_c1, col_c2, col_c3 = st.columns(3)
+        with col_c1:
+            ruc_cliente = st.text_input("RUC o Cédula *", placeholder="Ej: 0912345678")
+        with col_c2:
+            nombre_cliente = st.text_input("Nombre / Razón Social *", placeholder="Ej: María Pérez")
+        with col_c3:
+            telefono_cliente = st.text_input("Teléfono / WhatsApp", placeholder="Ej: 0991234567")
 
-        cliente = db.query(Cliente).filter(Cliente.ruc_cedula == venta.ruc_cliente).first()
-        if not cliente:
-            cliente = Cliente(
-                ruc_cedula=venta.ruc_cliente, 
-                nombre=venta.nombre_cliente,
-                direccion=venta.direccion_cliente or "", 
-                telefono=venta.telefono_cliente or "",
-                ciudad=venta.ciudad or "Guayaquil"
-            )
-            db.add(cliente)
-            db.commit()
-            db.refresh(cliente)
+        col_c4, col_c5 = st.columns(2)
+        with col_c4:
+            correo_cliente = st.text_input("Correo Electrónico", placeholder="cliente@email.com")
+        with col_c5:
+            direccion_cliente = st.text_input("Dirección del Cliente", placeholder="Calle Principal y Secundaria")
+
+        st.markdown("---")
+        
+        # 2. Datos de Facturación y Envío
+        st.markdown("###### 2. Datos de Facturación y Logística")
+        col_f1, col_f2, col_f3 = st.columns(3)
+        with col_f1:
+            num_factura = st.text_input("Número de Factura / Orden *", value=f"FAC-{date.today().strftime('%Y%m%d')}-01")
+        with col_f2:
+            fecha_factura = st.date_input("Fecha de Factura", value=date.today())
+        with col_f3:
+            metodo_pago = st.selectbox("Método de Pago", ["Efectivo", "Transferencia", "Tarjeta de Crédito", "Plan Acumulativo"])
+
+        col_l1, col_l2, col_l3 = st.columns(3)
+        with col_l1:
+            provincia = st.text_input("Provincia", value="Guayas")
+        with col_l2:
+            ciudad = st.text_input("Ciudad", value="Guayaquil")
+        with col_l3:
+            courier = st.selectbox("Courier de Envío", ["Servientrega", "TAME", "Coop. Transporte", "Retiro en Local"])
+
+        direccion_entrega = st.text_input("Dirección de Entrega (Si difiere de la del cliente)", placeholder="Dejar en blanco si es la misma")
+        referencia_dir = st.text_input("Referencia de Ubicación", placeholder="Ej: Cerca del parque central, casa de dos pisos")
+
+        if metodo_pago == "Transferencia":
+            codigo_trans = st.text_input("Código o Referencia de Transferencia")
         else:
-            if venta.direccion_cliente and not cliente.direccion:
-                cliente.direccion = venta.direccion_cliente
-                db.commit()
+            codigo_trans = ""
 
-        for item in venta.items:
-            variante = db.query(VarianteProducto).filter(VarianteProducto.sku == item.sku).first()
-            if not variante:
-                raise HTTPException(status_code=404, detail=f"SKU {item.sku} no existe.")
-            if variante.stock_actual < item.cantidad:
-                raise HTTPException(status_code=400, detail=f"Stock insuficiente para {item.sku}.")
+        # Si es Plan Acumulativo, pedir el abono inicial
+        abono_inicial = 0.0
+        if metodo_pago == "Plan Acumulativo":
+            st.info("💡 **Plan Acumulativo:** El cliente puede dejar un abono inicial y el saldo restante quedará pendiente para seguimiento en el módulo de Cobranzas.")
+            abono_inicial = st.number_input("Valor de Abono Inicial ($)", min_value=0.0, value=0.0, step=1.0)
 
-        total_calculado = sum(item.cantidad * item.precio_unitario for item in venta.items)
+        st.markdown("---")
+
+        # 3. Ítems del Producto
+        st.markdown("###### 3. Selección de Productos (SKU)")
         
-        # --- LÓGICA UNIFICADA DE PLAN ACUMULATIVO ---
-        es_acumulativo = (venta.metodo_pago == "Plan Acumulativo")
-        saldo_pendiente = 0.0
-        estado_acumulativo = "COMPLETADO"
-        
-        if es_acumulativo:
-            abono = float(venta.abono_inicial or 0.0)
-            saldo_pendiente = total_calculado - abono
-            if saldo_pendiente < 0:
-                raise HTTPException(status_code=400, detail="El abono inicial no puede superar el total de la orden.")
-            estado_acumulativo = "EN_PROCESO" if saldo_pendiente > 0 else "COMPLETADO"
+        # Obtener inventario disponible para la venta
+        try:
+            res_inv = requests.get(f"{API_URL}/inventario", timeout=5)
+            inventario_lista = res_inv.json() if res_inv.status_code == 200 else []
+        except Exception:
+            inventario_lista = []
 
-        nueva_factura = Factura(
-            tipo_factura="VENTA", 
-            numero_factura=venta.numero_factura,
-            numero_autorizacion=venta.numero_autorizacion or "",
-            fecha_factura=datetime.strptime(venta.fecha_factura, "%Y-%m-%d").date(),
-            entidad_ruc=venta.ruc_cliente, 
-            entidad_nombre=venta.nombre_cliente,
-            total_factura=total_calculado,
-            provincia=venta.provincia.strip().title() if venta.provincia else "Guayas",
-            ciudad=venta.ciudad.strip().title() if venta.ciudad else "Guayaquil",
-            direccion_entrega=venta.direccion_entrega.strip() if venta.direccion_entrega else (venta.direccion_cliente or ""),
-            referencia_direccion=venta.referencia_direccion.strip() if venta.referencia_direccion else "",
-            courier_nombre=venta.courier_nombre.strip() if venta.courier_nombre else "Servientrega",
-            estado_despacho="PENDIENTE",
-            es_plan_acumulativo=es_acumulativo,
-            saldo_pendiente=saldo_pendiente,
-            estado_acumulativo=estado_acumulativo,
-            cliente_id=cliente.id
-        )
-        db.add(nueva_factura)
-        db.commit()
-        db.refresh(nueva_factura)
+        if not inventario_lista:
+            st.warning("⚠️ No hay productos o variantes con stock disponibles en el inventario.")
+        else:
+            # Crear un dataframe editable para los ítems de la venta
+            df_items_inicial = pd.DataFrame([
+                {"SKU": "", "Cantidad": 1, "Precio Unitario ($)": 0.0}
+            ])
 
-        # Registrar pago inicial o abono inicial según corresponda
-        monto_pago = float(venta.abono_inicial or 0.0) if es_acumulativo else total_calculado
-        if monto_pago > 0:
-            nuevo_pago = Pago(
-                factura_id=nueva_factura.id, 
-                metodo_pago=venta.metodo_pago,
-                codigo_transferencia=venta.codigo_transferencia if venta.metodo_pago == "Transferencia" else None,
-                monto=monto_pago
+            st.caption("Ingresa el SKU exacto de la variante o selecciónala. (Puedes agregar múltiples filas).")
+            df_items_editado = st.data_editor(
+                df_items_inicial,
+                num_rows="dynamic",
+                use_container_width=True,
+                column_config={
+                    "SKU": st.column_config.TextColumn("SKU / Código de Barra", width="medium"),
+                    "Cantidad": st.column_config.NumberColumn("Cantidad", min_value=1, step=1, width="small"),
+                    "Precio Unitario ($)": st.column_config.NumberColumn("Precio Unitario ($)", format="$ %.2f", min_value=0.0, width="small")
+                }
             )
-            db.add(nuevo_pago)
 
-        # Si es plan acumulativo, registrar el abono inicial en su respectiva tabla
-        if es_acumulativo and float(venta.abono_inicial or 0.0) > 0:
-            nuevo_abono = AbonoPlanAcumulativo(
-                factura_id=nueva_factura.id,
-                monto=float(venta.abono_inicial),
-                observacion="Abono inicial registrado en venta manual por administración"
-            )
-            db.add(nuevo_abono)
+            if st.button("🚀 Registrar Venta en el Sistema", type="primary", use_container_width=True):
+                if not ruc_cliente or not nombre_cliente or not num_factura:
+                    st.error("⚠️ Por favor completa los campos obligatorios del cliente y el número de factura.")
+                elif df_items_editado.empty:
+                    st.error("⚠️ Debes agregar al menos un producto a la venta.")
+                else:
+                    # Preparar ítems
+                    items_payload = []
+                    for _, row in df_items_editado.iterrows():
+                        sku_val = str(row.get("SKU", "")).strip()
+                        cant_val = int(row.get("Cantidad", 1))
+                        precio_val = float(row.get("Precio Unitario ($)", 0.0))
+                        
+                        if sku_val:
+                            items_payload.append({
+                                "sku": sku_val,
+                                "cantidad": cant_val,
+                                "precio_unitario": precio_val
+                            })
 
-        for item in venta.items:
-            variante = db.query(VarianteProducto).filter(VarianteProducto.sku == item.sku).first()
-            variante.stock_actual -= item.cantidad
-            
-            subtotal_renglon = item.cantidad * item.precio_unitario
-            
-            movimiento = MovimientoInventario(
-                sku=variante.sku, 
-                tipo_movimiento="VENTA_LOCAL",
-                cantidad=-item.cantidad, 
-                referencia_factura=f"Fact Venta: {venta.numero_factura}",
-                valor_neto=subtotal_renglon,
-                entidad_asociada=venta.nombre_cliente
-            )
-            db.add(movimiento)
-            
-        db.commit()
-        return {
-            "status": "success", 
-            "message": "Venta manual y plan acumulativo registrados exitosamente.",
-            "factura_id": nueva_factura.id
-        }
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+                    if not items_payload:
+                        st.error("⚠️ Especifica al menos un SKU válido en la tabla de productos.")
+                    else:
+                        payload_venta = {
+                            "numero_factura": num_factura.strip(),
+                            "fecha_factura": str(fecha_factura),
+                            "metodo_pago": metodo_pago,
+                            "codigo_transferencia": codigo_trans,
+                            "ruc_cliente": ruc_cliente.strip(),
+                            "nombre_cliente": nombre_cliente.strip(),
+                            "direccion_cliente": direccion_cliente.strip() if direccion_cliente else "",
+                            "telefono_cliente": telefono_cliente.strip() if telefono_cliente else "",
+                            "provincia": provincia,
+                            "ciudad": ciudad,
+                            "direccion_entrega": direccion_entrega if direccion_entrega else direccion_cliente,
+                            "referencia_direccion": referencia_dir,
+                            "courier_nombre": courier,
+                            "abono_inicial": abono_inicial,
+                            "items": items_payload
+                        }
 
+                        try:
+                            resp = requests.post(f"{API_URL}/ventas-factura", json=payload_venta, timeout=10)
+                            if resp.status_code == 200:
+                                st.success("✅ ¡Venta registrada y stock descontado exitosamente!")
+                                st.balloons()
+                            else:
+                                err_det = resp.json().get("detail", "Error desconocido")
+                                st.error(f"❌ Error al procesar la venta: {err_det}")
+                        except Exception as ex:
+                            st.error(f"❌ Error de conexión con la API: {ex}")
 
-# --- ENDPOINT PARA ACTUALIZAR GUÍA Y ESTADO DE COURIER ---
-@router.put("/pedidos/{factura_id}/guia")
-def actualizar_guia_logistica(
-    factura_id: int, 
-    numero_guia: str, 
-    courier_nombre: Optional[str] = None,
-    estado_despacho: str = "EN TRÁNSITO",
-    db: Session = Depends(get_db)
-):
-    pedido = db.query(Factura).filter(Factura.id == factura_id).first()
-    if not pedido:
-        raise HTTPException(status_code=404, detail="Pedido/Factura no encontrado.")
-        
-    pedido.numero_guia = numero_guia.strip()
-    if courier_nombre:
-        pedido.courier_nombre = courier_nombre.strip()
-    pedido.estado_despacho = estado_despacho.strip().upper()
-    
-    db.commit()
-    return {
-        "status": "success", 
-        "message": f"Guía actualizada correctamente para la factura ID {factura_id}.",
-        "numero_guia": pedido.numero_guia
-    }
-
-
-# --- ENDPOINTS DE PAGOS Y PASARELA ---
-
-PAYMENTEZ_APP_CODE = os.getenv("PAYMENTEZ_APP_CODE", "test_app_code")
-PAYMENTEZ_APP_KEY = os.getenv("PAYMENTEZ_APP_KEY", "test_app_key")
-
-@router.post("/pagos/iniciar-paymentez")
-def iniciar_transaccion_paymentez(data: dict, db: Session = Depends(get_db)):
-    try:
-        items = data.get("items", [])
-        if not items:
-            raise HTTPException(status_code=400, detail="El carrito está vacío.")
-
-        total_pedido = sum(item.get("cantidad", 1) * item.get("precio_unitario", 0.0) for item in items)
-        
-        if PAYMENTEZ_APP_CODE == "test_app_code":
-            return {
-                "status": "success",
-                "mode": "sandbox_simulado",
-                "total": total_pedido,
-                "checkout_url": "#",
-                "mensaje": f"Simulación de pago exitosa por ${total_pedido:.2f}."
-            }
-            
-        return {"status": "success", "checkout_url": "URL_OFICIAL_PAYMENTEZ"}
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error en pasarela de pagos: {str(e)}")
-
-
-@router.get("/debug/db-info")
-def debug_db_info(db: Session = Depends(get_db)):
-    from database import DATABASE_URL
-    total_facturas = db.query(Factura).count()
-    facturas_lista = [f.numero_factura for f in db.query(Factura).all()]
-    return {
-        "database_url": DATABASE_URL,
-        "total_facturas": total_facturas,
-        "numeros_facturas": facturas_lista
-    }
+    with tab_historial:
+        st.markdown("##### 📋 Historial General de Ventas")
+        try:
+            res_rep = requests.get(f"{API_URL}/ventas/reporte", timeout=5)
+            if res_rep.status_code == 200:
+                facturas_data = res_rep.json()
+                if facturas_data:
+                    df_ventas = pd.DataFrame(facturas_data)
+                    st.dataframe(df_ventas, use_container_width=True)
+                else:
+                    st.info("No hay ventas registradas todavía.")
+            else:
+                st.warning("No se pudo obtener el reporte de ventas del servidor.")
+        except Exception as e:
+            st.error(f"Error de conexión: {e}")
