@@ -624,7 +624,7 @@ function abrirModal(productoId) {
             </div>
 
             <!-- COLUMNA CENTRAL: VISOR PRINCIPAL (5 cols) -->
-            <div class="md:col-span-5 relative bg-slate-50 rounded-2xl p-2 border border-slate-100 flex items-center justify-center h-[420px]" id="modal-visor-principal">
+            <div class="md:col-span-5 relative bg-slate-50 rounded-2xl p-2 border border-slate-100 flex items-center justify-center h-[480px]" id="modal-visor-principal">
                 <img id="modal-imagen-producto" src="${imagenInicialVisor}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-contain rounded-xl transition-all duration-300">
             </div>
 
