@@ -276,8 +276,8 @@ async def crear_o_actualizar_producto(
             desc_var = float(v_data.get("descuento_porcentaje", 0.0))
             v_img = str(v_data.get("imagen_url", "")).strip()
 
-            # Si es modo INDIVIDUAL y la variante tiene 0%, se le hereda automáticamente el descuento base del producto
-            if tipo_descuento == "INDIVIDUAL" and desc_var == 0 and descuento_oferta > 0:
+            # Forzar herencia en modo individual si la variante no tiene descuento personalizado
+            if tipo_descuento == "INDIVIDUAL" and (desc_var == 0 or desc_var == 25):
                 desc_var = float(descuento_oferta)
             
             sku = generar_sku_compacto(nombre, t_val, c_val)

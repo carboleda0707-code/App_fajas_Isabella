@@ -194,12 +194,17 @@ def render_inventario():
                         color = str(row.get("color", "")).strip()
                         sku_val = str(row.get("sku", "")).strip() if pd.notna(row.get("sku")) else ""
                         img_var_val = str(row.get("imagen_variante", "")).strip() if pd.notna(row.get("imagen_variante")) else ""
+                        
                         desc_var_val = float(row.get("descuento_%", 0) or 0)
                         
-                        # Si es modo INDIVIDUAL y la variante tiene 0%, se le hereda automáticamente el descuento base del producto
-                        if tipo_desc_reg == "INDIVIDUAL" and desc_var_val == 0 and desc_oferta_reg > 0:
-                            desc_var_val = float(desc_oferta_reg)
-
+                        # REGLA CLAVE: Si es modo INDIVIDUAL, el porcentaje base del producto 
+                        # se aplica automáticamente a las variantes que tengan 0 o que hereden la base
+                        if tipo_desc_reg == "INDIVIDUAL":
+                            if desc_var_val == 0 or desc_var_val == 25: # O si quieres que herede siempre que esté en 0 o igual al anterior por defecto
+                                desc_var_val = float(desc_oferta_reg)
+                        elif tipo_desc_reg == "GENERAL":
+                            desc_var_val = 0.0 # En general manda el del producto
+                        
                         if not sku_val or sku_val.lower() in ["none", "nan", ""]:
                             sku_val = ""
                         
