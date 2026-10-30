@@ -414,7 +414,9 @@ def render_inventario():
                                 try:
                                     files = {}
                                     if archivo_nueva_imagen_variante is not None:
-                                        files["imagen_variante"] = (archivo_nueva_imagen_variante.name, archivo_nueva_imagen_variante.getvalue(), archivo_nueva_imagen_variante.type)
+                                        # Usamos "imagen" como clave estándar para que el backend la reciba correctamente
+                                        files["imagen"] = (archivo_nueva_imagen_variante.name, archivo_nueva_imagen_variante.getvalue(), archivo_nueva_imagen_variante.type)
+                                    
                                     if 'edit_img_1' in locals() and edit_img_1: files["imagen_1"] = (edit_img_1.name, edit_img_1.getvalue(), edit_img_1.type)
                                     if 'edit_img_2' in locals() and edit_img_2: files["imagen_2"] = (edit_img_2.name, edit_img_2.getvalue(), edit_img_2.type)
                                     if 'edit_img_3' in locals() and edit_img_3: files["imagen_3"] = (edit_img_3.name, edit_img_3.getvalue(), edit_img_3.type)
