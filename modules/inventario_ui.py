@@ -29,11 +29,9 @@ def resolver_url_imagen(url_o_path: str) -> str:
 def render_inventario():
     st.markdown("<p style='color: black; font-weight: bold;'>🖼️ Productos e Inventarios</p>", unsafe_allow_html=True)   
     
-    # 1. Inicializar el estado en session_state si no existe
     if "accion_inventario" not in st.session_state:
         st.session_state.accion_inventario = "Registrar Nuevo Ítem"
 
-    # 2. Vincular el st.radio con st.session_state usando 'key'
     accion = st.radio(
         "Acción:",
         ("Registrar Nuevo Ítem", "Mantenimiento Inventario", "Mantenimiento de Categorías"),
@@ -41,7 +39,6 @@ def render_inventario():
         key="accion_inventario"
     )
 
-    # Cargar categorías de forma dinámica desde la tabla de PostgreSQL
     try:
         res_cat = requests.get(f"{API_URL}/categorias")
         if res_cat.status_code == 200 and res_cat.json():
@@ -52,7 +49,6 @@ def render_inventario():
         categorias_disponibles = ["GENERAL"]
 
     if accion == "Registrar Nuevo Ítem":
-        # --- ENCABEZADO CON BOTÓN DE EXCEL AL LADO ---
         col_tit, col_btn_excel = st.columns([1.8, 2.2])
         with col_tit:
             st.markdown("##### 🖼️ Registra Productos - Variantes y Multimedia")
@@ -291,8 +287,8 @@ def render_inventario():
                         df_filtrado = df_filtrado[mask]
 
                     st.divider()
-                    st.markdown("##### 🛠️ Corrección de Variante, Estados y Foto Específica")
-                    st.caption("Selecciona la variante, edita sus atributos o sube una foto exclusiva para este color/talla.")
+                    st.markdown("##### 🛠️ Corrección de Variante, Estados, Multimedia y Foto Específica")
+                    st.caption("Selecciona la variante, edita sus atributos, estados, galería, video o cartilla.")
 
                     col_id_sel, _ = st.columns([3.0, 1.0])
                     
@@ -368,6 +364,15 @@ def render_inventario():
                                 key="edit_descuento_sel"
                             )
 
+                            st.markdown("---")
+                            with st.expander("📂 Modificar Archivos Adicionales (Galería, Video, Cartilla)"):
+                                edit_img_1 = st.file_uploader("Actualizar Galería #1", type=["jpg", "jpeg", "png", "webp"], key="edit_img1")
+                                edit_img_2 = st.file_uploader("Actualizar Galería #2", type=["jpg", "jpeg", "png", "webp"], key="edit_img2")
+                                edit_img_3 = st.file_uploader("Actualizar Galería #3", type=["jpg", "jpeg", "png", "webp"], key="edit_img3")
+                                edit_img_4 = st.file_uploader("Actualizar Galería #4", type=["jpg", "jpeg", "png", "webp"], key="edit_img4")
+                                edit_video_file = st.file_uploader("Actualizar Video Demostrativo", type=["mp4", "mov", "webm"], key="edit_video")
+                                edit_cartilla_file = st.file_uploader("Actualizar Cartilla / Guía Tallas", type=["jpg", "jpeg", "png", "webp", "pdf"], key="edit_cartilla")
+
                         with col_form_der:
                             st.markdown("**Foto Actual de la Variante**")
                             if variante_encontrada:
@@ -394,7 +399,13 @@ def render_inventario():
                                 try:
                                     files = {}
                                     if archivo_nueva_imagen_variante is not None:
-                                        files = {"imagen_variante": (archivo_nueva_imagen_variante.name, archivo_nueva_imagen_variante.getvalue(), archivo_nueva_imagen_variante.type)}
+                                        files["imagen_variante"] = (archivo_nueva_imagen_variante.name, archivo_nueva_imagen_variante.getvalue(), archivo_nueva_imagen_variante.type)
+                                    if 'edit_img_1' in locals() and edit_img_1: files["imagen_1"] = (edit_img_1.name, edit_img_1.getvalue(), edit_img_1.type)
+                                    if 'edit_img_2' in locals() and edit_img_2: files["imagen_2"] = (edit_img_2.name, edit_img_2.getvalue(), edit_img_2.type)
+                                    if 'edit_img_3' in locals() and edit_img_3: files["imagen_3"] = (edit_img_3.name, edit_img_3.getvalue(), edit_img_3.type)
+                                    if 'edit_img_4' in locals() and edit_img_4: files["imagen_4"] = (edit_img_4.name, edit_img_4.getvalue(), edit_img_4.type)
+                                    if 'edit_video_file' in locals() and edit_video_file: files["video"] = (edit_video_file.name, edit_video_file.getvalue(), edit_video_file.type)
+                                    if 'edit_cartilla_file' in locals() and edit_cartilla_file: files["cartilla"] = (edit_cartilla_file.name, edit_cartilla_file.getvalue(), edit_cartilla_file.type)
 
                                     data_payload = {
                                         "categoria": nueva_cat,
@@ -412,7 +423,7 @@ def render_inventario():
                                     res_upd = requests.put(f"{API_URL}/variantes/{var_id_input}", data=data_payload, files=files if files else None)
                                     
                                     if res_upd.status_code == 200:
-                                        st.success(f"✅ Variante ID {var_id_input} y foto actualizadas correctamente.")
+                                        st.success(f"✅ Variante ID {var_id_input}, multimedia y datos actualizados correctamente.")
                                         st.rerun()
                                     else:
                                         st.error(f"No se pudo actualizar: {res_upd.text}")
