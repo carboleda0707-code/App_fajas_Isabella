@@ -262,11 +262,11 @@ def render_inventario():
                             "ID Var": var_id,
                             "Producto": prod_info.get("nombre", "N/D"),
                             "Categoría": prod_info.get("categoria", "N/D"),
-                            "SKU": v.get("SKU", ""),
-                            "Talla": v.get("Talla", ""),
-                            "Color": v.get("Color", ""),
-                            "Precio ($)": v.get("Precio ($)", 0.0),
-                            "Stock": v.get("Stock", 0),
+                            "SKU": v.get("SKU", "") or v.get("sku", ""),
+                            "Talla": v.get("Talla", "") or v.get("talla", ""),
+                            "Color": v.get("Color", "") or v.get("color", ""),
+                            "Precio ($)": v.get("Precio ($)", 0.0) or v.get("precio", 0.0),
+                            "Stock": v.get("Stock", 0) or v.get("stock_actual", 0),
                             "Stock Mín.": v.get("Stock Mínimo", 2),
                             "Stock Máx.": v.get("Stock Máximo", 20)
                         })
@@ -290,26 +290,39 @@ def render_inventario():
                     st.markdown("##### 🛠️ Corrección de Variante, Estados, Multimedia y Foto Específica")
                     st.caption("Selecciona la variante, edita sus atributos, estados, galería, video o cartilla.")
 
-                    # Selector de Variante y Botón de Eliminar al lado
                     col_id_sel, col_btn_del = st.columns([3.0, 1.0], vertical_alignment="bottom")
                     
                     var_id_input = None
                     if not df_filtrado.empty:
                         opciones_selectbox = {}
+                        lista_labels = []
                         for _, row in df_filtrado.iterrows():
                             v_id = row["ID Var"]
                             label_desc = f"ID {v_id} — {row['Producto']} [Talla: {row['Talla']} | Color: {row['Color']} | SKU: {row['SKU']}]"
                             opciones_selectbox[label_desc] = v_id
+                            lista_labels.append(label_desc)
                         
-                        sel_var_label = col_id_sel.selectbox("Seleccionar Variante a Editar", options=list(opciones_selectbox.keys()))
+                        # Recordar el índice de la variante seleccionada anteriormente
+                        idx_sel_defecto = 0
+                        if "var_id_editando" in st.session_state:
+                            var_guardada = st.session_state["var_id_editando"]
+                            for i_lbl, lbl_txt in enumerate(lista_labels):
+                                if opciones_selectbox[lbl_txt] == var_guardada:
+                                    idx_sel_defecto = i_lbl
+                                    break
+
+                        sel_var_label = col_id_sel.selectbox("Seleccionar Variante a Editar", options=lista_labels, index=idx_sel_defecto, key="select_variante_editar")
                         var_id_input = opciones_selectbox[sel_var_label]
-                        
-                        # Botón para eliminar variante seleccionada
+                        st.session_state["var_id_editando"] = var_id_input
+
+                        # Botón para eliminar variante
                         if col_btn_del.button("🗑️ Eliminar Variante", type="secondary", use_container_width=True, key=f"btn_del_var_{var_id_input}"):
                             try:
                                 res_del_var = requests.delete(f"{API_URL}/variantes/{var_id_input}")
                                 if res_del_var.status_code == 200:
                                     st.success(f"✅ Variante ID {var_id_input} eliminada correctamente.")
+                                    if "var_id_editando" in st.session_state:
+                                        del st.session_state["var_id_editando"]
                                     st.rerun()
                                 else:
                                     st.error(f"No se pudo eliminar la variante: {res_del_var.text}")
@@ -348,11 +361,11 @@ def render_inventario():
                         with col_form_izq:
                             c1, c2, c3 = st.columns([1.5, 1, 1])
                             nueva_cat = c1.selectbox("Categoría", options=categorias_disponibles, index=cat_defecto)
-                            nueva_talla = c2.text_input("Talla", value=variante_encontrada.get("Talla", "S") if variante_encontrada else "S")
-                            nuevo_color = c3.text_input("Color", value=variante_encontrada.get("Color", "Negro") if variante_encontrada else "Negro")
+                            nueva_talla = c2.text_input("Talla", value=variante_encontrada.get("Talla") or variante_encontrada.get("talla") or "S")
+                            nuevo_color = c3.text_input("Color", value=variante_encontrada.get("Color") or variante_encontrada.get("color") or "Negro")
                             
                             c4, c5, c6 = st.columns(3)
-                            precio_val = float(variante_encontrada.get("Precio ($)", 45.0)) if variante_encontrada else 45.0
+                            precio_val = float(variante_encontrada.get("Precio ($)") or variante_encontrada.get("precio") or 45.0) if variante_encontrada else 45.0
                             nuevo_precio = c4.number_input("Precio ($)", min_value=0.0, value=precio_val, step=0.5)
                             nuevo_stock_min = c5.number_input("Stock Mín.", min_value=0, value=stock_min_def, step=1)
                             nuevo_stock_max = c6.number_input("Stock Máx.", min_value=0, value=stock_max_def, step=1)
@@ -390,14 +403,20 @@ def render_inventario():
                         with col_form_der:
                             st.markdown("**Foto Actual de la Variante**")
                             if variante_encontrada:
-                                # Capturar correctamente la foto específica de la variante considerando posibles claves
-                                img_var_url = variante_encontrada.get("imagen_url") or variante_encontrada.get("imagen") or variante_encontrada.get("Foto")
+                                # Buscar foto específica revisando todas las claves posibles
+                                img_var_url = (
+                                    variante_encontrada.get("imagen_url") or 
+                                    variante_encontrada.get("imagen") or 
+                                    variante_encontrada.get("imagen_variante") or 
+                                    variante_encontrada.get("foto") or 
+                                    variante_encontrada.get("Foto")
+                                )
                                 img_gen_url = p_info.get("imagen_url") or p_info.get("imagen")
                                 
-                                if img_var_url:
-                                    st.image(resolver_url_imagen(img_var_url), width=110, caption="Foto Específica Variante")
-                                elif img_gen_url:
-                                    st.image(resolver_url_imagen(img_gen_url), width=110, caption="Usa Foto General")
+                                if img_var_url and str(img_var_url).strip() != "":
+                                    st.image(resolver_url_imagen(img_var_url), width=120, caption="Foto Específica Variante")
+                                elif img_gen_url and str(img_gen_url).strip() != "":
+                                    st.image(resolver_url_imagen(img_gen_url), width=120, caption="Usa Foto General")
                                 else:
                                     st.info("Sin imagen")
                             else:
@@ -414,8 +433,8 @@ def render_inventario():
                                 try:
                                     files = {}
                                     if archivo_nueva_imagen_variante is not None:
-                                        # Usamos "imagen" como clave estándar para que el backend la reciba correctamente
                                         files["imagen"] = (archivo_nueva_imagen_variante.name, archivo_nueva_imagen_variante.getvalue(), archivo_nueva_imagen_variante.type)
+                                        files["imagen_variante"] = (archivo_nueva_imagen_variante.name, archivo_nueva_imagen_variante.getvalue(), archivo_nueva_imagen_variante.type)
                                     
                                     if 'edit_img_1' in locals() and edit_img_1: files["imagen_1"] = (edit_img_1.name, edit_img_1.getvalue(), edit_img_1.type)
                                     if 'edit_img_2' in locals() and edit_img_2: files["imagen_2"] = (edit_img_2.name, edit_img_2.getvalue(), edit_img_2.type)
@@ -441,6 +460,7 @@ def render_inventario():
                                     
                                     if res_upd.status_code == 200:
                                         st.success(f"✅ Variante ID {var_id_input}, multimedia y datos actualizados correctamente.")
+                                        st.session_state["var_id_editando"] = var_id_input
                                         st.rerun()
                                     else:
                                         st.error(f"No se pudo actualizar: {res_upd.text}")
