@@ -574,16 +574,15 @@ function abrirModal(productoId) {
     const descuento = Number(productoSeleccionado.descuento_oferta || 0);
     const precioFinalModal = (productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0 ? Math.max(0, primerPrecio - descuento) : primerPrecio;
 
-    // Recopilar elementos multimedia disponibles
+    // Recopilar elementos multimedia (Imagen Principal + Galería 1, 2, 3 y Video - Omitiendo Galería 4)
     let listaMedia = [];
     if (productoSeleccionado.imagen_url) listaMedia.push({ tipo: 'img', url: productoSeleccionado.imagen_url });
     if (productoSeleccionado.imagen_1) listaMedia.push({ tipo: 'img', url: productoSeleccionado.imagen_1 });
     if (productoSeleccionado.imagen_2) listaMedia.push({ tipo: 'img', url: productoSeleccionado.imagen_2 });
     if (productoSeleccionado.imagen_3) listaMedia.push({ tipo: 'img', url: productoSeleccionado.imagen_3 });
-    if (productoSeleccionado.imagen_4) listaMedia.push({ tipo: 'img', url: productoSeleccionado.imagen_4 });
     if (productoSeleccionado.video_url) listaMedia.push({ tipo: 'video', url: productoSeleccionado.video_url });
 
-    // Miniaturas laterales más grandes (w-24 h-24)
+    // Miniaturas laterales optimizadas para 3 fotos + video
     let thumbsHTML = '';
     listaMedia.forEach((item) => {
         const itemUrl = obtenerRutaImagenProducto(item.url);
@@ -624,7 +623,7 @@ function abrirModal(productoId) {
                 ${thumbsHTML}
             </div>
 
-            <!-- COLUMNA CENTRAL: VISOR PRINCIPAL OCUPANDO TODO EL RECUADRO (6 cols) -->
+            <!-- COLUMNA CENTRAL: VISOR PRINCIPAL (6 cols) -->
             <div class="md:col-span-6 relative bg-slate-900 rounded-3xl overflow-hidden border border-slate-100 flex items-center justify-center h-[560px] shadow-inner" id="modal-visor-principal">
                 <img id="modal-imagen-producto" src="${imagenInicialVisor}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-cover transition-all duration-300">
             </div>
@@ -689,7 +688,7 @@ function cambiarMediaModal(url, esVideo) {
 
     if (esVideo) {
         visor.innerHTML = `
-            <video controls autoplay class="w-full h-full object-cover bg-black">
+            <video controls autoplay class="w-full h-full object-contain bg-black rounded-3xl">
                 <source src="${url}" type="video/mp4">
             </video>
         `;
