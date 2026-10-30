@@ -460,7 +460,7 @@ def render_inventario():
                                     res_upd = requests.put(f"{API_URL}/variantes/{var_id_input}", data=data_payload, files=files if files else None)
                                     
                                     if res_upd.status_code == 200:
-                                        st.success(f"✅ Variante ID {var_id_input}, multimedia y datos actualizados correctamente.")
+                                        st.success("✅ Variante actualizado")
                                         st.session_state["var_id_editando"] = var_id_input
                                         st.rerun()
                                     else:
