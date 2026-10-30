@@ -14,9 +14,15 @@ let carrito = [];
 let categoriaSeleccionadaActual = "INICIO";
 let whatsappUrlGlobal = "https://wa.me/593983870398";
 
+// Variables para Plan Acumulativo
 let esPlanAcumulativoActivo = false;
+
 let currentSlide = 0;
 let slideInterval = null;
+
+// ==========================================
+// 1. INICIALIZACIÓN Y SLIDER
+// ==========================================
 
 document.addEventListener("DOMContentLoaded", () => {
     inicializarTienda();
@@ -73,6 +79,10 @@ function mostrarSlide(index) {
         }
     });
 }
+
+// ==========================================
+// 2. CARGA DE CONFIGURACIÓN Y CONTENIDO DINÁMICO
+// ==========================================
 
 async function cargarSeccionInicio() {
     const container = document.getElementById('secciones-intro-container');
@@ -253,6 +263,10 @@ function obtenerRutaImagenProducto(imagenUrl) {
     return `/img/${urlLimpia.split('/').pop().trim()}`;
 }
 
+// ==========================================
+// 3. NAVEGACIÓN Y CATÁLOGO
+// ==========================================
+
 function cargarCategoriasWeb() {
     const contenedor = document.getElementById("categorias-scroll");
     const dropdownContainer = document.getElementById("dropdown-categorias-dinamico");
@@ -297,33 +311,28 @@ function cargarCategoriasWeb() {
 
 function generarHTMLTarjetaProducto(p) {
     const variantes = p.variantes || [];
+    const descuento = Number(p.descuento_oferta || 0);
     let preciosTextoHtml = "";
 
     if (variantes.length > 0) {
-        // Evaluamos precio y descuento individual de cada variante
-        const preciosReales = variantes.map(v => Number(v.precio || 0));
-        const preciosOferta = variantes.map(v => {
-            const precioV = Number(v.precio || 0);
-            const descV = Number(v.descuento_porcentaje || 0);
-            return descV > 0 ? Math.max(0, precioV - (precioV * (descV / 100))) : precioV;
+        const preciosCalculados = variantes.map(v => {
+            let precioV = Number(v.precio || 0);
+            if ((p.en_oferta || p.en_liquidacion) && descuento > 0) precioV = Math.max(0, precioV - descuento);
+            return precioV;
         });
 
-        const minReal = Math.min(...preciosReales);
-        const maxReal = Math.max(...preciosReales);
-        const minOferta = Math.min(...preciosOferta);
-        const maxOferta = Math.max(...preciosOferta);
+        const precioMin = Math.min(...preciosCalculados);
+        const precioMax = Math.max(...preciosCalculados);
+        const precioMinOrig = Math.min(...variantes.map(v => Number(v.precio || 0)));
 
-        // Verificamos si alguna variante tiene descuento individual aplicado
-        const tieneDescuentoVariante = variantes.some(v => Number(v.descuento_porcentaje || 0) > 0);
-
-        if (tieneDescuentoVariante && minOferta < minReal) {
-            preciosTextoHtml = minReal === maxReal 
-                ? `<div class="flex flex-col"><span class="text-xs text-slate-400 line-through">$${minReal.toFixed(2)}</span><span class="text-sm font-black text-rose-600">$${minOferta.toFixed(2)}</span></div>`
-                : `<div class="flex flex-col"><span class="text-xs text-slate-400 line-through">$${minReal.toFixed(2)} - $${maxReal.toFixed(2)}</span><span class="text-sm font-black text-rose-600">$${minOferta.toFixed(2)} - $${maxOferta.toFixed(2)}</span></div>`;
+        if ((p.en_oferta || p.en_liquidacion) && descuento > 0) {
+            preciosTextoHtml = precioMin === precioMax 
+                ? `<div class="flex items-center gap-2"><span class="text-xs text-slate-400 line-through">$${precioMinOrig.toFixed(2)}</span><span class="text-sm font-black text-rose-600">$${precioMin.toFixed(2)}</span></div>`
+                : `<div class="flex items-center gap-1"><span class="text-[10px] text-slate-400 line-through">$${precioMinOrig.toFixed(2)}</span><span class="text-sm font-black text-rose-600">$${precioMin.toFixed(2)} - $${precioMax.toFixed(2)}</span></div>`;
         } else {
-            preciosTextoHtml = minReal === maxReal 
-                ? `<span class="text-sm font-black text-slate-900">$${minReal.toFixed(2)}</span>`
-                : `<span class="text-sm font-black text-slate-900">$${minReal.toFixed(2)} - $${maxReal.toFixed(2)}</span>`;
+            preciosTextoHtml = precioMin === precioMax 
+                ? `<span class="text-sm font-black text-slate-900">$${precioMin.toFixed(2)}</span>`
+                : `<span class="text-sm font-black text-slate-900">$${precioMin.toFixed(2)} - $${precioMax.toFixed(2)}</span>`;
         }
     } else {
         preciosTextoHtml = `<span class="text-sm font-black text-slate-900">$0.00</span>`;
@@ -352,7 +361,7 @@ function generarHTMLTarjetaProducto(p) {
                 </div>
                 <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
                     <div>
-                        <span class="text-[9px] text-slate-400 block">${tieneDescuentoVariante ? 'Precio Oferta' : 'Precio'}</span>
+                        <span class="text-[9px] text-slate-400 block">${(p.en_liquidacion || p.en_oferta) ? 'Precio Oferta' : 'Precio'}</span>
                         ${preciosTextoHtml}
                     </div>
                     <button onclick="abrirModal(${p.id})" class="bg-slate-900 hover:bg-rose-600 text-white font-bold text-[10px] px-2.5 py-1.5 rounded-xl transition shadow-xs cursor-pointer">Ver Tallas</button>
@@ -384,6 +393,7 @@ function irAInicio() {
     const catalogoSec = document.getElementById('catalogo');
     if (catalogoSec) catalogoSec.style.display = 'none';
 
+    // Ocultar únicamente el submenú de círculos de categorías en la recarga y en el botón Inicio
     const contenedorCategoriasScroll = document.getElementById('categorias-scroll');
     if (contenedorCategoriasScroll) {
         const barraCategorias = contenedorCategoriasScroll.closest('nav') || contenedorCategoriasScroll.parentElement.parentElement;
@@ -449,6 +459,7 @@ function filtrarCategoria(cat) {
     if (introContainer) introContainer.style.display = 'none';
     if (catalogoSec) catalogoSec.style.display = 'block';
 
+    // Mostrar el submenú de categorías cuando el usuario entra a Tienda, Nuevo, Oferta o Liquidación
     const contenedorCategoriasScroll = document.getElementById('categorias-scroll');
     if (contenedorCategoriasScroll) {
         const barraCategorias = contenedorCategoriasScroll.closest('nav') || contenedorCategoriasScroll.parentElement.parentElement;
@@ -556,6 +567,10 @@ function buscarProducto() {
     renderizarCatalogo();
 }
 
+// ==========================================
+// 4. MODAL DE PRODUCTO Y VARIANTES (ESTILO SALOME)
+// ==========================================
+
 function abrirModal(productoId) {
     productoSeleccionado = productos.find(p => p.id === productoId);
     if (!productoSeleccionado) return;
@@ -571,10 +586,9 @@ function abrirModal(productoId) {
     const varianteInicial = obtenerVarianteActual();
     const primerPrecio = varianteInicial ? varianteInicial.precio : (variantes[0] ? variantes[0].precio : 0);
     const descuento = Number(productoSeleccionado.descuento_oferta || 0);
-    const precioFinalModal = (productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0 
-        ? Math.max(0, primerPrecio - (primerPrecio * (descuento / 100))) 
-        : primerPrecio;
+    const precioFinalModal = (productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0 ? Math.max(0, primerPrecio - descuento) : primerPrecio;
 
+    // Recopilar elementos multimedia (Imagen Principal + Galería 1, 2, 3 y Video - Omitiendo Galería 4)
     let listaMedia = [];
     if (productoSeleccionado.imagen_url) listaMedia.push({ tipo: 'img', url: productoSeleccionado.imagen_url });
     if (productoSeleccionado.imagen_1) listaMedia.push({ tipo: 'img', url: productoSeleccionado.imagen_1 });
@@ -582,6 +596,7 @@ function abrirModal(productoId) {
     if (productoSeleccionado.imagen_3) listaMedia.push({ tipo: 'img', url: productoSeleccionado.imagen_3 });
     if (productoSeleccionado.video_url) listaMedia.push({ tipo: 'video', url: productoSeleccionado.video_url });
 
+    // Miniaturas laterales optimizadas para 3 fotos + video
     let thumbsHTML = '';
     listaMedia.forEach((item) => {
         const itemUrl = obtenerRutaImagenProducto(item.url);
@@ -616,19 +631,27 @@ function abrirModal(productoId) {
 
     const contenido = `
         <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+            
+            <!-- COLUMNA IZQUIERDA: MINIATURAS (2 cols) -->
             <div class="md:col-span-2 flex md:flex-col gap-3 overflow-x-auto md:overflow-y-auto max-h-[560px] no-scrollbar py-1">
                 ${thumbsHTML}
             </div>
+
+            <!-- COLUMNA CENTRAL: VISOR PRINCIPAL (6 cols) -->
             <div class="md:col-span-6 relative bg-slate-900 rounded-3xl overflow-hidden border border-slate-100 flex items-center justify-center h-[560px] shadow-inner" id="modal-visor-principal">
                 <img id="modal-imagen-producto" src="${imagenInicialVisor}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-cover transition-all duration-300">
             </div>
+
+            <!-- COLUMNA DERECHA: DETALLES Y COMPRA (4 cols) -->
             <div class="md:col-span-4 space-y-4">
                 <div>
                     <span class="text-[10px] font-bold text-rose-600 tracking-wider uppercase bg-rose-50 px-2.5 py-1 rounded-md">${productoSeleccionado.categoria}</span>
                     <h3 class="text-lg font-extrabold text-slate-900 leading-snug mt-1.5 mb-1">${productoSeleccionado.nombre}</h3>
                     <p id="modal-precio" class="text-3xl font-black text-rose-600">$${precioFinalModal.toFixed(2)}</p>
                 </div>
+
                 ${cartillaHTML}
+
                 <div class="space-y-3 border-t border-slate-100 pt-3">
                     <div>
                         <label class="text-xs font-bold text-slate-800 block mb-1.5">Talla:</label>
@@ -720,6 +743,7 @@ function seleccionarTalla(talla) {
         btn.classList.add("bg-rose-600", "text-white", "border-rose-600");
     }
     
+    // Forzar actualización de imagen según la nueva variante
     const variante = obtenerVarianteActual();
     const imgElem = document.getElementById("modal-imagen-producto");
     if (imgElem && productoSeleccionado) {
@@ -756,9 +780,7 @@ function actualizarDetalleVariante() {
     if (variante && productoSeleccionado) {
         let precioUnitario = variante.precio;
         const descuento = Number(productoSeleccionado.descuento_oferta || 0);
-        if ((productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0) {
-            precioUnitario = Math.max(0, precioUnitario - (precioUnitario * (descuento / 100)));
-        }
+        if ((productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0) precioUnitario = Math.max(0, precioUnitario - descuento);
         const totalLinea = precioUnitario * cantidadSeleccionada;
         document.getElementById("modal-precio").innerText = `$${precioUnitario.toFixed(2)}`;
         document.getElementById("resumen-talla").innerText = tallaSeleccionada;
@@ -773,14 +795,16 @@ function cerrarModal() {
     if (modal) modal.classList.add("hidden");
 }
 
+// ==========================================
+// 5. CARRITO Y PLAN ACUMULATIVO
+// ==========================================
+
 function agregarAlCarrito(abrirDrawer = false) {
     const variante = obtenerVarianteActual();
     const cantAgregar = cantidadSeleccionada > 0 ? cantidadSeleccionada : 1;
     let precioFinalUnitario = variante.precio;
     const descuento = Number(productoSeleccionado.descuento_oferta || 0);
-    if ((productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0) {
-        precioFinalUnitario = Math.max(0, precioFinalUnitario - (precioFinalUnitario * (descuento / 100)));
-    }
+    if ((productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0) precioFinalUnitario = Math.max(0, precioFinalUnitario - descuento);
 
     const itemExistente = carrito.find(item => item.sku === variante.sku);
     if (itemExistente) {
@@ -820,8 +844,10 @@ function togglePlanAcumulativo(activar) {
 function calcularSaldoPendiente() {
     const totalCarrito = calcularTotalCarrito();
     const abonoInput = parseFloat(document.getElementById('input-abono-inicial')?.value) || 0;
+    
     let saldo = totalCarrito - abonoInput;
     if (saldo < 0) saldo = 0;
+    
     const textoSaldo = document.getElementById('texto-saldo-pendiente');
     if (textoSaldo) {
         textoSaldo.innerText = `$${saldo.toFixed(2)}`;
@@ -930,6 +956,10 @@ function toggleCarrito() {
         drawer.classList.add('hidden');
     }
 }
+
+// ==========================================
+// 6. AUTENTICACIÓN Y PERFIL DE USUARIO
+// ==========================================
 
 function obtenerUsuarioLogueado() {
     const userStr = localStorage.getItem('usuario_fajas');
