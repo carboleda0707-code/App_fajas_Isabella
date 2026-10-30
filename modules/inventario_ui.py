@@ -403,34 +403,21 @@ def render_inventario():
                         with col_form_der:
                             st.markdown("**Foto Actual de la Variante**")
                             if variante_encontrada:
-                                # --- 🕵️‍♂️ CHIVATO DE DEPURES ---
-                                st.info(f"🕵️‍♂️ **Chivato Variante ID {var_id_input}:**")
-                                st.write({
-                                    "Keys en variante": list(variante_encontrada.keys()),
-                                    "imagen_url (variante)": variante_encontrada.get("imagen_url"),
-                                    "imagen (variante)": variante_encontrada.get("imagen"),
-                                    "Keys en producto": list(p_info.keys()),
-                                    "imagen_url (producto)": p_info.get("imagen_url")
-                                })
-                                # -----------------------------
-
-                                img_var_url = (
-                                    variante_encontrada.get("imagen_url") or 
-                                    variante_encontrada.get("imagen") or 
-                                    variante_encontrada.get("imagen_variante")
-                                )
-                                img_gen_url = p_info.get("imagen_url") or p_info.get("imagen")
+                                # Priorizamos estrictamente la imagen propia de la variante
+                                img_var_url = variante_encontrada.get("imagen_url")
+                                img_gen_url = p_info.get("imagen_url")
                                 
-                                if img_var_url and str(img_var_url).strip() not in ["", "None", "nan", "null"]:
-                                    url_final_var = str(img_var_url).strip()
-                                    if not url_final_var.startswith("http"):
-                                        url_final_var = resolver_url_imagen(url_final_var)
-                                    st.image(url_final_var, width=120, caption="Foto Específica Variante")
+                                # Chivato visual limpio para verificar qué está tomando
+                                if img_var_url and str(img_var_url).strip() not in ["", "None", "nan", "null", "None"]:
+                                    url_final = str(img_var_url).strip()
+                                    if not url_final.startswith("http"):
+                                        url_final = resolver_url_imagen(url_final)
+                                    st.image(url_final, width=120, caption="✅ Foto Específica de la Variante")
                                 elif img_gen_url and str(img_gen_url).strip() not in ["", "None", "nan", "null"]:
                                     url_final_gen = str(img_gen_url).strip()
                                     if not url_final_gen.startswith("http"):
                                         url_final_gen = resolver_url_imagen(url_final_gen)
-                                    st.image(url_final_gen, width=120, caption="Usa Foto General")
+                                    st.image(url_final_gen, width=120, caption="⚠️ Usa Foto General del Producto")
                                 else:
                                     st.info("Sin imagen registrada")
                             else:
