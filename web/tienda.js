@@ -297,11 +297,12 @@ function cargarCategoriasWeb() {
 
 function generarHTMLTarjetaProducto(p) {
     const variantes = p.variantes || [];
-    const tipoDesc = p.tipo_descuento || 'GENERAL';
+    const tipoDesc = (p.tipo_descuento || 'GENERAL').toUpperCase();
     const descuentoGeneral = Number(p.descuento_oferta || 0);
     const estaEnOfertaGeneral = (p.en_oferta || p.en_liquidacion) && tipoDesc === 'GENERAL' && descuentoGeneral > 0;
     
     let preciosTextoHtml = "";
+    let tieneDescuentoActivo = false;
 
     if (variantes.length > 0) {
         const preciosReales = variantes.map(v => Number(v.precio || 0));
@@ -309,12 +310,10 @@ function generarHTMLTarjetaProducto(p) {
         const preciosOferta = variantes.map(v => {
             const precioV = Number(v.precio || 0);
             
-            // REGLA DE ORO: Si hay descuento general activo, manda el general y se ignora el individual
             if (estaEnOfertaGeneral) {
                 return Math.max(0, precioV - (precioV * (descuentoGeneral / 100)));
             }
             
-            // Si es modo individual, se usa el descuento específico de la variante
             const descVar = Number(v.descuento_porcentaje || 0);
             return descVar > 0 ? Math.max(0, precioV - (precioV * (descVar / 100))) : precioV;
         });
@@ -324,7 +323,7 @@ function generarHTMLTarjetaProducto(p) {
         const minOferta = Math.min(...preciosOferta);
         const maxOferta = Math.max(...preciosOferta);
 
-        const tieneDescuentoActivo = estaEnOfertaGeneral || variantes.some(v => Number(v.descuento_porcentaje || 0) > 0) || p.en_oferta || p.en_liquidacion;
+        tieneDescuentoActivo = estaEnOfertaGeneral || variantes.some(v => Number(v.descuento_porcentaje || 0) > 0) || Boolean(p.en_oferta) || Boolean(p.en_liquidacion);
 
         if (tieneDescuentoActivo && minOferta < minReal) {
             preciosTextoHtml = minReal === maxReal 
@@ -342,22 +341,22 @@ function generarHTMLTarjetaProducto(p) {
     const coloresUnicos = variantes.length > 0 ? [...new Set(variantes.map(v => v.color))].join(", ") : "Variados";
     let badgePromo = '';
     if (p.en_liquidacion) badgePromo = `<span class="absolute top-2 left-2 bg-rose-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md animate-pulse">🔥 LIQUIDACIÓN</span>`;
-    else if (p.en_oferta) badgePromo = `<span class="absolute top-2 left-2 bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md">🏷️ OFERTA</span>`;
+    else if (p.en_oferta || estaEnOfertaGeneral) badgePromo = `<span class="absolute top-2 left-2 bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md">🏷️ OFERTA</span>`;
     else if (p.es_nuevo) badgePromo = `<span class="absolute top-2 left-2 bg-blue-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md">✨ NUEVO</span>`;
 
-    const imgSrc = obtenerRutaImagenProducto(p.imagen_url);
+    const imgSrc = typeof obtenerRutaImagenProducto === 'function' ? obtenerRutaImagenProducto(p.imagen_url) : (p.imagen_url || '');
 
     return `
         <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:shadow-lg transition flex flex-col justify-between group">
             <div class="relative bg-slate-50 h-64 w-full flex items-center justify-center p-3 overflow-hidden">
                 ${badgePromo}
-                <img src="${imgSrc}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-contain group-hover:scale-105 transition-all duration-300" alt="${p.nombre}">
+                <img src="${imgSrc}" onerror="this.onerror=null; this.src='https://via.placeholder.com/300'" class="w-full h-full object-contain group-hover:scale-105 transition-all duration-300" alt="${p.nombre || 'Producto'}">
                 <span class="absolute top-2 right-2 bg-slate-900/80 text-white text-[9px] font-bold px-2 py-0.5 rounded-full backdrop-blur-xs">${variantes.length} Opciones</span>
             </div>
             <div class="p-3.5 flex-1 flex flex-col justify-between">
                 <div>
-                    <span class="text-[9px] font-bold text-rose-600 tracking-wider uppercase">${p.categoria}</span>
-                    <h3 class="text-xs font-bold text-slate-800 line-clamp-1 mb-1">${p.nombre}</h3>
+                    <span class="text-[9px] font-bold text-rose-600 tracking-wider uppercase">${p.categoria || 'GENERAL'}</span>
+                    <h3 class="text-xs font-bold text-slate-800 line-clamp-1 mb-1">${p.nombre || ''}</h3>
                     <p class="text-[10px] text-slate-500 mb-2">Colores: <span class="font-medium text-slate-700">${coloresUnicos}</span></p>
                 </div>
                 <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
@@ -370,6 +369,44 @@ function generarHTMLTarjetaProducto(p) {
             </div>
         </div>
     `;
+}
+
+function actualizarDetalleVariante() {
+    const variante = typeof obtenerVarianteActual === 'function' ? obtenerVarianteActual() : null;
+    if (variante && typeof productoSeleccionado !== 'undefined' && productoSeleccionado) {
+        let precioUnitario = Number(variante.precio || 0);
+        const tipoDesc = (productoSeleccionado.tipo_descuento || 'GENERAL').toUpperCase();
+        const descGeneral = Number(productoSeleccionado.descuento_oferta || 0);
+        const descIndividual = Number(variante.descuento_porcentaje || 0);
+
+        let descAplicar = 0;
+        if (productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) {
+            if (tipoDesc === 'GENERAL' && descGeneral > 0) {
+                descAplicar = descGeneral; 
+            } else {
+                descAplicar = descIndividual; 
+            }
+        }
+
+        if (descAplicar > 0) {
+            precioUnitario = Math.max(0, precioUnitario - (precioUnitario * (descAplicar / 100)));
+        }
+
+        const cantidad = typeof cantidadSeleccionada !== 'undefined' ? cantidadSeleccionada : 1;
+        const totalLinea = precioUnitario * cantidad;
+        
+        const elPrecio = document.getElementById("modal-precio");
+        const elTalla = document.getElementById("resumen-talla");
+        const elColor = document.getElementById("resumen-color");
+        const elStock = document.getElementById("modal-stock");
+        const elTotal = document.getElementById("modal-total-seleccion");
+
+        if (elPrecio) elPrecio.innerText = `$${precioUnitario.toFixed(2)}`;
+        if (elTalla) elTalla.innerText = variante.talla || '';
+        if (elColor) elColor.innerText = variante.color || '';
+        if (elStock) elStock.innerText = `Stock: ${variante.stock_actual !== undefined ? variante.stock_actual : (variante.stock || 0)} disp.`;
+        if (elTotal) elTotal.innerText = `$${totalLinea.toFixed(2)}`;
+    }
 }
 
 function renderizarCatalogo() {
