@@ -140,7 +140,8 @@ async def actualizar_variante(
     es_nuevo: bool = Form(False), 
     en_oferta: bool = Form(False),
     descuento_oferta: float = Form(0.0), 
-    imagen: Optional[UploadFile] = File(None), 
+    imagen: Optional[UploadFile] = File(None),
+    imagen_variante: Optional[UploadFile] = File(None), 
     db: Session = Depends(get_db)
 ):
     v = db.query(VarianteProducto).filter(VarianteProducto.id == var_id).first()
@@ -153,8 +154,9 @@ async def actualizar_variante(
     v.stock_minimo = stock_minimo
     v.stock_maximo = stock_maximo
     
-    if imagen and imagen.filename:
-        img_url = await subir_archivo_a_nube(imagen, folder="fajas_isabella/variantes")
+    archivo_imagen = imagen if (imagen and imagen.filename) else imagen_variante
+    if archivo_imagen and archivo_imagen.filename:
+        img_url = await subir_archivo_a_nube(archivo_imagen, folder="fajas_isabella/variantes")
         if img_url: 
             v.imagen_url = img_url
     
@@ -191,7 +193,6 @@ async def crear_o_actualizar_producto(
     try:
         prod = db.query(Producto).filter(Producto.nombre == nombre).first()
         
-        # Mantener URLs existentes si no se suben nuevas
         img_rel = prod.imagen_url if prod else ""
         i1_url = prod.imagen_1 if prod and prod.imagen_1 else ""
         i2_url = prod.imagen_2 if prod and prod.imagen_2 else ""
@@ -200,7 +201,6 @@ async def crear_o_actualizar_producto(
         vid_url = prod.video_url if prod and prod.video_url else ""
         cart_url = prod.cartilla_url if prod and prod.cartilla_url else ""
 
-        # Subir archivos multimedia principales a Cloudinary
         if imagen and imagen.filename:
             img_rel = await subir_archivo_a_nube(imagen, folder="fajas_isabella/productos")
         if imagen_1 and imagen_1.filename:
@@ -261,8 +261,6 @@ async def crear_o_actualizar_producto(
             p_val = float(v_data.get("precio", 0.0))
             s_min = int(v_data.get("stock_minimo", 2))
             s_max = int(v_data.get("stock_maximo", 20))
-            
-            # --- SOPORTE DE FOTO INDIVIDUAL POR VARIANTE ---
             v_img = str(v_data.get("imagen_url", "")).strip()
             
             sku = generar_sku_compacto(nombre, t_val, c_val)
@@ -283,7 +281,7 @@ async def crear_o_actualizar_producto(
                 if v_img: 
                     existe.imagen_url = v_img
             else:
-                db.add(VarianteProducto(
+                    db.add(VarianteProducto(
                     sku=sku, 
                     producto_id=prod.id, 
                     talla=t_val, 
@@ -295,7 +293,7 @@ async def crear_o_actualizar_producto(
                     imagen_url=v_img or None
                 ))
         db.commit()
-        return {"status": "success", "message": f"Producto '{nombre}' y sus variantes guardados exitosamente con galería multimedia."}
+        return {"status": "success", "message": f"Producto '{nombre}' y sus variantes guardados exitosamente."}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -318,7 +316,6 @@ async def crear_categoria(nombre: str = Form(...), imagen: Optional[UploadFile] 
     try:
         cat_nom = nombre.strip().upper()
         img_rel = ""
-        
         if imagen and imagen.filename:
             img_rel = await subir_archivo_a_nube(imagen, folder="fajas_isabella/categorias")
             
