@@ -60,7 +60,7 @@ class Producto(Base):
     categoria = Column(String, index=True)
     imagen_url = Column(String, nullable=True)
     
-    # --- NUEVOS CAMPOS MULTIMEDIA (4 Imágenes, Video y Cartilla) ---
+    # --- CAMPOS MULTIMEDIA (4 Imágenes, Video y Cartilla) ---
     imagen_1 = Column(String, nullable=True)
     imagen_2 = Column(String, nullable=True)
     imagen_3 = Column(String, nullable=True)
@@ -198,6 +198,11 @@ def asegurar_columnas_logistica():
         conn.execute(text("ALTER TABLE productos ADD COLUMN IF NOT EXISTS imagen_4 TEXT;"))
         conn.execute(text("ALTER TABLE productos ADD COLUMN IF NOT EXISTS video_url TEXT;"))
         conn.execute(text("ALTER TABLE productos ADD COLUMN IF NOT EXISTS cartilla_url TEXT;"))
+
+        # Migración automática en caliente para columnas de Plan Acumulativo en facturas
+        conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS es_plan_acumulativo BOOLEAN DEFAULT FALSE;"))
+        conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS saldo_pendiente FLOAT DEFAULT 0.0;"))
+        conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS estado_acumulativo VARCHAR(30) DEFAULT 'PENDIENTE';"))
 
 try:
     asegurar_columnas_logistica()
