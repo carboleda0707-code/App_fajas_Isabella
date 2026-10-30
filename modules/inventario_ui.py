@@ -408,12 +408,12 @@ def render_inventario():
                                     url_final = str(img_var_url).strip()
                                     if not url_final.startswith("http"):
                                         url_final = resolver_url_imagen(url_final)
-                                    st.image(url_final, width=120, caption="✅ Foto Específica de la Variante", key=f"img_var_view_{var_id_input}")
+                                    st.image(url_final, width=120, caption="✅ Foto Específica de la Variante", key=f"img_var_view_{var_id_input}") # <-- ¡Aquí está el key sobrante!
                                 elif img_gen_url and str(img_gen_url).strip() not in ["", "None", "nan", "null"]:
                                     url_final_gen = str(img_gen_url).strip()
                                     if not url_final_gen.startswith("http"):
                                         url_final_gen = resolver_url_imagen(url_final_gen)
-                                    st.image(url_final_gen, width=120, caption="⚠️ Usa Foto General del Producto", key=f"img_gen_view_{var_id_input}")
+                                    st.image(url_final_gen, width=120, caption="⚠️ Usa Foto General del Producto", key=f"img_gen_view_{var_id_input}") # <-- ¡Y aquí también!
                                 else:
                                     st.info("Sin imagen registrada")
                             else:
