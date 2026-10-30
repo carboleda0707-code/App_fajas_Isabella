@@ -297,30 +297,33 @@ function cargarCategoriasWeb() {
 
 function generarHTMLTarjetaProducto(p) {
     const variantes = p.variantes || [];
-    const descuento = Number(p.descuento_oferta || 0);
+    const descuentoPorcentaje = Number(p.descuento_oferta || 0);
     let preciosTextoHtml = "";
 
     if (variantes.length > 0) {
-        const preciosCalculados = variantes.map(v => {
-            let precioV = Number(v.precio || 0);
-            if ((p.en_oferta || p.en_liquidacion) && descuento > 0) {
-                precioV = Math.max(0, precioV - (precioV * (descuento / 100)));
-            }
-            return precioV;
-        });
+        // Mapeamos cada variante con su precio real e individual
+        const preciosReales = variantes.map(v => Number(v.precio || 0));
+        
+        if ((p.en_oferta || p.en_liquidacion) && descuentoPorcentaje > 0) {
+            // Cada variante calcula su propio descuento sobre su propio precio
+            const preciosOferta = preciosReales.map(precioReal => 
+                Math.max(0, precioReal - (precioReal * (descuentoPorcentaje / 100)))
+            );
 
-        const precioMin = Math.min(...preciosCalculados);
-        const precioMax = Math.max(...preciosCalculados);
-        const precioMinOrig = Math.min(...variantes.map(v => Number(v.precio || 0)));
+            const minReal = Math.min(...preciosReales);
+            const maxReal = Math.max(...preciosReales);
+            const minOferta = Math.min(...preciosOferta);
+            const maxOferta = Math.max(...preciosOferta);
 
-        if ((p.en_oferta || p.en_liquidacion) && descuento > 0) {
-            preciosTextoHtml = precioMin === precioMax 
-                ? `<div class="flex items-center gap-2"><span class="text-xs text-slate-400 line-through">$${precioMinOrig.toFixed(2)}</span><span class="text-sm font-black text-rose-600">$${precioMin.toFixed(2)}</span></div>`
-                : `<div class="flex items-center gap-1"><span class="text-[10px] text-slate-400 line-through">$${precioMinOrig.toFixed(2)}</span><span class="text-sm font-black text-rose-600">$${precioMin.toFixed(2)} - $${precioMax.toFixed(2)}</span></div>`;
+            preciosTextoHtml = minReal === maxReal 
+                ? `<div class="flex items-center gap-2"><span class="text-xs text-slate-400 line-through">$${minReal.toFixed(2)}</span><span class="text-sm font-black text-rose-600">$${minOferta.toFixed(2)}</span></div>`
+                : `<div class="flex items-center gap-1"><span class="text-[10px] text-slate-400 line-through">$${minReal.toFixed(2)} - $${maxReal.toFixed(2)}</span><span class="text-sm font-black text-rose-600">$${minOferta.toFixed(2)} - $${maxOferta.toFixed(2)}</span></div>`;
         } else {
-            preciosTextoHtml = precioMin === precioMax 
-                ? `<span class="text-sm font-black text-slate-900">$${precioMin.toFixed(2)}</span>`
-                : `<span class="text-sm font-black text-slate-900">$${precioMin.toFixed(2)} - $${precioMax.toFixed(2)}</span>`;
+            const minReal = Math.min(...preciosReales);
+            const maxReal = Math.max(...preciosReales);
+            preciosTextoHtml = minReal === maxReal 
+                ? `<span class="text-sm font-black text-slate-900">$${minReal.toFixed(2)}</span>`
+                : `<span class="text-sm font-black text-slate-900">$${minReal.toFixed(2)} - $${maxReal.toFixed(2)}</span>`;
         }
     } else {
         preciosTextoHtml = `<span class="text-sm font-black text-slate-900">$0.00</span>`;
