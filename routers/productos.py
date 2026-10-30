@@ -39,7 +39,8 @@ def listar_inventario(db: Session = Depends(get_db)):
             "en_liquidacion": bool(p.en_liquidacion) if p else False,
             "es_nuevo": bool(p.es_nuevo) if p else False,
             "en_oferta": bool(p.en_oferta) if p else False,
-            "descuento_oferta": float(p.descuento_oferta or 0.0) if p else 0.0
+            "descuento_oferta": float(p.descuento_oferta or 0.0) if p else 0.0,
+            "tipo_descuento": p.tipo_descuento if p and p.tipo_descuento else "GENERAL"
         }
         lista.append({
             "id": v.id, 
@@ -47,6 +48,7 @@ def listar_inventario(db: Session = Depends(get_db)):
             "Talla": v.talla or "", 
             "Color": v.color or "",
             "Precio ($)": float(v.precio or 0.0), 
+            "descuento_porcentaje": float(v.descuento_porcentaje or 0.0),
             "Stock": v.stock_actual or 0,
             "Stock Mínimo": v.stock_minimo or 2, 
             "Stock Máximo": v.stock_maximo or 20,
@@ -87,6 +89,7 @@ async def importar_excel(file: UploadFile = File(...), db: Session = Depends(get
             stock = int(r.get('stock', 0) or 0)
             s_min = int(r.get('stock_minimo', 2) or 2)
             s_max = int(r.get('stock_maximo', 20) or 20)
+            desc_var = float(r.get('descuento_porcentaje', 0.0) or 0.0)
             
             variante = db.query(VarianteProducto).filter(VarianteProducto.sku == sku_ex).first() if sku_ex and sku_ex.lower() not in ['none', 'nan', ''] else None
             
@@ -110,14 +113,16 @@ async def importar_excel(file: UploadFile = File(...), db: Session = Depends(get
                     variante.sku = sku_limpio
                     variante.stock_minimo = s_min
                     variante.stock_maximo = s_max
+                    variante.descuento_porcentaje = desc_var
                 else:
-                    variante = VarianteProducto(sku=sku_limpio, producto_id=prod.id, talla=talla, color=color, stock_actual=stock, precio=precio, stock_minimo=s_min, stock_maximo=s_max)
+                    variante = VarianteProducto(sku=sku_limpio, producto_id=prod.id, talla=talla, color=color, stock_actual=stock, precio=precio, stock_minimo=s_min, stock_maximo=s_max, descuento_porcentaje=desc_var)
                     db.add(variante)
             else:
                 variante.stock_actual = stock
                 variante.precio = precio
                 variante.stock_minimo = s_min
                 variante.stock_maximo = s_max
+                variante.descuento_porcentaje = desc_var
                 if variante.producto and cat and cat != "NAN": 
                     variante.producto.categoria = cat
             procesados += 1
@@ -134,12 +139,14 @@ async def actualizar_variante(
     talla: str = Form(...), 
     color: str = Form(...),
     precio: float = Form(...), 
+    descuento_porcentaje: float = Form(0.0),
     stock_minimo: int = Form(2), 
     stock_maximo: int = Form(20),
     en_liquidacion: bool = Form(False), 
     es_nuevo: bool = Form(False), 
     en_oferta: bool = Form(False),
-    descuento_oferta: float = Form(0.0), 
+    descuento_oferta: float = Form(0.0),
+    tipo_descuento: str = Form("GENERAL"),
     imagen: Optional[UploadFile] = File(None),
     imagen_variante: Optional[UploadFile] = File(None), 
     db: Session = Depends(get_db)
@@ -151,6 +158,7 @@ async def actualizar_variante(
     v.talla = talla.strip()
     v.color = color.strip()
     v.precio = float(precio)
+    v.descuento_porcentaje = float(descuento_porcentaje)
     v.stock_minimo = stock_minimo
     v.stock_maximo = stock_maximo
     
@@ -167,6 +175,7 @@ async def actualizar_variante(
         v.producto.es_nuevo = es_nuevo
         v.producto.en_oferta = en_oferta
         v.producto.descuento_oferta = descuento_oferta
+        v.producto.tipo_descuento = tipo_descuento
         
     db.commit()
     return {"status": "success", "message": f"Variante ID {var_id} actualizada correctamente."}
@@ -180,6 +189,7 @@ async def crear_o_actualizar_producto(
     es_nuevo: bool = Form(False), 
     en_oferta: bool = Form(False),
     descuento_oferta: float = Form(0.0), 
+    tipo_descuento: str = Form("GENERAL"),
     variantes: str = Form(...), 
     imagen: Optional[UploadFile] = File(None),
     imagen_1: Optional[UploadFile] = File(None),
@@ -230,6 +240,7 @@ async def crear_o_actualizar_producto(
             prod.es_nuevo = es_nuevo
             prod.en_oferta = en_oferta
             prod.descuento_oferta = descuento_oferta
+            prod.tipo_descuento = tipo_descuento
         else:
             prod = Producto(
                 nombre=nombre, 
@@ -245,7 +256,8 @@ async def crear_o_actualizar_producto(
                 en_liquidacion=en_liquidacion, 
                 es_nuevo=es_nuevo,
                 en_oferta=en_oferta, 
-                descuento_oferta=descuento_oferta
+                descuento_oferta=descuento_oferta,
+                tipo_descuento=tipo_descuento
             )
             db.add(prod)
             db.commit()
@@ -261,7 +273,12 @@ async def crear_o_actualizar_producto(
             p_val = float(v_data.get("precio", 0.0))
             s_min = int(v_data.get("stock_minimo", 2))
             s_max = int(v_data.get("stock_maximo", 20))
+            desc_var = float(v_data.get("descuento_porcentaje", 0.0))
             v_img = str(v_data.get("imagen_url", "")).strip()
+
+            # Si es modo INDIVIDUAL y la variante tiene 0%, se le hereda automáticamente el descuento base del producto
+            if tipo_descuento == "INDIVIDUAL" and desc_var == 0 and descuento_oferta > 0:
+                desc_var = float(descuento_oferta)
             
             sku = generar_sku_compacto(nombre, t_val, c_val)
             cnt = 1
@@ -278,16 +295,18 @@ async def crear_o_actualizar_producto(
                 existe.color = c_val
                 existe.stock_minimo = s_min
                 existe.stock_maximo = s_max
+                existe.descuento_porcentaje = desc_var
                 if v_img: 
                     existe.imagen_url = v_img
             else:
-                    db.add(VarianteProducto(
+                db.add(VarianteProducto(
                     sku=sku, 
                     producto_id=prod.id, 
                     talla=t_val, 
                     color=c_val,
                     stock_actual=s_val, 
                     precio=p_val, 
+                    descuento_porcentaje=desc_var,
                     stock_minimo=s_min,
                     stock_maximo=s_max, 
                     imagen_url=v_img or None

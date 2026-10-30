@@ -86,7 +86,7 @@ def render_ventas():
                 {"SKU": "", "Cantidad": 1, "Precio Unitario ($)": 0.0}
             ])
 
-            st.caption("Ingresa el SKU exacto de la variante o selecciónala. (Puedes agregar múltiples filas).")
+            st.caption("Ingresa el SKU exacto de la variante. Si dejas el precio en 0.0, el sistema aplicará automáticamente el precio oficial respetando la regla de descuentos activos.")
             df_items_editado = st.data_editor(
                 df_items_inicial,
                 num_rows="dynamic",
@@ -94,7 +94,7 @@ def render_ventas():
                 column_config={
                     "SKU": st.column_config.TextColumn("SKU / Código de Barra", width="medium"),
                     "Cantidad": st.column_config.NumberColumn("Cantidad", min_value=1, step=1, width="small"),
-                    "Precio Unitario ($)": st.column_config.NumberColumn("Precio Unitario ($)", format="$ %.2f", min_value=0.0, width="small")
+                    "Precio Unitario ($)": st.column_config.NumberColumn("Precio Unitario ($ - 0 para Auto)", format="$ %.2f", min_value=0.0, width="small", help="Si se deja en 0.0, el backend calcula el precio con descuento automáticamente.")
                 }
             )
 

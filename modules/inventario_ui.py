@@ -91,7 +91,7 @@ def render_inventario():
             categoria = st.selectbox("Categoría del Producto", options=categorias_disponibles)
 
             st.markdown("###### 🏷️ Variantes (Tallas, Colores, Precios, Stock y Descuento %)")
-            st.caption("Puedes dejar el SKU vacío para que el sistema lo genere automáticamente. Define el % de descuento individual por variante si aplica.")
+            st.caption("Define el % de descuento individual por variante si aplica. En modo Individual, este valor se hereda a las subvariantes.")
 
             df_inicial = pd.DataFrame([
                 {"sku": "", "talla": "S", "color": "Negro", "precio": 45.0, "descuento_%": 0, "stock_actual": 10, "stock_minimo": 2, "stock_maximo": 20, "imagen_variante": ""},
@@ -126,11 +126,18 @@ def render_inventario():
                 st.info("Sin imagen principal")
 
             st.markdown("---")
-            st.markdown("###### 🏷️ Estado General del Producto")
+            st.markdown("###### 🏷️ Estado General y Descuentos")
 
             en_liquidacion = st.checkbox("🔥 En Liquidación", key="reg_liq")
             es_nuevo = st.checkbox("✨ Nuevo (New)", key="reg_new")
             en_oferta = st.checkbox("🏷️ En Oferta", key="reg_ofe")
+
+            desc_oferta_reg = 0.0
+            tipo_desc_reg = "GENERAL"
+            if en_oferta or en_liquidacion:
+                col_d1, col_d2 = st.columns(2)
+                desc_oferta_reg = col_d1.number_input("% Oferta Base", min_value=0, max_value=100, value=0, step=1, key="reg_desc_val")
+                tipo_desc_reg = col_d2.selectbox("Modalidad", options=["GENERAL", "INDIVIDUAL"], key="reg_tipo_desc")
 
             st.markdown("---")
             with st.expander("📂 Archivos Adicionales (Galería, Video, Cartilla)"):
@@ -189,6 +196,10 @@ def render_inventario():
                         img_var_val = str(row.get("imagen_variante", "")).strip() if pd.notna(row.get("imagen_variante")) else ""
                         desc_var_val = float(row.get("descuento_%", 0) or 0)
                         
+                        # Si es modo INDIVIDUAL y la variante tiene 0%, se le hereda automáticamente el descuento base del producto
+                        if tipo_desc_reg == "INDIVIDUAL" and desc_var_val == 0 and desc_oferta_reg > 0:
+                            desc_var_val = float(desc_oferta_reg)
+
                         if not sku_val or sku_val.lower() in ["none", "nan", ""]:
                             sku_val = ""
                         
@@ -211,7 +222,8 @@ def render_inventario():
                         "en_liquidacion": str(en_liquidacion).lower(),
                         "es_nuevo": str(es_nuevo).lower(),
                         "en_oferta": str(en_oferta).lower(),
-                        "descuento_oferta": "0",
+                        "descuento_oferta": str(desc_oferta_reg),
+                        "tipo_descuento": tipo_desc_reg,
                         "variantes": json.dumps(lista_variantes)
                     }
 
@@ -334,6 +346,8 @@ def render_inventario():
                     stock_min_def = 2
                     stock_max_def = 20
                     desc_var_def = 0
+                    desc_oferta_def = 0.0
+                    tipo_desc_def = "GENERAL"
 
                     if variante_encontrada:
                         p_info = variante_encontrada.get("producto") or {}
@@ -344,6 +358,8 @@ def render_inventario():
                         liq_def = bool(p_info.get("en_liquidacion", False))
                         nuevo_def = bool(p_info.get("es_nuevo", False))
                         oferta_def = bool(p_info.get("en_oferta", False))
+                        desc_oferta_def = float(p_info.get("descuento_oferta", 0.0) or 0.0)
+                        tipo_desc_def = p_info.get("tipo_descuento", "GENERAL") or "GENERAL"
                         stock_min_def = int(variante_encontrada.get("Stock Mínimo", 2))
                         stock_max_def = int(variante_encontrada.get("Stock Máximo", 20))
                         desc_var_def = int(variante_encontrada.get("descuento_porcentaje", 0) or 0)
@@ -365,11 +381,16 @@ def render_inventario():
                             nuevo_stock_max = c7.number_input("Stock Máx.", min_value=0, value=stock_max_def, step=1)
 
                             st.markdown("---")
-                            st.markdown("###### 🏷️ Estado General del Producto")
+                            st.markdown("###### 🏷️ Estado General y Descuentos del Producto")
                             ec1, ec2, ec3 = st.columns(3)
                             edit_liquidacion = ec1.checkbox("🔥 En Liquidación", value=liq_def, key="edit_liq")
                             edit_es_nuevo = ec2.checkbox("✨ Nuevo (New)", value=nuevo_def, key="edit_new")
                             edit_en_oferta = ec3.checkbox("🏷️ En Oferta", value=oferta_def, key="edit_ofe")
+
+                            col_md1, col_md2 = st.columns(2)
+                            edit_desc_oferta = col_md1.number_input("% Oferta Base", min_value=0, max_value=100, value=int(desc_oferta_def), step=1, key="edit_desc_oferta")
+                            idx_tipo_def = 0 if tipo_desc_def == "GENERAL" else 1
+                            edit_tipo_desc = col_md2.selectbox("Modalidad Descuento", options=["GENERAL", "INDIVIDUAL"], index=idx_tipo_def, key="edit_tipo_desc")
 
                             st.markdown("---")
                             with st.expander("📂 Modificar Archivos Adicionales (Galería, Video, Cartilla)"):
@@ -435,7 +456,9 @@ def render_inventario():
                                         "stock_maximo": str(nuevo_stock_max),
                                         "en_liquidacion": str(edit_liquidacion).lower(),
                                         "es_nuevo": str(edit_es_nuevo).lower(),
-                                        "en_oferta": str(edit_en_oferta).lower()
+                                        "en_oferta": str(edit_en_oferta).lower(),
+                                        "descuento_oferta": str(edit_desc_oferta),
+                                        "tipo_descuento": edit_tipo_desc
                                     }
 
                                     res_upd = requests.put(f"{API_URL}/variantes/{var_id_input}", data=data_payload, files=files if files else None)

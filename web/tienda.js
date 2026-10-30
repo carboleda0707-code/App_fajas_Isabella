@@ -297,30 +297,43 @@ function cargarCategoriasWeb() {
 
 function generarHTMLTarjetaProducto(p) {
     const variantes = p.variantes || [];
-    const descuento = Number(p.descuento_oferta || 0);
+    const tipoDesc = p.tipo_descuento || 'GENERAL';
+    const descuentoGeneral = Number(p.descuento_oferta || 0);
+    const estaEnOfertaGeneral = (p.en_oferta || p.en_liquidacion) && tipoDesc === 'GENERAL' && descuentoGeneral > 0;
+    
     let preciosTextoHtml = "";
 
     if (variantes.length > 0) {
-        const preciosCalculados = variantes.map(v => {
-            let precioV = Number(v.precio || 0);
-            if ((p.en_oferta || p.en_liquidacion) && descuento > 0) {
-                precioV = Math.max(0, precioV - (precioV * (descuento / 100)));
+        const preciosReales = variantes.map(v => Number(v.precio || 0));
+        
+        const preciosOferta = variantes.map(v => {
+            const precioV = Number(v.precio || 0);
+            
+            // REGLA DE ORO: Si hay descuento general activo, manda el general y se ignora el individual
+            if (estaEnOfertaGeneral) {
+                return Math.max(0, precioV - (precioV * (descuentoGeneral / 100)));
             }
-            return precioV;
+            
+            // Si es modo individual, se usa el descuento específico de la variante
+            const descVar = Number(v.descuento_porcentaje || 0);
+            return descVar > 0 ? Math.max(0, precioV - (precioV * (descVar / 100))) : precioV;
         });
 
-        const precioMin = Math.min(...preciosCalculados);
-        const precioMax = Math.max(...preciosCalculados);
-        const precioMinOrig = Math.min(...variantes.map(v => Number(v.precio || 0)));
+        const minReal = Math.min(...preciosReales);
+        const maxReal = Math.max(...preciosReales);
+        const minOferta = Math.min(...preciosOferta);
+        const maxOferta = Math.max(...preciosOferta);
 
-        if ((p.en_oferta || p.en_liquidacion) && descuento > 0) {
-            preciosTextoHtml = precioMin === precioMax 
-                ? `<div class="flex items-center gap-2"><span class="text-xs text-slate-400 line-through">$${precioMinOrig.toFixed(2)}</span><span class="text-sm font-black text-rose-600">$${precioMin.toFixed(2)}</span></div>`
-                : `<div class="flex items-center gap-1"><span class="text-[10px] text-slate-400 line-through">$${precioMinOrig.toFixed(2)}</span><span class="text-sm font-black text-rose-600">$${precioMin.toFixed(2)} - $${precioMax.toFixed(2)}</span></div>`;
+        const tieneDescuentoActivo = estaEnOfertaGeneral || variantes.some(v => Number(v.descuento_porcentaje || 0) > 0) || p.en_oferta || p.en_liquidacion;
+
+        if (tieneDescuentoActivo && minOferta < minReal) {
+            preciosTextoHtml = minReal === maxReal 
+                ? `<div class="flex flex-col"><span class="text-xs text-slate-400 line-through">$${minReal.toFixed(2)}</span><span class="text-sm font-black text-rose-600">$${minOferta.toFixed(2)}</span></div>`
+                : `<div class="flex flex-col"><span class="text-xs text-slate-400 line-through">$${minReal.toFixed(2)} - $${maxReal.toFixed(2)}</span><span class="text-sm font-black text-rose-600">$${minOferta.toFixed(2)} - $${maxOferta.toFixed(2)}</span></div>`;
         } else {
-            preciosTextoHtml = precioMin === precioMax 
-                ? `<span class="text-sm font-black text-slate-900">$${precioMin.toFixed(2)}</span>`
-                : `<span class="text-sm font-black text-slate-900">$${precioMin.toFixed(2)} - $${precioMax.toFixed(2)}</span>`;
+            preciosTextoHtml = minReal === maxReal 
+                ? `<span class="text-sm font-black text-slate-900">$${minReal.toFixed(2)}</span>`
+                : `<span class="text-sm font-black text-slate-900">$${minReal.toFixed(2)} - $${maxReal.toFixed(2)}</span>`;
         }
     } else {
         preciosTextoHtml = `<span class="text-sm font-black text-slate-900">$0.00</span>`;
@@ -349,7 +362,7 @@ function generarHTMLTarjetaProducto(p) {
                 </div>
                 <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
                     <div>
-                        <span class="text-[9px] text-slate-400 block">${(p.en_liquidacion || p.en_oferta) ? 'Precio Oferta' : 'Precio'}</span>
+                        <span class="text-[9px] text-slate-400 block">${tieneDescuentoActivo ? 'Precio Oferta' : 'Precio'}</span>
                         ${preciosTextoHtml}
                     </div>
                     <button onclick="abrirModal(${p.id})" class="bg-slate-900 hover:bg-rose-600 text-white font-bold text-[10px] px-2.5 py-1.5 rounded-xl transition shadow-xs cursor-pointer">Ver Tallas</button>
@@ -751,11 +764,24 @@ function seleccionarColor(color) {
 function actualizarDetalleVariante() {
     const variante = obtenerVarianteActual();
     if (variante && productoSeleccionado) {
-        let precioUnitario = variante.precio;
-        const descuento = Number(productoSeleccionado.descuento_oferta || 0);
-        if ((productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0) {
-            precioUnitario = Math.max(0, precioUnitario - (precioUnitario * (descuento / 100)));
+        let precioUnitario = Number(variante.precio || 0);
+        const tipoDesc = productoSeleccionado.tipo_descuento || 'GENERAL';
+        const descGeneral = Number(productoSeleccionado.descuento_oferta || 0);
+        const descIndividual = Number(variante.descuento_porcentaje || 0);
+
+        let descAplicar = 0;
+        if (productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) {
+            if (tipoDesc === 'GENERAL' && descGeneral > 0) {
+                descAplicar = descGeneral; // Prioridad absoluta al general
+            } else {
+                descAplicar = descIndividual; // Si es individual, usa el de la variante
+            }
         }
+
+        if (descAplicar > 0) {
+            precioUnitario = Math.max(0, precioUnitario - (precioUnitario * (descAplicar / 100)));
+        }
+
         const totalLinea = precioUnitario * cantidadSeleccionada;
         document.getElementById("modal-precio").innerText = `$${precioUnitario.toFixed(2)}`;
         document.getElementById("resumen-talla").innerText = tallaSeleccionada;

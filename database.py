@@ -72,6 +72,7 @@ class Producto(Base):
     es_nuevo = Column(Boolean, default=False)
     en_oferta = Column(Boolean, default=False)
     descuento_oferta = Column(Float, default=0.0)
+    tipo_descuento = Column(String(20), default='GENERAL')  # <-- NUEVO: 'GENERAL' o 'INDIVIDUAL'
     
     variantes = relationship("VarianteProducto", back_populates="producto", cascade="all, delete-orphan")
 
@@ -199,6 +200,9 @@ def asegurar_columnas_logistica():
         conn.execute(text("ALTER TABLE productos ADD COLUMN IF NOT EXISTS imagen_4 TEXT;"))
         conn.execute(text("ALTER TABLE productos ADD COLUMN IF NOT EXISTS video_url TEXT;"))
         conn.execute(text("ALTER TABLE productos ADD COLUMN IF NOT EXISTS cartilla_url TEXT;"))
+
+        # Migración automática en caliente para tipo de descuento en productos
+        conn.execute(text("ALTER TABLE productos ADD COLUMN IF NOT EXISTS tipo_descuento VARCHAR(20) DEFAULT 'GENERAL';"))
 
         # Migración automática en caliente para descuento individual en variantes
         conn.execute(text("ALTER TABLE variantes_producto ADD COLUMN IF NOT EXISTS descuento_porcentaje FLOAT DEFAULT 0.0;"))

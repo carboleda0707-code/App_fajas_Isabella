@@ -23,7 +23,7 @@ class ClienteSchema(BaseModel):
 class ItemVentaSchema(BaseModel):
     sku: str
     cantidad: int
-    precio_unitario: float
+    precio_unitario: Optional[float] = 0.0
 
 class VentaFacturaSchema(BaseModel):
     numero_factura: str
@@ -187,6 +187,8 @@ def registrar_venta(venta: VentaFacturaSchema, db: Session = Depends(get_db)):
                 cliente.direccion = venta.direccion_cliente
                 db.commit()
 
+        # Validación previa de variantes, stock y cálculo automático con Regla de Oro de Descuentos
+        items_procesados = []
         for item in venta.items:
             variante = db.query(VarianteProducto).filter(VarianteProducto.sku == item.sku).first()
             if not variante:
@@ -194,7 +196,36 @@ def registrar_venta(venta: VentaFacturaSchema, db: Session = Depends(get_db)):
             if variante.stock_actual < item.cantidad:
                 raise HTTPException(status_code=400, detail=f"Stock insuficiente para {item.sku}.")
 
-        total_calculado = sum(item.cantidad * item.precio_unitario for item in venta.items)
+            producto = variante.producto
+            precio_base = float(variante.precio or 0.0)
+            
+            # Regla de Oro de Descuentos
+            tipo_desc = getattr(producto, 'tipo_descuento', 'GENERAL') or 'GENERAL'
+            desc_general = float(getattr(producto, 'descuento_oferta', 0.0) or 0.0)
+            desc_individual = float(getattr(variante, 'descuento_porcentaje', 0.0) or 0.0)
+            en_oferta_o_liq = bool(producto.en_oferta or producto.en_liquidacion)
+            
+            desc_aplicar = 0.0
+            if en_oferta_o_liq:
+                if tipo_desc == 'GENERAL' and desc_general > 0:
+                    desc_aplicar = desc_general  # Prioridad absoluta al descuento general
+                else:
+                    desc_aplicar = desc_individual  # Descuento individual de la variante
+
+            # Si el precio unitario viene en 0 o no fue personalizado, aplicamos el descuento oficial
+            precio_final_unitario = float(item.precio_unitario or 0.0)
+            if desc_aplicar > 0 and (precio_final_unitario <= 0 or precio_final_unitario == precio_base):
+                precio_final_unitario = max(0.0, precio_base - (precio_base * (desc_aplicar / 100)))
+            elif precio_final_unitario <= 0:
+                precio_final_unitario = precio_base
+
+            items_procesados.append({
+                "variante": variante,
+                "cantidad": item.cantidad,
+                "precio_unitario": precio_final_unitario
+            })
+
+        total_calculado = sum(it["cantidad"] * it["precio_unitario"] for it in items_procesados)
         
         # --- LÓGICA UNIFICADA DE PLAN ACUMULATIVO ---
         es_acumulativo = (venta.metodo_pago == "Plan Acumulativo")
@@ -251,16 +282,15 @@ def registrar_venta(venta: VentaFacturaSchema, db: Session = Depends(get_db)):
             )
             db.add(nuevo_abono)
 
-        for item in venta.items:
-            variante = db.query(VarianteProducto).filter(VarianteProducto.sku == item.sku).first()
-            variante.stock_actual -= item.cantidad
-            
-            subtotal_renglon = item.cantidad * item.precio_unitario
+        for it in items_procesados:
+            variante = it["variante"]
+            variante.stock_actual -= it["cantidad"]
+            subtotal_renglon = it["cantidad"] * it["precio_unitario"]
             
             movimiento = MovimientoInventario(
                 sku=variante.sku, 
                 tipo_movimiento="VENTA_LOCAL",
-                cantidad=-item.cantidad, 
+                cantidad=-it["cantidad"], 
                 referencia_factura=f"Fact Venta: {venta.numero_factura}",
                 valor_neto=subtotal_renglon,
                 entidad_asociada=venta.nombre_cliente
@@ -270,7 +300,7 @@ def registrar_venta(venta: VentaFacturaSchema, db: Session = Depends(get_db)):
         db.commit()
         return {
             "status": "success", 
-            "message": "Venta manual y plan acumulativo registrados exitosamente.",
+            "message": "Venta manual y plan acumulativo registrados exitosamente aplicando descuentos.",
             "factura_id": nueva_factura.id
         }
     except Exception as e:
