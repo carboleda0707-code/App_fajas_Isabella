@@ -403,27 +403,35 @@ def render_inventario():
                         with col_form_der:
                             st.markdown("**Foto Actual de la Variante**")
                             if variante_encontrada:
-                                # Depuración rápida por si el API usa otra clave
+                                # Depuración visual para ver las llaves exactas que devuelve el API
+                                # st.write(variante_encontrada) 
+                                
+                                # Buscamos en todas las combinaciones posibles de mayúsculas, minúsculas y nombres alternativos
                                 img_var_url = (
                                     variante_encontrada.get("imagen_url") or 
-                                    variante_encontrada.get("imagen__url") or
+                                    variante_encontrada.get("IMAGEN_URL") or
+                                    variante_encontrada.get("Imagen_Url") or
                                     variante_encontrada.get("imagen") or 
+                                    variante_encontrada.get("Imagen") or
                                     variante_encontrada.get("imagen_variante") or 
                                     variante_encontrada.get("foto") or 
                                     variante_encontrada.get("Foto") or
-                                    variante_encontrada.get("IMAGEN_URL")
+                                    variante_encontrada.get("url_imagen")
                                 )
-                                img_gen_url = p_info.get("imagen_url") or p_info.get("imagen")
+                                img_gen_url = p_info.get("imagen_url") or p_info.get("IMAGEN_URL") or p_info.get("imagen")
                                 
-                                if img_var_url and str(img_var_url).strip() not in ["", "None", "nan"]:
-                                    # Si la URL ya es completa de Cloudinary, la pasamos directo
-                                    url_final_var = img_var_url if str(img_var_url).startswith("http") else resolver_url_imagen(img_var_url)
+                                if img_var_url and str(img_var_url).strip() not in ["", "None", "nan", "null"]:
+                                    url_final_var = str(img_var_url).strip()
+                                    if not url_final_var.startswith("http"):
+                                        url_final_var = resolver_url_imagen(url_final_var)
                                     st.image(url_final_var, width=120, caption="Foto Específica Variante")
-                                elif img_gen_url and str(img_gen_url).strip() not in ["", "None", "nan"]:
-                                    url_final_gen = img_gen_url if str(img_gen_url).startswith("http") else resolver_url_imagen(img_gen_url)
+                                elif img_gen_url and str(img_gen_url).strip() not in ["", "None", "nan", "null"]:
+                                    url_final_gen = str(img_gen_url).strip()
+                                    if not url_final_gen.startswith("http"):
+                                        url_final_gen = resolver_url_imagen(url_final_gen)
                                     st.image(url_final_gen, width=120, caption="Usa Foto General")
                                 else:
-                                    st.info("Sin imagen")
+                                    st.info("Sin imagen registrada")
                             else:
                                 st.warning("ID no encontrado")
 
