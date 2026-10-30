@@ -32,6 +32,14 @@ def render_inventario():
     if "accion_inventario" not in st.session_state:
         st.session_state.accion_inventario = "Registrar Nuevo Ítem"
 
+    # Manejar mensaje de éxito persistente
+    if "mensaje_exito_variante" not in st.session_state:
+        st.session_state.mensaje_exito_variante = None
+
+    if st.session_state.mensaje_exito_variante:
+        st.success(st.session_state.mensaje_exito_variante)
+        st.session_state.mensaje_exito_variante = None
+
     accion = st.radio(
         "Acción:",
         ("Registrar Nuevo Ítem", "Mantenimiento Inventario", "Mantenimiento de Categorías"),
@@ -302,7 +310,6 @@ def render_inventario():
                             opciones_selectbox[label_desc] = v_id
                             lista_labels.append(label_desc)
                         
-                        # Recordar el índice de la variante seleccionada anteriormente
                         idx_sel_defecto = 0
                         if "var_id_editando" in st.session_state:
                             var_guardada = st.session_state["var_id_editando"]
@@ -315,7 +322,6 @@ def render_inventario():
                         var_id_input = opciones_selectbox[sel_var_label]
                         st.session_state["var_id_editando"] = var_id_input
 
-                        # Botón para eliminar variante
                         if col_btn_del.button("🗑️ Eliminar Variante", type="secondary", use_container_width=True, key=f"btn_del_var_{var_id_input}"):
                             try:
                                 res_del_var = requests.delete(f"{API_URL}/variantes/{var_id_input}")
@@ -403,11 +409,9 @@ def render_inventario():
                         with col_form_der:
                             st.markdown("**Foto Actual de la Variante**")
                             if variante_encontrada:
-                                # Priorizamos estrictamente la imagen propia de la variante
                                 img_var_url = variante_encontrada.get("imagen_url")
                                 img_gen_url = p_info.get("imagen_url")
                                 
-                                # Chivato visual limpio para verificar qué está tomando
                                 if img_var_url and str(img_var_url).strip() not in ["", "None", "nan", "null", "None"]:
                                     url_final = str(img_var_url).strip()
                                     if not url_final.startswith("http"):
@@ -460,7 +464,7 @@ def render_inventario():
                                     res_upd = requests.put(f"{API_URL}/variantes/{var_id_input}", data=data_payload, files=files if files else None)
                                     
                                     if res_upd.status_code == 200:
-                                        st.success("✅ Variante actualizado")
+                                        st.session_state.mensaje_exito_variante = "✅ Variante actualizado"
                                         st.session_state["var_id_editando"] = var_id_input
                                         st.rerun()
                                     else:
