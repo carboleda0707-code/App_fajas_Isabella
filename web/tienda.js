@@ -393,11 +393,11 @@ function irAInicio() {
     const catalogoSec = document.getElementById('catalogo');
     if (catalogoSec) catalogoSec.style.display = 'none';
 
-    // Ocultar la barra de círculos de categorías en la vista de Inicio
-    const barraCategoriasSecundaria = document.querySelector('.sticky.top-0.z-40 .bg-white.border-b.border-slate-200.py-3.relative');
+    // Ocultar SOLAMENTE la barra de círculos de categorías en la vista de Inicio
+    const barraCategoriasSecundaria = document.getElementById('categorias-scroll')?.closest('div.sticky') || document.getElementById('categorias-scroll')?.parentElement;
     if (barraCategoriasSecundaria) barraCategoriasSecundaria.style.display = 'none';
 
-    renderizarNovedadesEnHome();
+    renderizarNovedadesEnHome(); // 👈 Mantiene las novedades y promociones en el Home
     iniciarHeroSlider();
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -416,8 +416,8 @@ function filtrarCategoria(cat) {
     if (introContainer) introContainer.style.display = 'none';
     if (catalogoSec) catalogoSec.style.display = 'block';
 
-    // Mostrar la barra de círculos de categorías cuando estamos en el Catálogo / Tienda
-    const barraCategoriasSecundaria = document.querySelector('.sticky.top-0.z-40 .bg-white.border-b.border-slate-200.py-3.relative');
+    // Mostrar la barra de círculos de categorías cuando entramos al Catálogo / Tienda
+    const barraCategoriasSecundaria = document.getElementById('categorias-scroll')?.closest('div.sticky') || document.getElementById('categorias-scroll')?.parentElement;
     if (barraCategoriasSecundaria) barraCategoriasSecundaria.style.display = 'block';
 
     if (cat === 'TODAS') {
