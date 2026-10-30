@@ -290,6 +290,10 @@ def obtener_producto_dinamico(producto_id: int, db: Session = Depends(get_db)):
         "imagen_4": getattr(prod, 'imagen_4', '') or '',
         "video_url": getattr(prod, 'video_url', '') or '',
         "cartilla_url": getattr(prod, 'cartilla_url', '') or '',
+        "en_liquidacion": bool(getattr(prod, 'en_liquidacion', False)),
+        "es_nuevo": bool(getattr(prod, 'es_nuevo', False)),
+        "en_oferta": bool(getattr(prod, 'en_oferta', False)),
+        "descuento_oferta": float(getattr(prod, 'descuento_oferta', 0.0) or 0.0),
         "variantes": variantes_data
     }
 
