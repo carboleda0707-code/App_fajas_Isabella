@@ -276,10 +276,10 @@
     </footer>
 
     <!-- 7. MODALES -->
-    <!-- MODAL DE PRODUCTO -->
+    <!-- MODAL DE PRODUCTO (ACTUALIZADO CON SOPORTE MULTIMEDIA Y CARRUSEL) -->
     <div id="modal-producto" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl p-5 relative">
-            <button onclick="cerrarModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+        <div class="bg-white rounded-2xl max-w-xl w-full overflow-hidden shadow-2xl p-5 relative max-h-[90vh] overflow-y-auto no-scrollbar">
+            <button onclick="cerrarModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg cursor-pointer z-10"><i class="fa-solid fa-xmark"></i></button>
             <div id="modal-contenido"></div>
         </div>
     </div>
@@ -323,7 +323,7 @@
             </div>
             <form id="formCheckoutWapp" onsubmit="procesarPedidoWapp(event)">
                 
-                <!-- MODALIDAD DE PAGO (NUEVO: PLAN ACUMULATIVO) -->
+                <!-- MODALIDAD DE PAGO (PLAN ACUMULATIVO) -->
                 <div class="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-xl" style="margin-bottom:15px;">
                     <label style="font-size:12px; font-weight:bold; color:#1e293b; display:block; margin-bottom:6px;">Modalidad de Pago:</label>
                     <div style="display:flex; gap:15px;">
@@ -481,7 +481,7 @@
         </div>
     </div>
 
-    <!-- SCRIPTS AUXILIARES DE CHECKOUT -->
+    <!-- SCRIPTS AUXILIARES DE CHECKOUT Y FUNCIONALIDADES DE GALERÍA DE PRODUCTOS -->
     <script>
         document.addEventListener('click', function(e) {
             if (e.target && (e.target.id === 'btnPedidoWapp' || e.target.closest('#btnPedidoWapp'))) {
@@ -528,7 +528,6 @@
             formData.append('referencia', document.getElementById('wapp_referencia').value);
             formData.append('items', JSON.stringify(productosCarrito));
 
-            // Enviar datos del Plan Acumulativo si está activo
             const esAcumulativo = window.esPlanAcumulativoActivo || false;
             formData.append('es_plan_acumulativo', esAcumulativo);
             if (esAcumulativo) {
@@ -554,6 +553,24 @@
                     alert("Error al procesar el pedido: " + (resultado.detail || "Error"));
                 }
             } catch (err) { alert("Error de conexión con el servidor."); }
+        }
+
+        // FUNCIÓN GLOBAL PARA CAMBIAR LA IMAGEN O MULTIMEDIA EN EL MODAL DE DETALLES
+        function cambiarVistaMediaModal(urlMedia, esVideo = false) {
+            const container = document.getElementById('modal-main-media-container');
+            if (!container) return;
+            if (esVideo) {
+                container.innerHTML = `
+                    <video controls autoplay class="w-full h-full object-contain rounded-xl bg-black">
+                        <source src="${urlMedia}" type="video/mp4">
+                        Tu navegador no soporta la reproducción de video.
+                    </video>
+                `;
+            } else {
+                container.innerHTML = `
+                    <img src="${urlMedia}" class="w-full h-full object-contain rounded-xl" alt="Vista del Producto">
+                `;
+            }
         }
     </script>
 
