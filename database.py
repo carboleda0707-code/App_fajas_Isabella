@@ -84,6 +84,7 @@ class VarianteProducto(Base):
     color = Column(String, nullable=False)
     stock_actual = Column(Integer, default=0)
     precio = Column(Float, nullable=False)
+    descuento_porcentaje = Column(Float, default=0.0)  # <-- DESCUENTO INDIVIDUAL POR VARIANTE
     imagen_url = Column(String(255), nullable=True)
     stock_minimo = Column(Integer, default=2)
     stock_maximo = Column(Integer, default=20)
@@ -198,6 +199,9 @@ def asegurar_columnas_logistica():
         conn.execute(text("ALTER TABLE productos ADD COLUMN IF NOT EXISTS imagen_4 TEXT;"))
         conn.execute(text("ALTER TABLE productos ADD COLUMN IF NOT EXISTS video_url TEXT;"))
         conn.execute(text("ALTER TABLE productos ADD COLUMN IF NOT EXISTS cartilla_url TEXT;"))
+
+        # Migración automática en caliente para descuento individual en variantes
+        conn.execute(text("ALTER TABLE variantes_producto ADD COLUMN IF NOT EXISTS descuento_porcentaje FLOAT DEFAULT 0.0;"))
 
         # Migración automática en caliente para columnas de Plan Acumulativo en facturas
         conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS es_plan_acumulativo BOOLEAN DEFAULT FALSE;"))

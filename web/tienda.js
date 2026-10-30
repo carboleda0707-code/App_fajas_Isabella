@@ -297,30 +297,30 @@ function cargarCategoriasWeb() {
 
 function generarHTMLTarjetaProducto(p) {
     const variantes = p.variantes || [];
-    const descuentoPorcentaje = Number(p.descuento_oferta || 0);
     let preciosTextoHtml = "";
 
     if (variantes.length > 0) {
-        // Mapeamos cada variante con su precio real e individual
+        // Evaluamos precio y descuento individual de cada variante
         const preciosReales = variantes.map(v => Number(v.precio || 0));
-        
-        if ((p.en_oferta || p.en_liquidacion) && descuentoPorcentaje > 0) {
-            // Cada variante calcula su propio descuento sobre su propio precio
-            const preciosOferta = preciosReales.map(precioReal => 
-                Math.max(0, precioReal - (precioReal * (descuentoPorcentaje / 100)))
-            );
+        const preciosOferta = variantes.map(v => {
+            const precioV = Number(v.precio || 0);
+            const descV = Number(v.descuento_porcentaje || 0);
+            return descV > 0 ? Math.max(0, precioV - (precioV * (descV / 100))) : precioV;
+        });
 
-            const minReal = Math.min(...preciosReales);
-            const maxReal = Math.max(...preciosReales);
-            const minOferta = Math.min(...preciosOferta);
-            const maxOferta = Math.max(...preciosOferta);
+        const minReal = Math.min(...preciosReales);
+        const maxReal = Math.max(...preciosReales);
+        const minOferta = Math.min(...preciosOferta);
+        const maxOferta = Math.max(...preciosOferta);
 
+        // Verificamos si alguna variante tiene descuento individual aplicado
+        const tieneDescuentoVariante = variantes.some(v => Number(v.descuento_porcentaje || 0) > 0);
+
+        if (tieneDescuentoVariante && minOferta < minReal) {
             preciosTextoHtml = minReal === maxReal 
-                ? `<div class="flex items-center gap-2"><span class="text-xs text-slate-400 line-through">$${minReal.toFixed(2)}</span><span class="text-sm font-black text-rose-600">$${minOferta.toFixed(2)}</span></div>`
-                : `<div class="flex items-center gap-1"><span class="text-[10px] text-slate-400 line-through">$${minReal.toFixed(2)} - $${maxReal.toFixed(2)}</span><span class="text-sm font-black text-rose-600">$${minOferta.toFixed(2)} - $${maxOferta.toFixed(2)}</span></div>`;
+                ? `<div class="flex flex-col"><span class="text-xs text-slate-400 line-through">$${minReal.toFixed(2)}</span><span class="text-sm font-black text-rose-600">$${minOferta.toFixed(2)}</span></div>`
+                : `<div class="flex flex-col"><span class="text-xs text-slate-400 line-through">$${minReal.toFixed(2)} - $${maxReal.toFixed(2)}</span><span class="text-sm font-black text-rose-600">$${minOferta.toFixed(2)} - $${maxOferta.toFixed(2)}</span></div>`;
         } else {
-            const minReal = Math.min(...preciosReales);
-            const maxReal = Math.max(...preciosReales);
             preciosTextoHtml = minReal === maxReal 
                 ? `<span class="text-sm font-black text-slate-900">$${minReal.toFixed(2)}</span>`
                 : `<span class="text-sm font-black text-slate-900">$${minReal.toFixed(2)} - $${maxReal.toFixed(2)}</span>`;
@@ -352,7 +352,7 @@ function generarHTMLTarjetaProducto(p) {
                 </div>
                 <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
                     <div>
-                        <span class="text-[9px] text-slate-400 block">${(p.en_liquidacion || p.en_oferta) ? 'Precio Oferta' : 'Precio'}</span>
+                        <span class="text-[9px] text-slate-400 block">${tieneDescuentoVariante ? 'Precio Oferta' : 'Precio'}</span>
                         ${preciosTextoHtml}
                     </div>
                     <button onclick="abrirModal(${p.id})" class="bg-slate-900 hover:bg-rose-600 text-white font-bold text-[10px] px-2.5 py-1.5 rounded-xl transition shadow-xs cursor-pointer">Ver Tallas</button>

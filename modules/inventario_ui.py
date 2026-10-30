@@ -32,14 +32,6 @@ def render_inventario():
     if "accion_inventario" not in st.session_state:
         st.session_state.accion_inventario = "Registrar Nuevo Ítem"
 
-    # Manejar mensaje de éxito persistente
-    if "mensaje_exito_variante" not in st.session_state:
-        st.session_state.mensaje_exito_variante = None
-
-    if st.session_state.mensaje_exito_variante:
-        st.success(st.session_state.mensaje_exito_variante)
-        st.session_state.mensaje_exito_variante = None
-
     accion = st.radio(
         "Acción:",
         ("Registrar Nuevo Ítem", "Mantenimiento Inventario", "Mantenimiento de Categorías"),
@@ -98,13 +90,13 @@ def render_inventario():
             nombre_producto = st.text_input("Nombre del Modelo / Producto", placeholder="Ej: Panty Alto Diva")
             categoria = st.selectbox("Categoría del Producto", options=categorias_disponibles)
 
-            st.markdown("###### 🏷️ Variantes (Tallas, Colores, Precios y Stock)")
-            st.caption("Puedes dejar el SKU vacío para que el sistema lo genere automáticamente.")
+            st.markdown("###### 🏷️ Variantes (Tallas, Colores, Precios, Stock y Descuento %)")
+            st.caption("Puedes dejar el SKU vacío para que el sistema lo genere automáticamente. Define el % de descuento individual por variante si aplica.")
 
             df_inicial = pd.DataFrame([
-                {"sku": "", "talla": "S", "color": "Negro", "precio": 45.0, "stock_actual": 10, "stock_minimo": 2, "stock_maximo": 20, "imagen_variante": ""},
-                {"sku": "", "talla": "M", "color": "Negro", "precio": 45.0, "stock_actual": 15, "stock_minimo": 2, "stock_maximo": 20, "imagen_variante": ""},
-                {"sku": "", "talla": "L", "color": "Negro", "precio": 55.0, "stock_actual": 8, "stock_minimo": 2, "stock_maximo": 20, "imagen_variante": ""}
+                {"sku": "", "talla": "S", "color": "Negro", "precio": 45.0, "descuento_%": 0, "stock_actual": 10, "stock_minimo": 2, "stock_maximo": 20, "imagen_variante": ""},
+                {"sku": "", "talla": "M", "color": "Negro", "precio": 45.0, "descuento_%": 0, "stock_actual": 15, "stock_minimo": 2, "stock_maximo": 20, "imagen_variante": ""},
+                {"sku": "", "talla": "XXXXL", "color": "Negro", "precio": 55.0, "descuento_%": 25, "stock_actual": 4, "stock_minimo": 2, "stock_maximo": 20, "imagen_variante": ""}
             ])
 
             df_variantes_editado = st.data_editor(
@@ -116,6 +108,7 @@ def render_inventario():
                     "talla": st.column_config.TextColumn("Talla", width="small"),
                     "color": st.column_config.TextColumn("Color", width="small"),
                     "precio": st.column_config.NumberColumn("Precio ($)", format="$ %.2f", min_value=0.0, width="small"),
+                    "descuento_%": st.column_config.NumberColumn("Descuento %", format="%d%%", min_value=0, max_value=100, step=1, width="small"),
                     "stock_actual": st.column_config.NumberColumn("Stock", min_value=0, step=1, width="small"),
                     "stock_minimo": st.column_config.NumberColumn("Stock Mín.", min_value=0, step=1, width="small"),
                     "stock_maximo": st.column_config.NumberColumn("Stock Máx.", min_value=0, step=1, width="small"),
@@ -133,20 +126,11 @@ def render_inventario():
                 st.info("Sin imagen principal")
 
             st.markdown("---")
-            st.markdown("###### 🏷️ Estado y Promociones")
+            st.markdown("###### 🏷️ Estado General del Producto")
 
             en_liquidacion = st.checkbox("🔥 En Liquidación", key="reg_liq")
             es_nuevo = st.checkbox("✨ Nuevo (New)", key="reg_new")
             en_oferta = st.checkbox("🏷️ En Oferta", key="reg_ofe")
-            
-            porcentaje_oferta = 10
-            if en_oferta:
-                porcentaje_oferta = st.selectbox(
-                    "Porcentaje de Descuento:",
-                    options=[10, 15, 20, 25, 30],
-                    format_func=lambda x: f"{x}%",
-                    key="reg_porc_oferta"
-                )
 
             st.markdown("---")
             with st.expander("📂 Archivos Adicionales (Galería, Video, Cartilla)"):
@@ -203,6 +187,7 @@ def render_inventario():
                         color = str(row.get("color", "")).strip()
                         sku_val = str(row.get("sku", "")).strip() if pd.notna(row.get("sku")) else ""
                         img_var_val = str(row.get("imagen_variante", "")).strip() if pd.notna(row.get("imagen_variante")) else ""
+                        desc_var_val = float(row.get("descuento_%", 0) or 0)
                         
                         if not sku_val or sku_val.lower() in ["none", "nan", ""]:
                             sku_val = ""
@@ -215,6 +200,7 @@ def render_inventario():
                             "stock_minimo": int(row.get("stock_minimo", 2) or 2),
                             "stock_maximo": int(row.get("stock_maximo", 20) or 20),
                             "precio": float(row.get("precio", 0.0) or 0.0),
+                            "descuento_porcentaje": desc_var_val,
                             "imagen_url": img_var_val
                         })
 
@@ -225,7 +211,7 @@ def render_inventario():
                         "en_liquidacion": str(en_liquidacion).lower(),
                         "es_nuevo": str(es_nuevo).lower(),
                         "en_oferta": str(en_oferta).lower(),
-                        "descuento_oferta": str(porcentaje_oferta),
+                        "descuento_oferta": "0",
                         "variantes": json.dumps(lista_variantes)
                     }
 
@@ -274,6 +260,7 @@ def render_inventario():
                             "Talla": v.get("Talla", "") or v.get("talla", ""),
                             "Color": v.get("Color", "") or v.get("color", ""),
                             "Precio ($)": v.get("Precio ($)", 0.0) or v.get("precio", 0.0),
+                            "Descuento %": v.get("descuento_porcentaje", 0) or 0,
                             "Stock": v.get("Stock", 0) or v.get("stock_actual", 0),
                             "Stock Mín.": v.get("Stock Mínimo", 2),
                             "Stock Máx.": v.get("Stock Máximo", 20)
@@ -296,7 +283,7 @@ def render_inventario():
 
                     st.divider()
                     st.markdown("##### 🛠️ Corrección de Variante, Estados, Multimedia y Foto Específica")
-                    st.caption("Selecciona la variante, edita sus atributos, estados, galería, video o cartilla.")
+                    st.caption("Selecciona la variante, edita sus atributos, precio, descuento individual, galería, video o cartilla.")
 
                     col_id_sel, col_btn_del = st.columns([3.0, 1.0], vertical_alignment="bottom")
                     
@@ -344,9 +331,9 @@ def render_inventario():
                     liq_def = False
                     nuevo_def = False
                     oferta_def = False
-                    desc_oferta_def = 10.0
                     stock_min_def = 2
                     stock_max_def = 20
+                    desc_var_def = 0
 
                     if variante_encontrada:
                         p_info = variante_encontrada.get("producto") or {}
@@ -357,9 +344,9 @@ def render_inventario():
                         liq_def = bool(p_info.get("en_liquidacion", False))
                         nuevo_def = bool(p_info.get("es_nuevo", False))
                         oferta_def = bool(p_info.get("en_oferta", False))
-                        desc_oferta_def = float(p_info.get("descuento_oferta", 10.0) or 10.0)
                         stock_min_def = int(variante_encontrada.get("Stock Mínimo", 2))
                         stock_max_def = int(variante_encontrada.get("Stock Máximo", 20))
+                        desc_var_def = int(variante_encontrada.get("descuento_porcentaje", 0) or 0)
 
                     with st.form("form_modificar_variante"):
                         col_form_izq, col_form_der = st.columns([2.2, 1.2])
@@ -370,32 +357,19 @@ def render_inventario():
                             nueva_talla = c2.text_input("Talla", value=variante_encontrada.get("Talla") or variante_encontrada.get("talla") or "S")
                             nuevo_color = c3.text_input("Color", value=variante_encontrada.get("Color") or variante_encontrada.get("color") or "Negro")
                             
-                            c4, c5, c6 = st.columns(3)
+                            c4, c5, c6, c7 = st.columns(4)
                             precio_val = float(variante_encontrada.get("Precio ($)") or variante_encontrada.get("precio") or 45.0) if variante_encontrada else 45.0
                             nuevo_precio = c4.number_input("Precio ($)", min_value=0.0, value=precio_val, step=0.5)
-                            nuevo_stock_min = c5.number_input("Stock Mín.", min_value=0, value=stock_min_def, step=1)
-                            nuevo_stock_max = c6.number_input("Stock Máx.", min_value=0, value=stock_max_def, step=1)
+                            nuevo_desc_var = c5.number_input("Descuento %", min_value=0, max_value=100, value=desc_var_def, step=1)
+                            nuevo_stock_min = c6.number_input("Stock Mín.", min_value=0, value=stock_min_def, step=1)
+                            nuevo_stock_max = c7.number_input("Stock Máx.", min_value=0, value=stock_max_def, step=1)
 
                             st.markdown("---")
-                            st.markdown("###### 🏷️ Estado y Promociones (Modificar / Quitar)")
+                            st.markdown("###### 🏷️ Estado General del Producto")
                             ec1, ec2, ec3 = st.columns(3)
                             edit_liquidacion = ec1.checkbox("🔥 En Liquidación", value=liq_def, key="edit_liq")
                             edit_es_nuevo = ec2.checkbox("✨ Nuevo (New)", value=nuevo_def, key="edit_new")
                             edit_en_oferta = ec3.checkbox("🏷️ En Oferta", value=oferta_def, key="edit_ofe")
-
-                            opciones_desc = [10, 15, 20, 25, 30]
-                            try:
-                                idx_desc = opciones_desc.index(int(desc_oferta_def))
-                            except ValueError:
-                                idx_desc = 0
-
-                            edit_descuento_oferta = st.selectbox(
-                                "Porcentaje de Descuento",
-                                options=opciones_desc,
-                                index=idx_desc,
-                                format_func=lambda x: f"{x}%",
-                                key="edit_descuento_sel"
-                            )
 
                             st.markdown("---")
                             with st.expander("📂 Modificar Archivos Adicionales (Galería, Video, Cartilla)"):
@@ -429,15 +403,13 @@ def render_inventario():
 
                             archivo_nueva_imagen_variante = st.file_uploader("Subir foto para esta variante", type=["jpg", "jpeg", "png", "webp"], key="up_img_var")
 
-                        # Creamos dos columnas: una para el botón y otra al lado para el mensaje verde
-                        col_btn, col_msg_btn = st.columns([1.8, 2.2])
-                        
-                        with col_btn:
+                        col_btn_acc, col_msg_acc = st.columns([1.8, 2.2])
+                        with col_btn_acc:
                             btn_actualizar = st.form_submit_button("🔄 Actualizar Datos y Variante", type="primary", use_container_width=True)
-
+                        
                         if btn_actualizar:
                             if not variante_encontrada:
-                                with col_msg_btn:
+                                with col_msg_acc:
                                     st.error("El ID de variante seleccionado no es válido.")
                             else:
                                 try:
@@ -458,25 +430,25 @@ def render_inventario():
                                         "talla": nueva_talla,
                                         "color": nuevo_color,
                                         "precio": str(nuevo_precio),
+                                        "descuento_porcentaje": str(nuevo_desc_var),
                                         "stock_minimo": str(nuevo_stock_min),
                                         "stock_maximo": str(nuevo_stock_max),
                                         "en_liquidacion": str(edit_liquidacion).lower(),
                                         "es_nuevo": str(edit_es_nuevo).lower(),
-                                        "en_oferta": str(edit_en_oferta).lower(),
-                                        "descuento_oferta": str(edit_descuento_oferta)
+                                        "en_oferta": str(edit_en_oferta).lower()
                                     }
 
                                     res_upd = requests.put(f"{API_URL}/variantes/{var_id_input}", data=data_payload, files=files if files else None)
                                     
                                     if res_upd.status_code == 200:
-                                        with col_msg_btn:
+                                        with col_msg_acc:
                                             st.success("✅ Variante actualizado")
                                         st.session_state["var_id_editando"] = var_id_input
                                     else:
-                                        with col_msg_btn:
+                                        with col_msg_acc:
                                             st.error(f"No se pudo actualizar: {res_upd.text}")
                                 except Exception as err:
-                                    with col_msg_btn:
+                                    with col_msg_acc:
                                         st.error(f"Error de comunicación: {err}")
                 else:
                     st.info("No hay variantes registradas en el sistema todavía.")
