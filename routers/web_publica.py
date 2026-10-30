@@ -7,11 +7,10 @@ from typing import Optional
 from pydantic import BaseModel
 import json
 import os
-import shutil
-from datetime import date
 import secrets
 import string
 import cloudinary.uploader
+from datetime import date
 from config import (
     NOMBRE_EMPRESA, TELEFONO_WHATSAPP, CORREO_EMPRESA, DIRECCION_EMPRESA,
     INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL, WHATSAPP_LINK
@@ -237,14 +236,18 @@ def listar_inventario_publico(categoria: Optional[str] = Query(None), db: Sessio
                     "imagen_url": getattr(v, 'imagen_url', '') or ''
                 })
             
-            img_clean = getattr(prod, 'imagen_url', '') or ''
-            
             resultado.append({
                 "id": prod.id,
                 "nombre": prod.nombre,
                 "modelo": getattr(prod, 'modelo', prod.nombre),
                 "categoria": prod.categoria,
-                "imagen_url": img_clean,
+                "imagen_url": getattr(prod, 'imagen_url', '') or '',
+                "imagen_1": getattr(prod, 'imagen_1', '') or '',
+                "imagen_2": getattr(prod, 'imagen_2', '') or '',
+                "imagen_3": getattr(prod, 'imagen_3', '') or '',
+                "imagen_4": getattr(prod, 'imagen_4', '') or '',
+                "video_url": getattr(prod, 'video_url', '') or '',
+                "cartilla_url": getattr(prod, 'cartilla_url', '') or '',
                 "en_liquidacion": bool(getattr(prod, 'en_liquidacion', False)),
                 "es_nuevo": bool(getattr(prod, 'es_nuevo', False)),
                 "en_oferta": bool(getattr(prod, 'en_oferta', False)),
@@ -275,14 +278,18 @@ def obtener_producto_dinamico(producto_id: int, db: Session = Depends(get_db)):
             "imagen_url": getattr(v, 'imagen_url', '') or ''
         })
 
-    img_clean = getattr(prod, 'imagen_url', '') or ''
-
     return {
         "status": "success",
         "id": prod.id,
         "nombre": prod.nombre,
         "categoria": prod.categoria,
-        "imagen_url": img_clean,
+        "imagen_url": getattr(prod, 'imagen_url', '') or '',
+        "imagen_1": getattr(prod, 'imagen_1', '') or '',
+        "imagen_2": getattr(prod, 'imagen_2', '') or '',
+        "imagen_3": getattr(prod, 'imagen_3', '') or '',
+        "imagen_4": getattr(prod, 'imagen_4', '') or '',
+        "video_url": getattr(prod, 'video_url', '') or '',
+        "cartilla_url": getattr(prod, 'cartilla_url', '') or '',
         "variantes": variantes_data
     }
 
@@ -429,7 +436,7 @@ async def checkout_whatsapp(
             cliente_db.telefono = telefono
             cliente_db.direccion = direccion
             cliente_db.ciudad = ciudad
-            cliente_db.cliente_web = True  # Asignamos booleano correcto
+            cliente_db.cliente_web = True
             if correo_limpio and not cliente_db.correo:
                 cliente_db.correo = correo_limpio
                 
@@ -449,7 +456,7 @@ async def checkout_whatsapp(
                 telefono=telefono,
                 direccion=direccion,
                 ciudad=ciudad,
-                cliente_web=True,  # Asignamos booleano correcto
+                cliente_web=True,
                 password=password_hash_temp
             )
             db.add(cliente_db)

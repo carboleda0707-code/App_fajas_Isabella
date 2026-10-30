@@ -52,10 +52,9 @@ def render_inventario():
         categorias_disponibles = ["GENERAL"]
 
     if accion == "Registrar Nuevo Ítem":
-        # --- ENCABEZADO CON BOTÓN DE EXCEL AL LADO ---
         col_tit, col_btn_excel = st.columns([1.8, 2.2])
         with col_tit:
-            st.markdown("##### 🖼️ Registra Productos - Variantes")
+            st.markdown("##### 🖼️ Registra Productos - Galería Multimedia y Variantes")
         with col_btn_excel:
             with st.expander("📥 Cargar Plantilla Excel (Restauración Masiva)"):
                 st.caption("Sube tu backup en Excel para restaurar o recargar el inventario completo.")
@@ -88,10 +87,10 @@ def render_inventario():
 
         st.markdown("---")
 
-        col_izq, col_der = st.columns([3, 1.2])
+        col_izq, col_der = st.columns([3, 1.5])
 
         with col_izq:
-            nombre_producto = st.text_input("Nombre del Modelo / Producto", placeholder="Ej: Panty Alto Diva")
+            nombre_producto = st.text_input("Nombre del Modelo / Producto", placeholder="Ej: Body Faja Salome 2003")
             categoria = st.selectbox("Categoría del Producto", options=categorias_disponibles)
 
             st.markdown("###### 🏷️ Variantes (Tallas, Colores, Precios y Stock)")
@@ -115,18 +114,21 @@ def render_inventario():
                     "stock_actual": st.column_config.NumberColumn("Stock", min_value=0, step=1, width="small"),
                     "stock_minimo": st.column_config.NumberColumn("Stock Mín.", min_value=0, step=1, width="small"),
                     "stock_maximo": st.column_config.NumberColumn("Stock Máx.", min_value=0, step=1, width="small"),
-                    "imagen_variante": st.column_config.TextColumn("Foto Variante (Opcional)", width="medium", help="Nombre o URL si difiere de la principal")
+                    "imagen_variante": st.column_config.TextColumn("Foto Variante (Opcional)", width="medium", help="URL si difiere de la principal")
                 }
             )
 
         with col_der:
-            st.markdown("##### Imagen Principal del Producto")
-            archivo_imagen = st.file_uploader("Subir imagen general:", type=["jpg", "jpeg", "png", "webp"], label_visibility="collapsed")
+            st.markdown("##### 📸 Galería y Multimedia")
             
-            if archivo_imagen is not None:
-                st.image(archivo_imagen, use_container_width=True)
-            else:
-                st.info("Sin imagen general seleccionada")
+            archivo_imagen = st.file_uploader("Foto Principal", type=["jpg", "jpeg", "png", "webp"])
+            img_1 = st.file_uploader("Imagen Galería #1", type=["jpg", "jpeg", "png", "webp"])
+            img_2 = st.file_uploader("Imagen Galería #2", type=["jpg", "jpeg", "png", "webp"])
+            img_3 = st.file_uploader("Imagen Galería #3", type=["jpg", "jpeg", "png", "webp"])
+            img_4 = st.file_uploader("Imagen Galería #4", type=["jpg", "jpeg", "png", "webp"])
+            
+            video_file = st.file_uploader("▶ Video Demostrativo", type=["mp4", "mov", "webm"])
+            cartilla_file = st.file_uploader("📏 Cartilla / Guía de Tallas", type=["jpg", "jpeg", "png", "webp", "pdf"])
 
             st.markdown("---")
             st.markdown("###### 🏷️ Estado y Promociones")
@@ -138,12 +140,12 @@ def render_inventario():
             porcentaje_oferta = 0.0
             if en_oferta:
                 porcentaje_oferta = st.number_input(
-                    "Valor del DescuentoOferta :",
+                    "Valor del Descuento :",
                     min_value=1.0,
                     max_value=50.0,
                     value=10.0,
                     step=1.0,
-                    help="Ingrese el porcentaje de descuento a aplicar para esta oferta (Máximo 50%)"
+                    help="Porcentaje de descuento (Máximo 50%)"
                 )
 
         st.divider()
@@ -151,42 +153,21 @@ def render_inventario():
         col_btn, col_msg = st.columns([1.5, 2.5])
 
         with col_btn:
-            btn_guardar = st.button("💾 Guardar Producto y Todas sus Variantes", type="primary", use_container_width=True)
+            btn_guardar = st.button("💾 Guardar Producto y Multimedia", type="primary", use_container_width=True)
 
         if btn_guardar:
             campos_faltantes = []
             
             if not nombre_producto or str(nombre_producto).strip() in ["", "None", "nan"]:
                 campos_faltantes.append("Nombre del Modelo / Producto")
-            
             if archivo_imagen is None:
-                campos_faltantes.append("Imagen Principal del Producto")
-                
+                campos_faltantes.append("Foto Principal del Producto")
             if df_variantes_editado is None or df_variantes_editado.empty:
                 campos_faltantes.append("Al menos una variante en la tabla")
-            else:
-                for idx, row in df_variantes_editado.iterrows():
-                    talla_v = str(row.get("talla", "")).strip()
-                    color_v = str(row.get("color", "")).strip()
-                    
-                    if not talla_v or talla_v.lower() in ["none", "nan", ""]:
-                        campos_faltantes.append(f"Talla (Fila #{idx+1})")
-                    if not color_v or color_v.lower() in ["none", "nan", ""]:
-                        campos_faltantes.append(f"Color (Fila #{idx+1})")
-                        
-                    try:
-                        p_val = float(row.get("precio", 0))
-                        if p_val <= 0:
-                            campos_faltantes.append(f"Precio válido mayor a 0 (Fila #{idx+1})")
-                    except:
-                        campos_faltantes.append(f"Precio numérico (Fila #{idx+1})")
-
-            if en_oferta and porcentaje_oferta > 50.0:
-                campos_faltantes.append("Porcentaje de oferta (Máximo 50%)")
 
             if campos_faltantes:
                 with col_msg:
-                    st.error(f"⚠️ **Campos incompletos o inválidos:** {', '.join(campos_faltantes)}. Por favor revísalos.")
+                    st.error(f"⚠️ **Campos incompletos:** {', '.join(campos_faltantes)}.")
             else:
                 try:
                     lista_variantes = []
@@ -196,11 +177,8 @@ def render_inventario():
                         sku_val = str(row.get("sku", "")).strip() if pd.notna(row.get("sku")) else ""
                         img_var_val = str(row.get("imagen_variante", "")).strip() if pd.notna(row.get("imagen_variante")) else ""
                         
-                        if not sku_val or sku_val.lower() in ["none", "nan", ""]:
-                            sku_val = ""
-                        
                         lista_variantes.append({
-                            "sku": sku_val,
+                            "sku": sku_val if sku_val.lower() not in ["none", "nan", ""] else "",
                             "talla": talla,
                             "color": color,
                             "stock_actual": int(row.get("stock_actual", 0) or 0),
@@ -221,15 +199,27 @@ def render_inventario():
                         "variantes": json.dumps(lista_variantes)
                     }
 
-                    files_form = {
-                        "imagen": (archivo_imagen.name, archivo_imagen.getvalue(), archivo_imagen.type)
-                    }
+                    files_form = {}
+                    if archivo_imagen: 
+                        files_form["imagen"] = (archivo_imagen.name, archivo_imagen.getvalue(), archivo_imagen.type)
+                    if img_1: 
+                        files_form["imagen_1"] = (img_1.name, img_1.getvalue(), img_1.type)
+                    if img_2: 
+                        files_form["imagen_2"] = (img_2.name, img_2.getvalue(), img_2.type)
+                    if img_3: 
+                        files_form["imagen_3"] = (img_3.name, img_3.getvalue(), img_3.type)
+                    if img_4: 
+                        files_form["imagen_4"] = (img_4.name, img_4.getvalue(), img_4.type)
+                    if video_file: 
+                        files_form["video"] = (video_file.name, video_file.getvalue(), video_file.type)
+                    if cartilla_file: 
+                        files_form["cartilla"] = (cartilla_file.name, cartilla_file.getvalue(), cartilla_file.type)
 
                     res = requests.post(f"{API_URL}/productos", data=data_form, files=files_form)
 
                     if res.status_code == 200:
                         with col_msg:
-                            st.success("✅ Producto y variantes guardados satisfactoriamente")
+                            st.success("✅ Producto, galería multimedia y variantes guardados satisfactoriamente en Cloudinary")
                     else:
                         with col_msg:
                             st.error(f"Error al guardar: {res.text}")

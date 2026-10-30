@@ -30,6 +30,12 @@ def listar_inventario(db: Session = Depends(get_db)):
             "nombre": p_nom, 
             "categoria": p_cat, 
             "imagen_url": p_img,
+            "imagen_1": p.imagen_1 if p else "",
+            "imagen_2": p.imagen_2 if p else "",
+            "imagen_3": p.imagen_3 if p else "",
+            "imagen_4": p.imagen_4 if p else "",
+            "video_url": p.video_url if p else "",
+            "cartilla_url": p.cartilla_url if p else "",
             "en_liquidacion": bool(p.en_liquidacion) if p else False,
             "es_nuevo": bool(p.es_nuevo) if p else False,
             "en_oferta": bool(p.en_oferta) if p else False,
@@ -174,20 +180,52 @@ async def crear_o_actualizar_producto(
     descuento_oferta: float = Form(0.0), 
     variantes: str = Form(...), 
     imagen: Optional[UploadFile] = File(None),
+    imagen_1: Optional[UploadFile] = File(None),
+    imagen_2: Optional[UploadFile] = File(None),
+    imagen_3: Optional[UploadFile] = File(None),
+    imagen_4: Optional[UploadFile] = File(None),
+    video: Optional[UploadFile] = File(None),
+    cartilla: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
     try:
         prod = db.query(Producto).filter(Producto.nombre == nombre).first()
         
+        # Mantener URLs existentes si no se suben nuevas
         img_rel = prod.imagen_url if prod else ""
+        i1_url = prod.imagen_1 if prod and prod.imagen_1 else ""
+        i2_url = prod.imagen_2 if prod and prod.imagen_2 else ""
+        i3_url = prod.imagen_3 if prod and prod.imagen_3 else ""
+        i4_url = prod.imagen_4 if prod and prod.imagen_4 else ""
+        vid_url = prod.video_url if prod and prod.video_url else ""
+        cart_url = prod.cartilla_url if prod and prod.cartilla_url else ""
+
+        # Subir archivos multimedia principales a Cloudinary
         if imagen and imagen.filename:
             img_rel = await subir_archivo_a_nube(imagen, folder="fajas_isabella/productos")
-        
+        if imagen_1 and imagen_1.filename:
+            i1_url = await subir_archivo_a_nube(imagen_1, folder="fajas_isabella/productos/galeria")
+        if imagen_2 and imagen_2.filename:
+            i2_url = await subir_archivo_a_nube(imagen_2, folder="fajas_isabella/productos/galeria")
+        if imagen_3 and imagen_3.filename:
+            i3_url = await subir_archivo_a_nube(imagen_3, folder="fajas_isabella/productos/galeria")
+        if imagen_4 and imagen_4.filename:
+            i4_url = await subir_archivo_a_nube(imagen_4, folder="fajas_isabella/productos/galeria")
+        if video and video.filename:
+            vid_url = await subir_archivo_a_nube(video, folder="fajas_isabella/productos/videos")
+        if cartilla and cartilla.filename:
+            cart_url = await subir_archivo_a_nube(cartilla, folder="fajas_isabella/productos/cartillas")
+
         if prod:
             prod.modelo = modelo or nombre
             prod.categoria = categoria or prod.categoria
-            if img_rel:
-                prod.imagen_url = img_rel
+            if img_rel: prod.imagen_url = img_rel
+            if i1_url: prod.imagen_1 = i1_url
+            if i2_url: prod.imagen_2 = i2_url
+            if i3_url: prod.imagen_3 = i3_url
+            if i4_url: prod.imagen_4 = i4_url
+            if vid_url: prod.video_url = vid_url
+            if cart_url: prod.cartilla_url = cart_url
             prod.en_liquidacion = en_liquidacion
             prod.es_nuevo = es_nuevo
             prod.en_oferta = en_oferta
@@ -197,7 +235,13 @@ async def crear_o_actualizar_producto(
                 nombre=nombre, 
                 modelo=modelo or nombre, 
                 categoria=categoria or "GENERAL",
-                imagen_url=img_rel, 
+                imagen_url=img_rel,
+                imagen_1=i1_url,
+                imagen_2=i2_url,
+                imagen_3=i3_url,
+                imagen_4=i4_url,
+                video_url=vid_url,
+                cartilla_url=cart_url,
                 en_liquidacion=en_liquidacion, 
                 es_nuevo=es_nuevo,
                 en_oferta=en_oferta, 
@@ -208,13 +252,17 @@ async def crear_o_actualizar_producto(
             db.refresh(prod)
             
         skus_lote = set()
-        for v_data in json.loads(variantes):
+        lista_variantes = json.loads(variantes)
+        
+        for v_data in lista_variantes:
             t_val = str(v_data.get("talla", "")).strip()
             c_val = str(v_data.get("color", "")).strip()
             s_val = int(v_data.get("stock_actual", 0))
             p_val = float(v_data.get("precio", 0.0))
             s_min = int(v_data.get("stock_minimo", 2))
             s_max = int(v_data.get("stock_maximo", 20))
+            
+            # --- SOPORTE DE FOTO INDIVIDUAL POR VARIANTE ---
             v_img = str(v_data.get("imagen_url", "")).strip()
             
             sku = generar_sku_compacto(nombre, t_val, c_val)
@@ -247,7 +295,7 @@ async def crear_o_actualizar_producto(
                     imagen_url=v_img or None
                 ))
         db.commit()
-        return {"status": "success", "message": f"Producto '{nombre}' guardado exitosamente.", "imagen_url": img_rel}
+        return {"status": "success", "message": f"Producto '{nombre}' y sus variantes guardados exitosamente con galería multimedia."}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -271,18 +319,8 @@ async def crear_categoria(nombre: str = Form(...), imagen: Optional[UploadFile] 
         cat_nom = nombre.strip().upper()
         img_rel = ""
         
-        # --- CHIVATO PARA LA IMAGEN DE CATEGORÍA ---
-        print(f"--- [CHIVATO CATEGORÍA] ---")
-        print(f"Nombre recibido: '{cat_nom}'")
-        if imagen:
-            print(f"Archivo recibido: {imagen.filename}, Content-Type: {imagen.content_type}")
-        else:
-            print("❌ No se recibió ningún archivo 'imagen' en el formulario.")
-        
-
         if imagen and imagen.filename:
             img_rel = await subir_archivo_a_nube(imagen, folder="fajas_isabella/categorias")
-            print(f"URL generada por Cloudinary: '{img_rel}'")
             
         cat_db = db.query(Categoria).filter(Categoria.nombre == cat_nom).first()
         if cat_db: 
@@ -294,7 +332,6 @@ async def crear_categoria(nombre: str = Form(...), imagen: Optional[UploadFile] 
         return {"status": "success", "message": f"Categoría '{cat_nom}' guardada."}
     except Exception as e:
         db.rollback()
-        print(f"❌ [ERROR CREAR CATEGORIA]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/categorias/{cat_id}")

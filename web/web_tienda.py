@@ -8,7 +8,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Detectar URL de la API dinámicamente para entornos Local y Nube (Railway)
+# Detectar URL de la API dinámicamente
 API_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
 
 st.markdown("""
@@ -33,7 +33,6 @@ if not productos:
 else:
     col_f1, col_f2 = st.columns(2)
     
-    # Extraer colores y tallas de las variantes
     todos_colores = set()
     todas_tallas = set()
     for p in productos:
@@ -54,16 +53,23 @@ else:
         for idx, prod in enumerate(fila):
             with cols[idx]:
                 with st.container(border=True):
+                    # Mostrar imagen principal o la primera de la galería si existe
+                    img_mostrar = prod.get('imagen_url') or prod.get('imagen_1') or "https://via.placeholder.com/400x500?text=Fajas+Isabella"
+                    st.image(img_mostrar, use_container_width=True)
+                    
                     st.markdown(f"### {prod['nombre']}")
                     st.markdown(f"🏷️ **Categoría:** {prod['categoria']}")
                     
-                    # Mostrar rango de precios
                     precios = [v['precio'] for v in prod['variantes']]
-                    min_p, max_p = min(precios), max(precios)
-                    precio_str = f"${min_p:.2f}" if min_p == max_p else f"${min_p:.2f} - ${max_p:.2f}"
+                    if precios:
+                        min_p, max_p = min(precios), max(precios)
+                        precio_str = f"${min_p:.2f}" if min_p == max_p else f"${min_p:.2f} - ${max_p:.2f}"
+                    else:
+                        precio_str = "$0.00"
                     
                     st.markdown(f"💰 **Precio:** <span style='color: #16a34a; font-size: 1.2rem; font-weight: bold;'>{precio_str}</span>", unsafe_allow_html=True)
                     st.markdown(f"📦 **Opciones disponibles:** {len(prod['variantes'])} variantes")
                     
-                    if st.button("🛒 Consultar / Comprar", key=f"btn_{prod['id']}"):
-                        st.success(f"¡Excelente elección! Comunícate con nosotros para procesar tu pedido de {prod['nombre']}")
+                    if st.button("🛒 Ver Detalle / Comprar", key=f"btn_{prod['id']}"):
+                        st.session_state["producto_seleccionado"] = prod['id']
+                        st.success(f"Seleccionaste: {prod['nombre']}. ¡Listo para procesar pedido!")

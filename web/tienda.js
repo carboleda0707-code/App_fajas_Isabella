@@ -14,8 +14,27 @@ let carrito = [];
 let categoriaSeleccionadaActual = "INICIO";
 let whatsappUrlGlobal = "https://wa.me/593983870398";
 
+// Variables para Plan Acumulativo
+let esPlanAcumulativoActivo = false;
+
 let currentSlide = 0;
 let slideInterval = null;
+
+// ==========================================
+// 1. INICIALIZACIÓN Y SLIDER
+// ==========================================
+
+document.addEventListener("DOMContentLoaded", () => {
+    inicializarTienda();
+});
+
+async function inicializarTienda() {
+    await cargarConfiguracionEmpresa();
+    await cargarSeccionInicio();
+    await cargarInventario();
+    irAInicio();
+    actualizarBotonCuentaNav();
+}
 
 function iniciarHeroSlider() {
     if (slideInterval) clearInterval(slideInterval);
@@ -60,6 +79,10 @@ function mostrarSlide(index) {
         }
     });
 }
+
+// ==========================================
+// 2. CARGA DE CONFIGURACIÓN Y CONTENIDO DINÁMICO
+// ==========================================
 
 async function cargarSeccionInicio() {
     const container = document.getElementById('secciones-intro-container');
@@ -196,14 +219,6 @@ async function cargarConfiguracionHomeDinamica() {
     }
 }
 
-async function inicializarTienda() {
-    await cargarConfiguracionEmpresa();
-    await cargarSeccionInicio();
-    await cargarInventario();
-    irAInicio();
-    actualizarBotonCuentaNav();
-}
-
 async function cargarConfiguracionEmpresa() {
     try {
         const res = await fetch("/config/empresa");
@@ -247,6 +262,10 @@ function obtenerRutaImagenProducto(imagenUrl) {
     }
     return `/img/${urlLimpia.split('/').pop().trim()}`;
 }
+
+// ==========================================
+// 3. NAVEGACIÓN Y CATÁLOGO
+// ==========================================
 
 function cargarCategoriasWeb() {
     const contenedor = document.getElementById("categorias-scroll");
@@ -520,6 +539,24 @@ function renderizarSeccionesSecundariasCategoria(catSeleccionada) {
     contenedor.innerHTML = htmlSecundario;
 }
 
+function scrollCategorias(distancia) {
+    const contenedor = document.getElementById("categorias-scroll");
+    if (contenedor) contenedor.scrollBy({ left: distancia, behavior: 'smooth' });
+}
+
+function buscarProducto() {
+    const inputBusqueda = document.getElementById("input-busqueda");
+    if (!inputBusqueda) return;
+    const query = inputBusqueda.value.toLowerCase();
+    if (query.trim() !== "") filtrarCategoria('TODAS');
+    productosFiltrados = productos.filter(p => p.nombre.toLowerCase().includes(query) || p.categoria.toLowerCase().includes(query) || (p.variantes && p.variantes.some(v => v.sku.toLowerCase().includes(query))));
+    renderizarCatalogo();
+}
+
+// ==========================================
+// 4. MODAL DE PRODUCTO Y VARIANTES
+// ==========================================
+
 function abrirModal(productoId) {
     productoSeleccionado = productos.find(p => p.id === productoId);
     if (!productoSeleccionado) return;
@@ -664,19 +701,9 @@ function cerrarModal() {
     if (modal) modal.classList.add("hidden");
 }
 
-function scrollCategorias(distancia) {
-    const contenedor = document.getElementById("categorias-scroll");
-    if (contenedor) contenedor.scrollBy({ left: distancia, behavior: 'smooth' });
-}
-
-function buscarProducto() {
-    const inputBusqueda = document.getElementById("input-busqueda");
-    if (!inputBusqueda) return;
-    const query = inputBusqueda.value.toLowerCase();
-    if (query.trim() !== "") filtrarCategoria('TODAS');
-    productosFiltrados = productos.filter(p => p.nombre.toLowerCase().includes(query) || p.categoria.toLowerCase().includes(query) || (p.variantes && p.variantes.some(v => v.sku.toLowerCase().includes(query))));
-    renderizarCatalogo();
-}
+// ==========================================
+// 5. CARRITO Y PLAN ACUMULATIVO
+// ==========================================
 
 function agregarAlCarrito(abrirDrawer = false) {
     const variante = obtenerVarianteActual();
@@ -699,11 +726,103 @@ function agregarAlCarrito(abrirDrawer = false) {
     if (abrirDrawer) toggleCarrito();
 }
 
+function calcularTotalCarrito() {
+    if (!carrito || carrito.length === 0) return 0;
+    return carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+}
+
+function togglePlanAcumulativo(activar) {
+    esPlanAcumulativoActivo = activar;
+    const contenedor = document.getElementById('contenedor-plan-acumulativo');
+    
+    if (activar && contenedor) {
+        contenedor.classList.remove('hidden');
+        const totalCarrito = calcularTotalCarrito();
+        const abonoSugerido = (totalCarrito * 0.5).toFixed(2);
+        const inputAbono = document.getElementById('input-abono-inicial');
+        if (inputAbono) inputAbono.value = abonoSugerido;
+        calcularSaldoPendiente();
+    } else if (contenedor) {
+        contenedor.classList.add('hidden');
+    }
+}
+
+function calcularSaldoPendiente() {
+    const totalCarrito = calcularTotalCarrito();
+    const abonoInput = parseFloat(document.getElementById('input-abono-inicial')?.value) || 0;
+    
+    let saldo = totalCarrito - abonoInput;
+    if (saldo < 0) saldo = 0;
+    
+    const textoSaldo = document.getElementById('texto-saldo-pendiente');
+    if (textoSaldo) {
+        textoSaldo.innerText = `$${saldo.toFixed(2)}`;
+    }
+}
+
+function generarMensajeWhatsAppFinal() {
+    const total = calcularTotalCarrito();
+    const nombreCliente = document.getElementById('nombre-cliente')?.value || 'Cliente';
+    const telefonoCliente = document.getElementById('telefono-cliente')?.value || '';
+    const ciudadCliente = document.getElementById('ciudad-cliente')?.value || '';
+    const direccionCliente = document.getElementById('direccion-cliente')?.value || '';
+
+    let mensaje = "";
+
+    if (esPlanAcumulativoActivo) {
+        const abonoInicial = parseFloat(document.getElementById('input-abono-inicial')?.value) || 0;
+        const saldoPendiente = total - abonoInicial;
+
+        mensaje = `*✨ NUEVA SOLICITUD DE PLAN ACUMULATIVO - FAJAS ISABELLA ✨*\n\n`;
+        mensaje += `👤 *Cliente:* ${nombreCliente}\n`;
+        mensaje += `📞 *Teléfono:* ${telefonoCliente}\n`;
+        mensaje += `📍 *Ciudad/Dirección:* ${ciudadCliente} - ${direccionCliente}\n\n`;
+        mensaje += `🛍️ *Detalle de Prendas:* \n`;
+        
+        carrito.forEach(item => {
+            mensaje += `- ${item.cantidad}x ${item.nombre} (Talla: ${item.talla}, Color: ${item.color}) - $${(item.precio * item.cantidad).toFixed(2)}\n`;
+        });
+
+        mensaje += `\n💰 *Total del Pedido:* $${total.toFixed(2)}`;
+        mensaje += `\n💵 *Abono Inicial Realizado:* $${abonoInicial.toFixed(2)}`;
+        mensaje += `\n⏳ *Saldo Pendiente:* $${saldoPendiente.toFixed(2)}`;
+        mensaje += `\n\n*Adjunto el comprobante de mi abono inicial para congelar y apartar las prendas.* ¡Quedo atenta/o!`;
+
+    } else {
+        mensaje = `*🛍️ NUEVO PEDIDO - FAJAS ISABELLA*\n\n`;
+        mensaje += `👤 *Cliente:* ${nombreCliente}\n`;
+        mensaje += `📞 *Teléfono:* ${telefonoCliente}\n`;
+        mensaje += `📍 *Ciudad/Dirección:* ${ciudadCliente} - ${direccionCliente}\n\n`;
+        mensaje += `🛍️ *Productos:* \n`;
+        
+        carrito.forEach(item => {
+            mensaje += `- ${item.cantidad}x ${item.nombre} (Talla: ${item.talla}, Color: ${item.color}) - $${(item.precio * item.cantidad).toFixed(2)}\n`;
+        });
+
+        mensaje += `\n💰 *TOTAL A PAGAR:* $${total.toFixed(2)}`;
+        mensaje += `\n\n*Adjunto comprobante de pago.* ¡Muchas gracias!`;
+    }
+
+    return encodeURIComponent(mensaje);
+}
+
+function procesarPedidoWhatsApp() {
+    if (carrito.length === 0) {
+        alert("Tu carrito está vacío.");
+        return;
+    }
+    const mensaje = generarMensajeWhatsAppFinal();
+    const url = `${whatsappUrlGlobal}?text=${mensaje}`;
+    window.open(url, '_blank');
+}
+
 function actualizarCarritoUI() {
     const count = carrito.reduce((acc, item) => acc + item.cantidad, 0);
-    const total = carrito.reduce((acc, item) => acc + (item.precio * item.cantidad), 0);
+    const total = calcularTotalCarrito();
     if (document.getElementById("cart-count")) document.getElementById("cart-count").innerText = count;
     if (document.getElementById("carrito-total")) document.getElementById("carrito-total").innerText = `$${total.toFixed(2)}`;
+
+    if (esPlanAcumulativoActivo) calcularSaldoPendiente();
 
     const container = document.getElementById("carrito-items");
     if (!container) return;
@@ -743,6 +862,10 @@ function toggleCarrito() {
         drawer.classList.add('hidden');
     }
 }
+
+// ==========================================
+// 6. AUTENTICACIÓN Y PERFIL DE USUARIO
+// ==========================================
 
 function obtenerUsuarioLogueado() {
     const userStr = localStorage.getItem('usuario_fajas');
@@ -896,7 +1019,3 @@ function cerrarSesion() {
     actualizarBotonCuentaNav();
     alert("Has cerrado sesión.");
 }
-
-document.addEventListener("DOMContentLoaded", () => {
-    inicializarTienda();
-});

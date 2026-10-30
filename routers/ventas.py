@@ -3,9 +3,8 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
-import traceback
 import os
-from database import get_db, Cliente, Factura, Pago, VarianteProducto, MovimientoInventario
+from database import get_db, Cliente, Factura, Pago, VarianteProducto, MovimientoInventario, AbonoPlanAcumulativo
 
 router = APIRouter(tags=["Ventas y Clientes"])
 
@@ -30,7 +29,7 @@ class VentaFacturaSchema(BaseModel):
     numero_factura: str
     numero_autorizacion: Optional[str] = ""
     fecha_factura: str
-    metodo_pago: str
+    metodo_pago: str  # Incluye "Plan Acumulativo"
     codigo_transferencia: Optional[str] = ""
     
     # Datos de facturación (Cliente)
@@ -45,6 +44,9 @@ class VentaFacturaSchema(BaseModel):
     direccion_entrega: Optional[str] = ""
     referencia_direccion: Optional[str] = ""
     courier_nombre: Optional[str] = "Servientrega"
+    
+    # Abono inicial unificado
+    abono_inicial: Optional[float] = 0.0
     
     items: List[ItemVentaSchema]
 
@@ -120,14 +122,13 @@ def eliminar_cliente(cliente_id: int, db: Session = Depends(get_db)):
     return {"status": "success", "mensaje": f"Cliente ID {cliente_id} eliminado correctamente."}
 
 
-# --- ENDPOINT DE REPORTE Y LISTADO DE VENTAS CON RECÁLCULO ROBUSTO ---
+# --- ENDPOINT DE REPORTE Y LISTADO DE VENTAS ---
 
 @router.get("/ventas/reporte")
 def obtener_reporte_ventas(db: Session = Depends(get_db)):
     facturas = db.query(Factura).filter(Factura.tipo_factura == "VENTA").all()
     resultado = []
     for f in facturas:
-        # Recálculo robusto: si total_factura es 0 o nulo, sumamos los pagos asociados
         total_real = f.total_factura
         if not total_real or total_real == 0.0:
             total_real = sum(p.monto for p in f.pagos) if f.pagos else 0.0
@@ -145,7 +146,10 @@ def obtener_reporte_ventas(db: Session = Depends(get_db)):
             "referencia_direccion": f.referencia_direccion or "",
             "courier": f.courier_nombre or "Servientrega",
             "numero_guia": f.numero_guia or "",
-            "estado_despacho": f.estado_despacho or "PENDIENTE"
+            "estado_despacho": f.estado_despacho or "PENDIENTE",
+            "es_plan_acumulativo": bool(f.es_plan_acumulativo),
+            "saldo_pendiente": float(f.saldo_pendiente or 0.0),
+            "estado_acumulativo": f.estado_acumulativo or "COMPLETADO"
         })
     return resultado
 
@@ -155,7 +159,6 @@ def obtener_reporte_ventas(db: Session = Depends(get_db)):
 @router.post("/ventas-factura")
 def registrar_venta(venta: VentaFacturaSchema, db: Session = Depends(get_db)):
     try:
-        # --- VALIDACIÓN DE FACTURA DUPLICADA ---
         existe = db.query(Factura).filter(
             Factura.numero_factura == venta.numero_factura, 
             Factura.tipo_factura == "VENTA"
@@ -167,7 +170,6 @@ def registrar_venta(venta: VentaFacturaSchema, db: Session = Depends(get_db)):
                 detail=f"La factura de venta Nº {venta.numero_factura} ya se encuentra registrada en el sistema."
             )
 
-        # Verificar o registrar/actualizar datos básicos del cliente
         cliente = db.query(Cliente).filter(Cliente.ruc_cedula == venta.ruc_cliente).first()
         if not cliente:
             cliente = Cliente(
@@ -179,12 +181,12 @@ def registrar_venta(venta: VentaFacturaSchema, db: Session = Depends(get_db)):
             )
             db.add(cliente)
             db.commit()
+            db.refresh(cliente)
         else:
             if venta.direccion_cliente and not cliente.direccion:
                 cliente.direccion = venta.direccion_cliente
                 db.commit()
 
-        # Validar stock disponible de las variantes
         for item in venta.items:
             variante = db.query(VarianteProducto).filter(VarianteProducto.sku == item.sku).first()
             if not variante:
@@ -194,7 +196,18 @@ def registrar_venta(venta: VentaFacturaSchema, db: Session = Depends(get_db)):
 
         total_calculado = sum(item.cantidad * item.precio_unitario for item in venta.items)
         
-        # --- REGISTRO DE LA FACTURA CON DATOS LOGÍSTICOS Y DE FACTURACIÓN SEPARADOS ---
+        # --- LÓGICA UNIFICADA DE PLAN ACUMULATIVO ---
+        es_acumulativo = (venta.metodo_pago == "Plan Acumulativo")
+        saldo_pendiente = 0.0
+        estado_acumulativo = "COMPLETADO"
+        
+        if es_acumulativo:
+            abono = float(venta.abono_inicial or 0.0)
+            saldo_pendiente = total_calculado - abono
+            if saldo_pendiente < 0:
+                raise HTTPException(status_code=400, detail="El abono inicial no puede superar el total de la orden.")
+            estado_acumulativo = "EN_PROCESO" if saldo_pendiente > 0 else "COMPLETADO"
+
         nueva_factura = Factura(
             tipo_factura="VENTA", 
             numero_factura=venta.numero_factura,
@@ -208,25 +221,40 @@ def registrar_venta(venta: VentaFacturaSchema, db: Session = Depends(get_db)):
             direccion_entrega=venta.direccion_entrega.strip() if venta.direccion_entrega else (venta.direccion_cliente or ""),
             referencia_direccion=venta.referencia_direccion.strip() if venta.referencia_direccion else "",
             courier_nombre=venta.courier_nombre.strip() if venta.courier_nombre else "Servientrega",
-            estado_despacho="PENDIENTE"
+            estado_despacho="PENDIENTE",
+            es_plan_acumulativo=es_acumulativo,
+            saldo_pendiente=saldo_pendiente,
+            estado_acumulativo=estado_acumulativo,
+            cliente_id=cliente.id
         )
         db.add(nueva_factura)
         db.commit()
         db.refresh(nueva_factura)
 
-        nuevo_pago = Pago(
-            factura_id=nueva_factura.id, 
-            metodo_pago=venta.metodo_pago,
-            codigo_transferencia=venta.codigo_transferencia if venta.metodo_pago == "Transferencia" else None,
-            monto=total_calculado
-        )
-        db.add(nuevo_pago)
+        # Registrar pago inicial o abono inicial según corresponda
+        monto_pago = float(venta.abono_inicial or 0.0) if es_acumulativo else total_calculado
+        if monto_pago > 0:
+            nuevo_pago = Pago(
+                factura_id=nueva_factura.id, 
+                metodo_pago=venta.metodo_pago,
+                codigo_transferencia=venta.codigo_transferencia if venta.metodo_pago == "Transferencia" else None,
+                monto=monto_pago
+            )
+            db.add(nuevo_pago)
+
+        # Si es plan acumulativo, registrar el abono inicial en su respectiva tabla
+        if es_acumulativo and float(venta.abono_inicial or 0.0) > 0:
+            nuevo_abono = AbonoPlanAcumulativo(
+                factura_id=nueva_factura.id,
+                monto=float(venta.abono_inicial),
+                observacion="Abono inicial registrado en venta manual por administración"
+            )
+            db.add(nuevo_abono)
 
         for item in venta.items:
             variante = db.query(VarianteProducto).filter(VarianteProducto.sku == item.sku).first()
             variante.stock_actual -= item.cantidad
             
-            # Subtotal exacto del renglón (Cantidad x Precio Unitario)
             subtotal_renglon = item.cantidad * item.precio_unitario
             
             movimiento = MovimientoInventario(
@@ -234,7 +262,7 @@ def registrar_venta(venta: VentaFacturaSchema, db: Session = Depends(get_db)):
                 tipo_movimiento="VENTA_LOCAL",
                 cantidad=-item.cantidad, 
                 referencia_factura=f"Fact Venta: {venta.numero_factura}",
-                valor_neto=subtotal_renglon, # <--- Corregido: se guarda el subtotal total del renglón
+                valor_neto=subtotal_renglon,
                 entidad_asociada=venta.nombre_cliente
             )
             db.add(movimiento)
@@ -242,14 +270,11 @@ def registrar_venta(venta: VentaFacturaSchema, db: Session = Depends(get_db)):
         db.commit()
         return {
             "status": "success", 
-            "message": "Venta, pago y datos logísticos registrados exitosamente.",
+            "message": "Venta manual y plan acumulativo registrados exitosamente.",
             "factura_id": nueva_factura.id
         }
     except Exception as e:
         db.rollback()
-        print("--- ERROR DETALLADO EN /ventas-factura ---")
-        traceback.print_exc()
-        print("------------------------------------------")
         raise HTTPException(status_code=500, detail=str(e))
 
 

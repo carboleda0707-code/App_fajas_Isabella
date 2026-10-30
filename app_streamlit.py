@@ -17,6 +17,7 @@ from modules.proveedores_ui import render_proveedores
 from modules.clientes_ui import render_clientes
 from modules.reportes_ui import render_reportes
 from modules.home_admin_ui import render_home_admin
+from modules.cobranzas_ui import render_gestion_cobranzas  # <--- NUEVO MÓDULO DE COBRANZAS ACUMULATIVAS
 
 # Configuración general de la página
 st.set_page_config(
@@ -82,10 +83,11 @@ es_inventario = "Inventario" in rol_actual_str
 modulos_disponibles = []
 
 if es_administrador:
-    # El Administrador tiene acceso total a todos los módulos
+    # El Administrador tiene acceso total a todos los módulos (incluyendo Cobranzas)
     modulos_disponibles = [
         "📦 Inventario", 
         "💳 Ventas", 
+        "✨ Cobranzas Acumulativas",  # <--- NUEVA OPCIÓN EN EL MENÚ
         "🚚 Logística",
         "📥 Compras", 
         "🏭 Proveedores",
@@ -96,7 +98,7 @@ if es_administrador:
 else:
     # Construcción dinámica según los permisos específicos asignados
     if es_ventas:
-        modulos_disponibles.extend(["💳 Ventas", "👥 Clientes"])
+        modulos_disponibles.extend(["💳 Ventas", "✨ Cobranzas Acumulativas", "👥 Clientes"])
     if es_logistica:
         modulos_disponibles.append("🚚 Logística")
     if es_inventario:
@@ -155,6 +157,8 @@ if seccion == "📦 Inventario":
     render_inventario()
 elif seccion == "💳 Ventas":
     render_ventas()
+elif seccion == "✨ Cobranzas Acumulativas":
+    render_gestion_cobranzas(st.session_state["API_URL"])  # <--- LLAMADA AL NUEVO MÓDULO DE SEGUIMIENTO
 elif seccion == "🚚 Logística":
     render_logistica()
 elif seccion == "📥 Compras":

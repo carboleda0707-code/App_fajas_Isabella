@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
-from routers import clientes, proveedores, productos, compras, ventas, reportes, web_publica, auth_web, logistica
+from routers import clientes, proveedores, productos, compras, ventas, reportes, web_publica, auth_web, logistica, acumulativo
 
 app = FastAPI(title="Fajas Isabella - Sistema Modular API", version="5.0")
 
@@ -34,6 +34,7 @@ app.include_router(compras.router, prefix="/api", tags=["Compras"])
 app.include_router(reportes.router, prefix="/api", tags=["Reportes"])
 app.include_router(logistica.router)
 app.include_router(auth_web.router)
+app.include_router(acumulativo.router_acumulativo)  # 👈 NUEVO: Router de Plan Acumulativo con prefijo /api/web/acumulativo
 
 # --- ARCHIVOS ESTÁTICOS ---
 app.mount("/web", StaticFiles(directory="web", html=True), name="web")

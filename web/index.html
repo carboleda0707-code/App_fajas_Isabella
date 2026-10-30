@@ -105,7 +105,7 @@
                 <div id="hero-dots-container" class="absolute bottom-2 left-0 right-0 z-20 flex justify-center gap-2"></div>
             </section>
 
-            <!-- Sección 1 (Historia y Multimedia - Espaciado reducido) -->
+            <!-- Sección 1 (Historia y Multimedia) -->
             <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-center bg-white p-4 sm:p-5 rounded-3xl border border-slate-100 shadow-sm">
                     <div class="relative rounded-2xl overflow-hidden bg-slate-900 shadow-inner h-[240px] sm:h-[280px] flex items-center justify-center">
@@ -126,7 +126,7 @@
                 </div>
             </section>
 
-            <!-- Sección 2 (Comunidad y Redes - Compactada) -->
+            <!-- Sección 2 (Comunidad y Redes) -->
             <section class="bg-white py-4 my-2 border-y border-slate-100">
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div class="text-center max-w-xl mx-auto mb-4 space-y-0.5">
@@ -135,11 +135,9 @@
                         <p class="text-xs text-slate-500">Sigue nuestras publicaciones diarias y conéctate a nuestras transmisiones en vivo.</p>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
-                        <!-- Contenedor Instagram adaptado -->
                         <div class="bg-slate-50 border border-slate-200 rounded-3xl p-3 flex flex-col items-center justify-center shadow-xs overflow-hidden min-h-[340px]">
                             <div id="instagram-embed-container" class="w-full flex justify-center overflow-y-auto max-h-[320px] no-scrollbar"></div>
                         </div>
-                        <!-- Contenedor TikTok simétrico -->
                         <div class="bg-slate-900 text-white border border-slate-800 rounded-3xl p-5 flex flex-col items-center justify-center text-center space-y-3 shadow-md min-h-[340px]">
                             <div class="w-12 h-12 bg-rose-600 text-white rounded-2xl flex items-center justify-center text-lg shadow-lg">
                                 <i class="fa-brands fa-tiktok"></i>
@@ -156,7 +154,7 @@
                 </div>
             </section>
 
-            <!-- Sección 3 (Publicidad - 3 Columnas Compactas) -->
+            <!-- Sección 3 (Publicidad) -->
             <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
                 <div class="text-center max-w-xl mx-auto mb-4 space-y-0.5">
                     <span class="text-rose-600 font-bold text-xs uppercase tracking-wider">Promociones y Estilos</span>
@@ -164,7 +162,6 @@
                     <p class="text-xs text-slate-500">Explora nuestras colecciones especiales diseñadas para cada momento.</p>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <!-- Tarjeta 1 -->
                     <div class="relative rounded-3xl overflow-hidden shadow-md group h-56 flex flex-col justify-end p-4 bg-slate-900 text-white">
                         <img id="pub1-img" src="" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-500" alt="Publi 1">
                         <video id="pub1-video" class="absolute inset-0 w-full h-full object-cover hidden" autoplay muted loop playsinline><source id="pub1-video-source" src="" type="video/mp4"></video>
@@ -179,7 +176,6 @@
                         </div>
                     </div>
 
-                    <!-- Tarjeta 2 -->
                     <div class="relative rounded-3xl overflow-hidden shadow-md group h-56 flex flex-col justify-end p-4 bg-slate-900 text-white">
                         <img id="pub2-img" src="" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-500" alt="Publi 2">
                         <video id="pub2-video" class="absolute inset-0 w-full h-full object-cover hidden" autoplay muted loop playsinline><source id="pub2-video-source" src="" type="video/mp4"></video>
@@ -194,7 +190,6 @@
                         </div>
                     </div>
 
-                    <!-- Tarjeta 3 -->
                     <div class="relative rounded-3xl overflow-hidden shadow-md group h-56 flex flex-col justify-end p-4 bg-slate-900 text-white">
                         <img id="pub3-img" src="" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-500" alt="Publi 3">
                         <video id="pub3-video" class="absolute inset-0 w-full h-full object-cover hidden" autoplay muted loop playsinline><source id="pub3-video-source" src="" type="video/mp4"></video>
@@ -212,17 +207,13 @@
             </section>
         </div>
 
-        <!-- 5. CATÁLOGO GENERAL (Se oculta en la vista Inicio y aparece al filtrar categorías) -->
+        <!-- 5. CATÁLOGO GENERAL -->
         <main id="catalogo" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" style="display: none;">
             <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-200">
                 <h2 id="titulo-categoria" class="text-lg font-black text-slate-900 uppercase">Catálogo de Prendas</h2>
                 <span id="total-productos" class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">0 modelos</span>
             </div>
-
-            <!-- Grilla Principal de la Categoría Seleccionada -->
             <div id="catalog-container" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"></div>
-
-            <!-- Bloque Dinámico: Novedades -> Ofertas -> Sección 3 Publicidad -->
             <div id="secciones-secundarias-container"></div>
         </main>
     </div>
@@ -274,15 +265,6 @@
                         <li class="flex items-center gap-2"><i class="fa-solid fa-phone text-emerald-500"></i> <span id="footer-telefono">+593 98 387 0398</span></li>
                         <li class="flex items-center gap-2"><i class="fa-solid fa-envelope text-blue-500"></i> <span id="footer-correo">ventas@fajasisabella.com</span></li>
                     </ul>
-                    <div class="mt-4 pt-3 border-t border-slate-800">
-                        <span class="text-[10px] font-bold text-slate-400 uppercase block mb-1.5">Aceptamos:</span>
-                        <div class="flex items-center gap-2 text-lg text-slate-400">
-                            <i class="fa-brands fa-cc-visa hover:text-white transition"></i>
-                            <i class="fa-brands fa-cc-mastercard hover:text-white transition"></i>
-                            <i class="fa-brands fa-cc-diners-club hover:text-white transition"></i>
-                            <i class="fa-solid fa-money-bill-transfer hover:text-white transition text-sm"></i>
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -332,7 +314,7 @@
         </div>
     </div>
 
-    <!-- MODAL CHECKOUT WHATSAPP -->
+    <!-- MODAL CHECKOUT WHATSAPP CON PLAN ACUMULATIVO -->
     <div id="modalWhatsAppCheckout" style="display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center;">
         <div style="background:white; padding:25px; border-radius:12px; width:90%; max-width:500px; max-height:90vh; overflow-y:auto; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
@@ -340,6 +322,36 @@
                 <button onclick="cerrarModalCheckout()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#64748b;">&times;</button>
             </div>
             <form id="formCheckoutWapp" onsubmit="procesarPedidoWapp(event)">
+                
+                <!-- MODALIDAD DE PAGO (NUEVO: PLAN ACUMULATIVO) -->
+                <div class="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-xl" style="margin-bottom:15px;">
+                    <label style="font-size:12px; font-weight:bold; color:#1e293b; display:block; margin-bottom:6px;">Modalidad de Pago:</label>
+                    <div style="display:flex; gap:15px;">
+                        <label style="font-size:12px; font-weight:500; color:#334155; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                            <input type="radio" name="modalidad_pago" value="contado" checked onchange="togglePlanAcumulativo(false)">
+                            Pago Total (Contado)
+                        </label>
+                        <label style="font-size:12px; font-weight:500; color:#e11d48; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                            <input type="radio" name="modalidad_pago" value="acumulativo" onchange="togglePlanAcumulativo(true)">
+                            ✨ Plan Acumulativo (Abonos)
+                        </label>
+                    </div>
+                    
+                    <div id="contenedor-plan-acumulativo" class="hidden" style="margin-top:10px; padding-top:10px; border-top:1px solid #e2e8f0;">
+                        <p style="font-size:11px; color:#64748b; margin:0 0 8px 0;">Aparta tu prenda abonando una parte y completa el saldo poco a poco.</p>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <span style="font-size:12px; font-weight:bold; color:#334155;">Monto de tu Abono Inicial ($):</span>
+                            <input type="number" id="input-abono-inicial" value="0.00" min="1" step="0.01" 
+                                   style="width:90px; text-align:right; border:1px solid #cbd5e1; border-radius:6px; padding:4px; font-size:12px; font-weight:bold; background:white;" 
+                                   oninput="calcularSaldoPendiente()">
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:12px; font-weight:bold; color:#e11d48;">Saldo Restante a Pagar:</span>
+                            <span id="texto-saldo-pendiente" style="font-size:12px; font-weight:900; color:#0f172a;">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+
                 <h4 style="margin:0 0 8px 0; color:#334155; font-size:13px; font-weight:bold; border-bottom:1px solid #e2e8f0; padding-bottom:4px;">1. Datos Personales</h4>
                 <div style="margin-bottom:10px;">
                     <label style="font-size:12px; font-weight:bold; color:#475569;">Nombre Completo:</label>
@@ -389,7 +401,7 @@
                 </div>
 
                 <div style="margin-bottom:15px; background:#f8fafc; padding:12px; border-radius:8px; border:1px dashed #cbd5e1;">
-                    <label style="font-size:12px; font-weight:bold; color:#1e293b; display:block; margin-bottom:4px;">📸 Subir Comprobante de Pago:</label>
+                    <label style="font-size:12px; font-weight:bold; color:#1e293b; display:block; margin-bottom:4px;">📸 Subir Comprobante de Pago / Abono:</label>
                     <input type="file" id="wapp_comprobante" accept="image/*,application/pdf" style="width:100%; font-size:11px; color:#475569;">
                 </div>
 
@@ -515,6 +527,14 @@
             formData.append('direccion', document.getElementById('wapp_direccion').value);
             formData.append('referencia', document.getElementById('wapp_referencia').value);
             formData.append('items', JSON.stringify(productosCarrito));
+
+            // Enviar datos del Plan Acumulativo si está activo
+            const esAcumulativo = window.esPlanAcumulativoActivo || false;
+            formData.append('es_plan_acumulativo', esAcumulativo);
+            if (esAcumulativo) {
+                const abonoInicial = document.getElementById('input-abono-inicial')?.value || 0;
+                formData.append('abono_inicial', abonoInicial);
+            }
 
             const inputFile = document.getElementById('wapp_comprobante');
             if (inputFile.files[0]) formData.append('comprobante', inputFile.files[0]);
