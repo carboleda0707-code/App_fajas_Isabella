@@ -302,7 +302,6 @@ def render_inventario():
                             opciones_selectbox[label_desc] = v_id
                             lista_labels.append(label_desc)
                         
-                        # Recordar el índice de la variante seleccionada anteriormente
                         idx_sel_defecto = 0
                         if "var_id_editando" in st.session_state:
                             var_guardada = st.session_state["var_id_editando"]
@@ -315,7 +314,6 @@ def render_inventario():
                         var_id_input = opciones_selectbox[sel_var_label]
                         st.session_state["var_id_editando"] = var_id_input
 
-                        # Botón para eliminar variante
                         if col_btn_del.button("🗑️ Eliminar Variante", type="secondary", use_container_width=True, key=f"btn_del_var_{var_id_input}"):
                             try:
                                 res_del_var = requests.delete(f"{API_URL}/variantes/{var_id_input}")
@@ -355,7 +353,7 @@ def render_inventario():
                         stock_min_def = int(variante_encontrada.get("Stock Mínimo", 2))
                         stock_max_def = int(variante_encontrada.get("Stock Máximo", 20))
 
-                    with st.form("form_modificar_variante"):
+                    with st.form(f"form_modificar_variante_{var_id_input}"):
                         col_form_izq, col_form_der = st.columns([2.2, 1.2])
 
                         with col_form_izq:
@@ -403,27 +401,25 @@ def render_inventario():
                         with col_form_der:
                             st.markdown("**Foto Actual de la Variante**")
                             if variante_encontrada:
-                                # Priorizamos estrictamente la imagen propia de la variante
                                 img_var_url = variante_encontrada.get("imagen_url")
                                 img_gen_url = p_info.get("imagen_url")
                                 
-                                # Chivato visual limpio para verificar qué está tomando
                                 if img_var_url and str(img_var_url).strip() not in ["", "None", "nan", "null", "None"]:
                                     url_final = str(img_var_url).strip()
                                     if not url_final.startswith("http"):
                                         url_final = resolver_url_imagen(url_final)
-                                    st.image(url_final, width=120, caption="✅ Foto Específica de la Variante")
+                                    st.image(url_final, width=120, caption="✅ Foto Específica de la Variante", key=f"img_var_view_{var_id_input}")
                                 elif img_gen_url and str(img_gen_url).strip() not in ["", "None", "nan", "null"]:
                                     url_final_gen = str(img_gen_url).strip()
                                     if not url_final_gen.startswith("http"):
                                         url_final_gen = resolver_url_imagen(url_final_gen)
-                                    st.image(url_final_gen, width=120, caption="⚠️ Usa Foto General del Producto")
+                                    st.image(url_final_gen, width=120, caption="⚠️ Usa Foto General del Producto", key=f"img_gen_view_{var_id_input}")
                                 else:
                                     st.info("Sin imagen registrada")
                             else:
                                 st.warning("ID no encontrado")
 
-                            archivo_nueva_imagen_variante = st.file_uploader("Subir foto para esta variante", type=["jpg", "jpeg", "png", "webp"], key="up_img_var")
+                            archivo_nueva_imagen_variante = st.file_uploader("Subir foto para esta variante", type=["jpg", "jpeg", "png", "webp"], key=f"up_img_var_{var_id_input}")
 
                         btn_actualizar = st.form_submit_button("🔄 Actualizar Datos y Variante", type="primary", use_container_width=True)
                         
