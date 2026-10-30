@@ -742,6 +742,16 @@ function seleccionarTalla(talla) {
         btn.classList.remove("bg-white", "text-slate-700", "border-slate-300");
         btn.classList.add("bg-rose-600", "text-white", "border-rose-600");
     }
+    
+    // Forzar actualización de imagen según la nueva variante
+    const variante = obtenerVarianteActual();
+    const imgElem = document.getElementById("modal-imagen-producto");
+    if (imgElem && productoSeleccionado) {
+        const urlFoto = (variante && variante.imagen_url && variante.imagen_url.trim() !== "" && variante.imagen_url !== "None") 
+            ? variante.imagen_url 
+            : productoSeleccionado.imagen_url;
+        imgElem.src = obtenerRutaImagenProducto(urlFoto);
+    }
     actualizarDetalleVariante();
 }
 
