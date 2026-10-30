@@ -403,22 +403,23 @@ def render_inventario():
                         with col_form_der:
                             st.markdown("**Foto Actual de la Variante**")
                             if variante_encontrada:
-                                # Depuración visual para ver las llaves exactas que devuelve el API
-                                # st.write(variante_encontrada) 
-                                
-                                # Buscamos en todas las combinaciones posibles de mayúsculas, minúsculas y nombres alternativos
+                                # --- 🕵️‍♂️ CHIVATO DE DEPURES ---
+                                st.info(f"🕵️‍♂️ **Chivato Variante ID {var_id_input}:**")
+                                st.write({
+                                    "Keys en variante": list(variante_encontrada.keys()),
+                                    "imagen_url (variante)": variante_encontrada.get("imagen_url"),
+                                    "imagen (variante)": variante_encontrada.get("imagen"),
+                                    "Keys en producto": list(p_info.keys()),
+                                    "imagen_url (producto)": p_info.get("imagen_url")
+                                })
+                                # -----------------------------
+
                                 img_var_url = (
                                     variante_encontrada.get("imagen_url") or 
-                                    variante_encontrada.get("IMAGEN_URL") or
-                                    variante_encontrada.get("Imagen_Url") or
                                     variante_encontrada.get("imagen") or 
-                                    variante_encontrada.get("Imagen") or
-                                    variante_encontrada.get("imagen_variante") or 
-                                    variante_encontrada.get("foto") or 
-                                    variante_encontrada.get("Foto") or
-                                    variante_encontrada.get("url_imagen")
+                                    variante_encontrada.get("imagen_variante")
                                 )
-                                img_gen_url = p_info.get("imagen_url") or p_info.get("IMAGEN_URL") or p_info.get("imagen")
+                                img_gen_url = p_info.get("imagen_url") or p_info.get("imagen")
                                 
                                 if img_var_url and str(img_var_url).strip() not in ["", "None", "nan", "null"]:
                                     url_final_var = str(img_var_url).strip()
