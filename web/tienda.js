@@ -583,24 +583,25 @@ function abrirModal(productoId) {
     if (productoSeleccionado.imagen_4) listaMedia.push({ tipo: 'img', url: productoSeleccionado.imagen_4 });
     if (productoSeleccionado.video_url) listaMedia.push({ tipo: 'video', url: productoSeleccionado.video_url });
 
+    // Miniaturas laterales agrandadas (w-20 h-20)
     let thumbsHTML = '';
-            listaMedia.forEach((item) => {
-                const itemUrl = obtenerRutaImagenProducto(item.url);
-                if (item.tipo === 'img') {
-                    thumbsHTML += `
-                        <button onclick="cambiarMediaModal('${itemUrl}', false)" class="w-16 h-16 rounded-lg overflow-hidden border-2 border-slate-200 hover:border-rose-600 focus:border-rose-600 transition shrink-0 cursor-pointer">
-                            <img src="${itemUrl}" class="w-full h-full object-cover">
-                        </button>
-                    `;
-                } else if (item.tipo === 'video') {
-                    thumbsHTML += `
-                        <button onclick="cambiarMediaModal('${itemUrl}', true)" class="w-16 h-16 rounded-lg overflow-hidden border-2 border-slate-200 hover:border-rose-600 focus:border-rose-600 transition shrink-0 bg-slate-900 flex items-center justify-center text-white cursor-pointer relative">
-                            <i class="fa-solid fa-play text-sm"></i>
-                            <span class="absolute bottom-0 inset-x-0 text-[8px] bg-black/70 text-center font-bold">VIDEO</span>
-                        </button>
-                    `;
-                }
-            });
+    listaMedia.forEach((item) => {
+        const itemUrl = obtenerRutaImagenProducto(item.url);
+        if (item.tipo === 'img') {
+            thumbsHTML += `
+                <button onclick="cambiarMediaModal('${itemUrl}', false)" class="w-20 h-20 rounded-xl overflow-hidden border-2 border-slate-200 hover:border-rose-600 focus:border-rose-600 transition shrink-0 cursor-pointer shadow-2xs">
+                    <img src="${itemUrl}" class="w-full h-full object-cover">
+                </button>
+            `;
+        } else if (item.tipo === 'video') {
+            thumbsHTML += `
+                <button onclick="cambiarMediaModal('${itemUrl}', true)" class="w-20 h-20 rounded-xl overflow-hidden border-2 border-slate-200 hover:border-rose-600 focus:border-rose-600 transition shrink-0 bg-slate-900 flex items-center justify-center text-white cursor-pointer relative shadow-2xs">
+                    <i class="fa-solid fa-play text-sm"></i>
+                    <span class="absolute bottom-0 inset-x-0 text-[9px] bg-black/80 text-center font-bold py-0.5">VIDEO</span>
+                </button>
+            `;
+        }
+    });
 
     let cartillaHTML = '';
     if (productoSeleccionado.cartilla_url) {
@@ -616,15 +617,15 @@ function abrirModal(productoId) {
     const imagenInicialVisor = listaMedia.length > 0 ? obtenerRutaImagenProducto(listaMedia[0].url) : SVG_FALLBACK;
 
     const contenido = `
-        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
             
-            <!-- COLUMNA IZQUIERDA: MINIATURAS (2 cols) -->
-            <div class="md:col-span-2 flex md:flex-col gap-2 overflow-x-auto md:overflow-y-auto max-h-[380px] no-scrollbar py-1">
+            <!-- COLUMNA IZQUIERDA: MINIATURAS AGRANDADAS (2 cols) -->
+            <div class="md:col-span-2 flex md:flex-col gap-2.5 overflow-x-auto md:overflow-y-auto max-h-[480px] no-scrollbar py-1">
                 ${thumbsHTML}
             </div>
 
-            <!-- COLUMNA CENTRAL: VISOR PRINCIPAL (5 cols) -->
-            <div class="md:col-span-5 relative bg-slate-50 rounded-2xl p-2 border border-slate-100 flex items-center justify-center h-[480px]" id="modal-visor-principal">
+            <!-- COLUMNA CENTRAL: VISOR PRINCIPAL CUADRADO Y AGRANDADO (5 cols) -->
+            <div class="md:col-span-5 relative bg-slate-900 rounded-2xl p-1 border border-slate-100 flex items-center justify-center h-[480px] overflow-hidden shadow-inner" id="modal-visor-principal">
                 <img id="modal-imagen-producto" src="${imagenInicialVisor}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-contain rounded-xl transition-all duration-300">
             </div>
 
@@ -660,18 +661,18 @@ function abrirModal(productoId) {
                             }).join('')}
                         </div>
                     </div>
-                    <div class="bg-rose-50/60 border border-rose-100 p-2.5 rounded-xl">
-                        <div class="text-xs text-slate-800 space-y-1">
+                    <div class="bg-rose-50/60 border border-rose-100 p-3 rounded-xl">
+                        <div class="text-xs text-slate-800 space-y-1.5">
                             <div class="flex justify-between"><span class="text-slate-500">Variante:</span><span class="font-bold text-slate-900"><span id="resumen-talla">${tallaSeleccionada}</span> / <span id="resumen-color">${colorSeleccionado}</span></span></div>
                             <div class="flex justify-between"><span class="text-slate-500">Disponibilidad:</span><span class="font-mono text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded" id="modal-stock">Consultando...</span></div>
-                            <div class="flex justify-between items-center pt-1"><span class="text-slate-700 font-bold">Cantidad:</span><div class="flex items-center border border-slate-300 rounded-lg bg-white overflow-hidden shadow-2xs"><button onclick="cambiarCantidadModal(-1)" type="button" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold transition cursor-pointer">-</button><input id="modal-cantidad-input" type="number" value="1" min="1" class="w-8 text-center text-xs font-black border-none outline-none bg-transparent" readonly><button onclick="cambiarCantidadModal(1)" type="button" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold transition cursor-pointer">+</button></div></div>
-                            <div class="flex justify-between items-center pt-1 text-sm font-black text-slate-900 border-t border-rose-200/60 mt-1"><span>Total:</span><span id="modal-total-seleccion" class="text-rose-600 text-base">$0.00</span></div>
+                            <div class="flex justify-between items-center pt-1"><span class="text-slate-700 font-bold">Cantidad:</span><div class="flex items-center border border-slate-300 rounded-lg bg-white overflow-hidden shadow-2xs"><button onclick="cambiarCantidadModal(-1)" type="button" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold transition cursor-pointer">-</button><input id="modal-cantidad-input" type="number" value="1" min="1" class="w-8 text-center text-xs font-black border-none outline-none bg-transparent" readonly><button onclick="cambiarCantidadModal(1)" type="button" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold transition cursor-pointer">+</button></div></div>
+                            <div class="flex justify-between items-center pt-1 text-sm font-black text-slate-900 border-t border-rose-200/60 mt-1"><span>Total:</span><span id="modal-total-seleccion" class="text-rose-600 text-lg">$0.00</span></div>
                         </div>
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-2 pt-2">
-                    <button onclick="agregarAlCarrito(false)" type="button" class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-[11px] py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition cursor-pointer"><span>Seguir Comprando</span></button>
-                    <button onclick="agregarAlCarrito(true)" type="button" class="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-md shadow-rose-600/20 transition cursor-pointer"><span>Ir al Carrito</span></button>
+                    <button onclick="agregarAlCarrito(false)" type="button" class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs py-3 rounded-xl flex items-center justify-center gap-1.5 transition cursor-pointer"><span>Seguir Comprando</span></button>
+                    <button onclick="agregarAlCarrito(true)" type="button" class="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-3 rounded-xl flex items-center justify-center gap-1.5 shadow-md shadow-rose-600/20 transition cursor-pointer"><span>Ir al Carrito</span></button>
                 </div>
             </div>
         </div>
