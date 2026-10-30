@@ -91,28 +91,25 @@ def render_inventario():
             categoria = st.selectbox("Categoría del Producto", options=categorias_disponibles)
 
             st.markdown("###### 🏷️ Variantes (Tallas, Colores, Precios, Stock y Descuento %)")
-            st.caption("Define el % de descuento individual por variante si aplica. En modo Individual, este valor se hereda a las subvariantes.")
+            st.caption("Agrega las variantes reales de tu producto. Si usas modalidad Individual, el % de oferta base se aplicará a las variantes.")
 
-            df_inicial = pd.DataFrame([
-                {"sku": "", "talla": "S", "color": "Negro", "precio": 45.0, "descuento_%": 0, "stock_actual": 10, "stock_minimo": 2, "stock_maximo": 20, "imagen_variante": ""},
-                {"sku": "", "talla": "M", "color": "Negro", "precio": 45.0, "descuento_%": 0, "stock_actual": 15, "stock_minimo": 2, "stock_maximo": 20, "imagen_variante": ""},
-                {"sku": "", "talla": "XXXXL", "color": "Negro", "precio": 55.0, "descuento_%": 25, "stock_actual": 4, "stock_minimo": 2, "stock_maximo": 20, "imagen_variante": ""}
-            ])
+            # DataFrame limpio sin filas inventadas ni datos quemados
+            df_inicial = pd.DataFrame(columns=["sku", "talla", "color", "precio", "descuento_%", "stock_actual", "stock_minimo", "stock_maximo", "imagen_variante"])
 
             df_variantes_editado = st.data_editor(
                 df_inicial,
                 num_rows="dynamic",
                 use_container_width=True,
                 column_config={
-                    "sku": st.column_config.TextColumn("SKU", width="small"),
-                    "talla": st.column_config.TextColumn("Talla", width="small"),
-                    "color": st.column_config.TextColumn("Color", width="small"),
-                    "precio": st.column_config.NumberColumn("Precio ($)", format="$ %.2f", min_value=0.0, width="small"),
+                    "sku": st.column_config.TextColumn("SKU (Opcional)", width="small"),
+                    "talla": st.column_config.TextColumn("Talla *", width="small"),
+                    "color": st.column_config.TextColumn("Color *", width="small"),
+                    "precio": st.column_config.NumberColumn("Precio ($) *", format="$ %.2f", min_value=0.0, width="small"),
                     "descuento_%": st.column_config.NumberColumn("Descuento %", format="%d%%", min_value=0, max_value=100, step=1, width="small"),
                     "stock_actual": st.column_config.NumberColumn("Stock", min_value=0, step=1, width="small"),
                     "stock_minimo": st.column_config.NumberColumn("Stock Mín.", min_value=0, step=1, width="small"),
                     "stock_maximo": st.column_config.NumberColumn("Stock Máx.", min_value=0, step=1, width="small"),
-                    "imagen_variante": st.column_config.TextColumn("Foto Variante (Opcional)", width="medium", help="Nombre o URL si difiere de la principal")
+                    "imagen_variante": st.column_config.TextColumn("Foto Variante (Opcional)", width="medium")
                 }
             )
 
@@ -194,17 +191,12 @@ def render_inventario():
                         color = str(row.get("color", "")).strip()
                         sku_val = str(row.get("sku", "")).strip() if pd.notna(row.get("sku")) else ""
                         img_var_val = str(row.get("imagen_variante", "")).strip() if pd.notna(row.get("imagen_variante")) else ""
-                        
                         desc_var_val = float(row.get("descuento_%", 0) or 0)
                         
-                        # REGLA CLAVE: Si es modo INDIVIDUAL, el porcentaje base del producto 
-                        # se aplica automáticamente a las variantes que tengan 0 o que hereden la base
-                        if tipo_desc_reg == "INDIVIDUAL":
-                            if desc_var_val == 0 or desc_var_val == 25: # O si quieres que herede siempre que esté en 0 o igual al anterior por defecto
-                                desc_var_val = float(desc_oferta_reg)
-                        elif tipo_desc_reg == "GENERAL":
-                            desc_var_val = 0.0 # En general manda el del producto
-                        
+                        # Si es modo INDIVIDUAL y la variante tiene 0, hereda automáticamente la base
+                        if tipo_desc_reg == "INDIVIDUAL" and desc_var_val == 0 and desc_oferta_reg > 0:
+                            desc_var_val = float(desc_oferta_reg)
+
                         if not sku_val or sku_val.lower() in ["none", "nan", ""]:
                             sku_val = ""
                         
@@ -470,7 +462,7 @@ def render_inventario():
                                     
                                     if res_upd.status_code == 200:
                                         with col_msg_acc:
-                                            st.success("✅ Variante actualizado")
+                                            st.success("✅ Variante actualizada")
                                         st.session_state["var_id_editando"] = var_id_input
                                     else:
                                         with col_msg_acc:
