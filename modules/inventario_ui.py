@@ -290,8 +290,10 @@ def render_inventario():
                     st.markdown("##### 🛠️ Corrección de Variante, Estados, Multimedia y Foto Específica")
                     st.caption("Selecciona la variante, edita sus atributos, estados, galería, video o cartilla.")
 
-                    col_id_sel, _ = st.columns([3.0, 1.0])
+                    # Selector de Variante y Botón de Eliminar al lado
+                    col_id_sel, col_btn_del = st.columns([3.0, 1.0], vertical_alignment="bottom")
                     
+                    var_id_input = None
                     if not df_filtrado.empty:
                         opciones_selectbox = {}
                         for _, row in df_filtrado.iterrows():
@@ -301,6 +303,18 @@ def render_inventario():
                         
                         sel_var_label = col_id_sel.selectbox("Seleccionar Variante a Editar", options=list(opciones_selectbox.keys()))
                         var_id_input = opciones_selectbox[sel_var_label]
+                        
+                        # Botón para eliminar variante seleccionada
+                        if col_btn_del.button("🗑️ Eliminar Variante", type="secondary", use_container_width=True, key=f"btn_del_var_{var_id_input}"):
+                            try:
+                                res_del_var = requests.delete(f"{API_URL}/variantes/{var_id_input}")
+                                if res_del_var.status_code == 200:
+                                    st.success(f"✅ Variante ID {var_id_input} eliminada correctamente.")
+                                    st.rerun()
+                                else:
+                                    st.error(f"No se pudo eliminar la variante: {res_del_var.text}")
+                            except Exception as err_del:
+                                st.error(f"Error de conexión al eliminar: {err_del}")
                     else:
                         st.warning("⚠️ No se encontraron variantes con los filtros seleccionados.")
                         var_id_input = 1
@@ -376,8 +390,9 @@ def render_inventario():
                         with col_form_der:
                             st.markdown("**Foto Actual de la Variante**")
                             if variante_encontrada:
-                                img_var_url = variante_encontrada.get("imagen_url")
-                                img_gen_url = p_info.get("imagen_url")
+                                # Capturar correctamente la foto específica de la variante considerando posibles claves
+                                img_var_url = variante_encontrada.get("imagen_url") or variante_encontrada.get("imagen") or variante_encontrada.get("Foto")
+                                img_gen_url = p_info.get("imagen_url") or p_info.get("imagen")
                                 
                                 if img_var_url:
                                     st.image(resolver_url_imagen(img_var_url), width=110, caption="Foto Específica Variante")
