@@ -584,23 +584,23 @@ function abrirModal(productoId) {
     if (productoSeleccionado.video_url) listaMedia.push({ tipo: 'video', url: productoSeleccionado.video_url });
 
     let thumbsHTML = '';
-    listaMedia.forEach((item) => {
-        const itemUrl = obtenerRutaImagenProducto(item.url);
-        if (item.tipo === 'img') {
-            thumbsHTML += `
-                <button onclick="cambiarMediaModal('${itemUrl}', false)" class="w-14 h-14 rounded-lg overflow-hidden border-2 border-slate-200 hover:border-rose-600 focus:border-rose-600 transition shrink-0 cursor-pointer">
-                    <img src="${itemUrl}" class="w-full h-full object-cover">
-                </button>
-            `;
-        } else if (item.tipo === 'video') {
-            thumbsHTML += `
-                <button onclick="cambiarMediaModal('${itemUrl}', true)" class="w-14 h-14 rounded-lg overflow-hidden border-2 border-slate-200 hover:border-rose-600 focus:border-rose-600 transition shrink-0 bg-slate-900 flex items-center justify-center text-white cursor-pointer relative">
-                    <i class="fa-solid fa-play text-xs"></i>
-                    <span class="absolute bottom-0 inset-x-0 text-[8px] bg-black/70 text-center font-bold">VIDEO</span>
-                </button>
-            `;
-        }
-    });
+            listaMedia.forEach((item) => {
+                const itemUrl = obtenerRutaImagenProducto(item.url);
+                if (item.tipo === 'img') {
+                    thumbsHTML += `
+                        <button onclick="cambiarMediaModal('${itemUrl}', false)" class="w-16 h-16 rounded-lg overflow-hidden border-2 border-slate-200 hover:border-rose-600 focus:border-rose-600 transition shrink-0 cursor-pointer">
+                            <img src="${itemUrl}" class="w-full h-full object-cover">
+                        </button>
+                    `;
+                } else if (item.tipo === 'video') {
+                    thumbsHTML += `
+                        <button onclick="cambiarMediaModal('${itemUrl}', true)" class="w-16 h-16 rounded-lg overflow-hidden border-2 border-slate-200 hover:border-rose-600 focus:border-rose-600 transition shrink-0 bg-slate-900 flex items-center justify-center text-white cursor-pointer relative">
+                            <i class="fa-solid fa-play text-sm"></i>
+                            <span class="absolute bottom-0 inset-x-0 text-[8px] bg-black/70 text-center font-bold">VIDEO</span>
+                        </button>
+                    `;
+                }
+            });
 
     let cartillaHTML = '';
     if (productoSeleccionado.cartilla_url) {
@@ -624,7 +624,7 @@ function abrirModal(productoId) {
             </div>
 
             <!-- COLUMNA CENTRAL: VISOR PRINCIPAL (5 cols) -->
-            <div class="md:col-span-5 relative bg-slate-50 rounded-2xl p-2 border border-slate-100 flex items-center justify-center h-[360px]" id="modal-visor-principal">
+            <div class="md:col-span-5 relative bg-slate-50 rounded-2xl p-2 border border-slate-100 flex items-center justify-center h-[420px]" id="modal-visor-principal">
                 <img id="modal-imagen-producto" src="${imagenInicialVisor}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-contain rounded-xl transition-all duration-300">
             </div>
 
