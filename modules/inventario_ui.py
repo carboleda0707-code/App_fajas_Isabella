@@ -429,11 +429,16 @@ def render_inventario():
 
                             archivo_nueva_imagen_variante = st.file_uploader("Subir foto para esta variante", type=["jpg", "jpeg", "png", "webp"], key="up_img_var")
 
-                        btn_actualizar = st.form_submit_button("🔄 Actualizar Datos y Variante", type="primary", use_container_width=True)
+                        # Creamos dos columnas: una para el botón y otra al lado para el mensaje verde
+                        col_btn, col_msg_btn = st.columns([1.8, 2.2])
                         
+                        with col_btn:
+                            btn_actualizar = st.form_submit_button("🔄 Actualizar Datos y Variante", type="primary", use_container_width=True)
+
                         if btn_actualizar:
                             if not variante_encontrada:
-                                st.error("El ID de variante seleccionado no es válido.")
+                                with col_msg_btn:
+                                    st.error("El ID de variante seleccionado no es válido.")
                             else:
                                 try:
                                     files = {}
@@ -464,13 +469,15 @@ def render_inventario():
                                     res_upd = requests.put(f"{API_URL}/variantes/{var_id_input}", data=data_payload, files=files if files else None)
                                     
                                     if res_upd.status_code == 200:
-                                        st.session_state.mensaje_exito_variante = "✅ Variante actualizado"
+                                        with col_msg_btn:
+                                            st.success("✅ Variante actualizado")
                                         st.session_state["var_id_editando"] = var_id_input
-                                        st.rerun()
                                     else:
-                                        st.error(f"No se pudo actualizar: {res_upd.text}")
+                                        with col_msg_btn:
+                                            st.error(f"No se pudo actualizar: {res_upd.text}")
                                 except Exception as err:
-                                    st.error(f"Error de comunicación con la API: {err}")
+                                    with col_msg_btn:
+                                        st.error(f"Error de comunicación: {err}")
                 else:
                     st.info("No hay variantes registradas en el sistema todavía.")
             else:
