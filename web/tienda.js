@@ -393,49 +393,17 @@ function irAInicio() {
     const catalogoSec = document.getElementById('catalogo');
     if (catalogoSec) catalogoSec.style.display = 'none';
 
-    renderizarNovedadesEnHome();
+    // Ocultar UNICAMENTE el submenú de círculos de categorías en la vista de Inicio
+    const contenedorCategoriasScroll = document.getElementById('categorias-scroll');
+    if (contenedorCategoriasScroll) {
+        // Buscamos la barra contenedora superior de categorías para ocultarla
+        const barraCategorias = contenedorCategoriasScroll.closest('nav') || contenedorCategoriasScroll.parentElement.parentElement;
+        if (barraCategorias) barraCategorias.style.display = 'none';
+    }
+
+    renderizarNovedadesEnHome(); // 👈 Mantiene las novedades y promociones destacadas en el Home
     iniciarHeroSlider();
     window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function renderizarNovedadesEnHome() {
-    let contenedorDestacados = document.getElementById('home-destacados-home');
-    
-    if (!contenedorDestacados) {
-        const seccionesIntro = document.querySelectorAll('#secciones-intro-container > section');
-        const seccionPublicidad = seccionesIntro[seccionesIntro.length - 1];
-        
-        if (seccionPublicidad) {
-            contenedorDestacados = document.createElement('section');
-            contenedorDestacados.id = 'home-destacados-home';
-            contenedorDestacados.className = 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10';
-            seccionPublicidad.parentNode.insertBefore(contenedorDestacados, seccionPublicidad);
-        }
-    }
-
-    if (!contenedorDestacados) return;
-
-    const destacados = productos.filter(p => p.en_oferta || p.es_nuevo || p.en_liquidacion).slice(0, 5);
-
-    if (destacados.length === 0) {
-        contenedorDestacados.innerHTML = '';
-        return;
-    }
-
-    let htmlCards = destacados.map(p => generarHTMLTarjetaProducto(p)).join('');
-
-    contenedorDestacados.innerHTML = `
-        <div class="mb-6 pb-3 border-b border-slate-200 flex items-center justify-between">
-            <div>
-                <span class="text-rose-600 font-bold text-xs uppercase tracking-wider">Colección Exclusiva</span>
-                <h3 class="text-xl font-black text-slate-900">✨ Novedades y Promociones Destacadas</h3>
-            </div>
-            <button onclick="filtrarCategoria('TODAS')" class="text-xs font-bold text-rose-600 hover:text-rose-700 transition cursor-pointer">Ver todo el catálogo →</button>
-        </div>
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            ${htmlCards}
-        </div>
-    `;
 }
 
 function filtrarCategoria(cat) {
@@ -451,6 +419,13 @@ function filtrarCategoria(cat) {
 
     if (introContainer) introContainer.style.display = 'none';
     if (catalogoSec) catalogoSec.style.display = 'block';
+
+    // Mostrar el submenú de círculos de categorías al entrar al Catálogo / Tienda o filtrar
+    const contenedorCategoriasScroll = document.getElementById('categorias-scroll');
+    if (contenedorCategoriasScroll) {
+        const barraCategorias = contenedorCategoriasScroll.closest('nav') || contenedorCategoriasScroll.parentElement.parentElement;
+        if (barraCategorias) barraCategorias.style.display = 'block';
+    }
 
     if (cat === 'TODAS') {
         if (tituloCatElem) tituloCatElem.innerText = "Todas las Prendas Disponibles";
