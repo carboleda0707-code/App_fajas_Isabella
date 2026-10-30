@@ -554,7 +554,7 @@ function buscarProducto() {
 }
 
 // ==========================================
-// 4. MODAL DE PRODUCTO Y VARIANTES
+// 4. MODAL DE PRODUCTO Y VARIANTES (ESTILO SALOME)
 // ==========================================
 
 function abrirModal(productoId) {
@@ -570,22 +570,74 @@ function abrirModal(productoId) {
     cantidadSeleccionada = 1;
 
     const varianteInicial = obtenerVarianteActual();
-    const imgSrcModal = (varianteInicial && varianteInicial.imagen_url) ? obtenerRutaImagenProducto(varianteInicial.imagen_url) : obtenerRutaImagenProducto(productoSeleccionado.imagen_url);
     const primerPrecio = varianteInicial ? varianteInicial.precio : (variantes[0] ? variantes[0].precio : 0);
     const descuento = Number(productoSeleccionado.descuento_oferta || 0);
     const precioFinalModal = (productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0 ? Math.max(0, primerPrecio - descuento) : primerPrecio;
 
+    // Recopilar elementos multimedia disponibles
+    let listaMedia = [];
+    if (productoSeleccionado.imagen_url) listaMedia.push({ tipo: 'img', url: productoSeleccionado.imagen_url });
+    if (productoSeleccionado.imagen_1) listaMedia.push({ tipo: 'img', url: productoSeleccionado.imagen_1 });
+    if (productoSeleccionado.imagen_2) listaMedia.push({ tipo: 'img', url: productoSeleccionado.imagen_2 });
+    if (productoSeleccionado.imagen_3) listaMedia.push({ tipo: 'img', url: productoSeleccionado.imagen_3 });
+    if (productoSeleccionado.imagen_4) listaMedia.push({ tipo: 'img', url: productoSeleccionado.imagen_4 });
+    if (productoSeleccionado.video_url) listaMedia.push({ tipo: 'video', url: productoSeleccionado.video_url });
+
+    let thumbsHTML = '';
+    listaMedia.forEach((item) => {
+        const itemUrl = obtenerRutaImagenProducto(item.url);
+        if (item.tipo === 'img') {
+            thumbsHTML += `
+                <button onclick="cambiarMediaModal('${itemUrl}', false)" class="w-14 h-14 rounded-lg overflow-hidden border-2 border-slate-200 hover:border-rose-600 focus:border-rose-600 transition shrink-0 cursor-pointer">
+                    <img src="${itemUrl}" class="w-full h-full object-cover">
+                </button>
+            `;
+        } else if (item.tipo === 'video') {
+            thumbsHTML += `
+                <button onclick="cambiarMediaModal('${itemUrl}', true)" class="w-14 h-14 rounded-lg overflow-hidden border-2 border-slate-200 hover:border-rose-600 focus:border-rose-600 transition shrink-0 bg-slate-900 flex items-center justify-center text-white cursor-pointer relative">
+                    <i class="fa-solid fa-play text-xs"></i>
+                    <span class="absolute bottom-0 inset-x-0 text-[8px] bg-black/70 text-center font-bold">VIDEO</span>
+                </button>
+            `;
+        }
+    });
+
+    let cartillaHTML = '';
+    if (productoSeleccionado.cartilla_url) {
+        const cartillaUrl = obtenerRutaImagenProducto(productoSeleccionado.cartilla_url);
+        cartillaHTML = `
+            <a href="${cartillaUrl}" target="_blank" class="inline-flex items-center gap-1.5 text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-200 transition my-1 cursor-pointer">
+                <i class="fa-solid fa-ruler-horizontal"></i>
+                <span>Guía / Cartilla de Tallas</span>
+            </a>
+        `;
+    }
+
+    const imagenInicialVisor = listaMedia.length > 0 ? obtenerRutaImagenProducto(listaMedia[0].url) : SVG_FALLBACK;
+
     const contenido = `
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-            <div class="flex flex-col items-center justify-center bg-slate-50 rounded-2xl p-4 border border-slate-100 h-full min-h-[300px]">
-                <img id="modal-imagen-producto" src="${imgSrcModal}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-72 object-contain rounded-xl transition-all duration-300">
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+            
+            <!-- COLUMNA IZQUIERDA: MINIATURAS (2 cols) -->
+            <div class="md:col-span-2 flex md:flex-col gap-2 overflow-x-auto md:overflow-y-auto max-h-[380px] no-scrollbar py-1">
+                ${thumbsHTML}
             </div>
-            <div class="flex flex-col justify-between space-y-3">
+
+            <!-- COLUMNA CENTRAL: VISOR PRINCIPAL (5 cols) -->
+            <div class="md:col-span-5 relative bg-slate-50 rounded-2xl p-2 border border-slate-100 flex items-center justify-center h-[360px]" id="modal-visor-principal">
+                <img id="modal-imagen-producto" src="${imagenInicialVisor}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-contain rounded-xl transition-all duration-300">
+            </div>
+
+            <!-- COLUMNA DERECHA: DETALLES Y COMPRA (5 cols) -->
+            <div class="md:col-span-5 space-y-3">
                 <div>
                     <span class="text-[10px] font-bold text-rose-600 tracking-wider uppercase">${productoSeleccionado.categoria}</span>
                     <h3 class="text-base font-extrabold text-slate-900 leading-snug mb-1">${productoSeleccionado.nombre}</h3>
                     <p id="modal-precio" class="text-2xl font-black text-rose-600">$${precioFinalModal.toFixed(2)}</p>
                 </div>
+
+                ${cartillaHTML}
+
                 <div class="space-y-3 border-t border-slate-100 pt-3">
                     <div>
                         <label class="text-xs font-bold text-slate-800 block mb-1">Talla:</label>
@@ -628,6 +680,23 @@ function abrirModal(productoId) {
     document.getElementById("modal-contenido").innerHTML = contenido;
     document.getElementById("modal-producto").classList.remove("hidden");
     actualizarDetalleVariante();
+}
+
+function cambiarMediaModal(url, esVideo) {
+    const visor = document.getElementById('modal-visor-principal');
+    if (!visor) return;
+
+    if (esVideo) {
+        visor.innerHTML = `
+            <video controls autoplay class="w-full h-full object-contain rounded-xl bg-black">
+                <source src="${url}" type="video/mp4">
+            </video>
+        `;
+    } else {
+        visor.innerHTML = `
+            <img id="modal-imagen-producto" src="${url}" class="w-full h-full object-contain rounded-xl">
+        `;
+    }
 }
 
 function cambiarCantidadModal(delta) {
@@ -676,7 +745,8 @@ function seleccionarColor(color) {
     const variante = obtenerVarianteActual();
     const imgElem = document.getElementById("modal-imagen-producto");
     if (imgElem && productoSeleccionado) {
-        imgElem.src = (variante && variante.imagen_url && variante.imagen_url.trim() !== "") ? obtenerRutaImagenProducto(variante.imagen_url) : obtenerRutaImagenProducto(productoSeleccionado.imagen_url);
+        const urlFoto = (variante && variante.imagen_url && variante.imagen_url.trim() !== "") ? variante.imagen_url : productoSeleccionado.imagen_url;
+        imgElem.src = obtenerRutaImagenProducto(urlFoto);
     }
     actualizarDetalleVariante();
 }
