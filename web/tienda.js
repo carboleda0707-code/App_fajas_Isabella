@@ -851,39 +851,56 @@ function getVal(ids, defaultVal = "") {
 function limpiarEstadoYFormularioPostCompra() {
     carrito = [];
     actualizarCarritoUI();
-    toggleCarrito();
+    
+    // Cerrar el drawer del carrito si está abierto
+    const drawer = document.getElementById("drawer-carrito");
+    if (drawer) drawer.classList.add('hidden');
 
-    // Ocultar el modal de checkout / pedido
-    const modalCheckout = document.getElementById('modal-checkout') || document.querySelector('.modal-checkout') || document.getElementById('modal-pedido');
-    if (modalCheckout) {
-        modalCheckout.classList.add('hidden');
-        modalCheckout.style.display = 'none';
-    }
+    // CERRAR TODOS LOS MODALES POSIBLES DE LA PÁGINA (Checkout, Pedido, etc.)
+    const modalesACerrar = [
+        'modal-checkout', 'modal-pedido', 'modal-pagos', 
+        'modal-producto', 'modal-auth', 'modal-perfil'
+    ];
+    
+    modalesACerrar.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.classList.add('hidden');
+            el.style.display = 'none';
+        }
+    });
 
-    const formCheckout = document.getElementById('form-checkout') || document.querySelector('form[onsubmit*="procesarPedidoWhatsApp"]');
+    // Ocultar cualquier elemento flotante o modal que tenga clases genéricas
+    document.querySelectorAll('.modal, .modal-overlay, [id*="modal"], [class*="modal"]').forEach(m => {
+        m.classList.add('hidden');
+        m.style.display = 'none';
+    });
+
+    // Resetear formularios de compra
+    const formCheckout = document.getElementById('form-checkout') || document.querySelector('form[onsubmit*="procesarPedido"]');
     if (formCheckout) {
         formCheckout.reset();
     }
 
-    // Crear un banner flotante verde súper amigable en lugar de la alerta del navegador
+    // Crear un banner verde súper visible y al frente de todo (z-index 99999)
     const bannerExito = document.createElement('div');
-    bannerExito.className = "fixed inset-x-0 top-6 mx-auto max-w-md bg-emerald-600 text-white px-6 py-4 rounded-2xl shadow-2xl z-50 text-center animate-bounce transition-all";
+    bannerExito.className = "fixed inset-x-0 top-10 mx-auto max-w-md bg-emerald-600 text-white px-6 py-5 rounded-2xl shadow-2xl z-[99999] text-center animate-bounce transition-all border-2 border-white";
     bannerExito.innerHTML = `
-        <h4 class="font-black text-base">🎉 ¡Felicitaciones!</h4>
-        <p class="text-xs mt-1 text-emerald-50">Tu compra fue enviada con éxito. ¡Gracias por elegirnos!</p>
+        <h3 class="font-black text-lg">🎉 ¡Felicitaciones!</h3>
+        <p class="text-xs mt-1 text-emerald-50 font-medium">Tu compra fue enviada con éxito. ¡Gracias por elegirnos!</p>
     `;
     document.body.appendChild(bannerExito);
 
-    // Desaparecer el banner y regresar automáticamente a la galería / catálogo
+    // Lanzar los globitos de celebración
+    if (typeof st !== 'undefined' && st.balloons) {
+        st.balloons();
+    }
+
+    // Esperar 3.5 segundos, limpiar el banner y regresar a la galería de la tienda
     setTimeout(() => {
         bannerExito.remove();
         filtrarCategoria('TODAS'); // Regresa automáticamente a la tienda / galería
     }, 3500);
-
-    // Lanzar los globitos si la librería está disponible
-    if (typeof st !== 'undefined' && st.balloons) {
-        st.balloons();
-    }
 }
 
 // --- CHECKOUT VÍA WHATSAPP ---
