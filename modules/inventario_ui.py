@@ -387,9 +387,9 @@ def render_inventario():
                             with col_f_var:
                                 st.markdown("<p style='font-size:11px; font-weight:bold; text-align:center;'>FOTO VARIANTE</p>", unsafe_allow_html=True)
                                 img_var_url = variante_encontrada.get("imagen_url") if variante_encontrada else ""
-                                p_img_base = p_info.get("imagen_url") if p_info else ""
                                 
-                                if img_var_url and str(img_var_url).strip() not in ["", "None", "nan", "null"] and img_var_url != p_img_base:
+                                # Mostramos la foto si la variante tiene cualquier URL válida registrada
+                                if img_var_url and str(img_var_url).strip() not in ["", "None", "nan", "null"]:
                                     url_v = str(img_var_url).strip()
                                     if not url_v.startswith("http"): url_v = resolver_url_imagen(url_v)
                                     st.image(url_v, width=100)
