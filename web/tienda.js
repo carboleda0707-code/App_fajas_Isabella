@@ -693,7 +693,9 @@ function abrirModal(productoId) {
                 <div>
                     <span class="text-[10px] font-bold text-rose-600 tracking-wider uppercase bg-rose-50 px-2.5 py-1 rounded-md">${productoSeleccionado.categoria}</span>
                     <h3 class="text-lg font-extrabold text-slate-900 leading-snug mt-1.5 mb-1">${productoSeleccionado.nombre}</h3>
-                    <p id="modal-precio" class="text-3xl font-black text-rose-600">$${precioFinalModal.toFixed(2)}</p>
+                    <div id="modal-precio-container">
+                        <span class="text-3xl font-black text-rose-600">$${precioFinalModal.toFixed(2)}</span>
+                    </div>
                 </div>
                 ${cartillaHTML}
                 <div class="space-y-3 border-t border-slate-100 pt-3">
@@ -821,30 +823,58 @@ function seleccionarColor(color) {
 function actualizarDetalleVariante() {
     const variante = obtenerVarianteActual();
     if (variante && productoSeleccionado) {
-        let precioUnitario = Number(variante.precio || 0);
-        const tipoDesc = productoSeleccionado.tipo_descuento || 'GENERAL';
+        const precioOriginal = Number(variante.precio || 0);
+        const tipoDesc = (productoSeleccionado.tipo_descuento || 'GENERAL').toUpperCase();
         const descGeneral = Number(productoSeleccionado.descuento_oferta || 0);
         const descIndividual = Number(variante.descuento_porcentaje || 0);
 
         let descAplicar = 0;
+        let porcentajeTexto = 0;
+
         if (productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) {
             if (tipoDesc === 'GENERAL' && descGeneral > 0) {
-                descAplicar = descGeneral; // Prioridad absoluta al general
-            } else {
-                descAplicar = descIndividual; // Si es individual, usa el de la variante
+                descAplicar = descGeneral;
+                porcentajeTexto = descGeneral;
+            } else if (tipoDesc === 'INDIVIDUAL' && descIndividual > 0) {
+                descAplicar = descIndividual;
+                porcentajeTexto = descIndividual;
             }
         }
 
+        let precioFinalUnitario = precioOriginal;
         if (descAplicar > 0) {
-            precioUnitario = Math.max(0, precioUnitario - (precioUnitario * (descAplicar / 100)));
+            precioFinalUnitario = Math.max(0, precioOriginal - (precioOriginal * (descAplicar / 100)));
         }
 
-        const totalLinea = precioUnitario * cantidadSeleccionada;
-        document.getElementById("modal-precio").innerText = `$${precioUnitario.toFixed(2)}`;
-        document.getElementById("resumen-talla").innerText = tallaSeleccionada;
-        document.getElementById("resumen-color").innerText = colorSeleccionado;
-        document.getElementById("modal-stock").innerText = `Stock: ${variante.stock} disp.`;
-        document.getElementById("modal-total-seleccion").innerText = `$${totalLinea.toFixed(2)}`;
+        const cantidad = typeof cantidadSeleccionada !== 'undefined' ? cantidadSeleccionada : 1;
+        const totalLinea = precioFinalUnitario * cantidad;
+        
+        const elPrecioContainer = document.getElementById("modal-precio-container");
+        const elTalla = document.getElementById("resumen-talla");
+        const elColor = document.getElementById("resumen-color");
+        const elStock = document.getElementById("modal-stock");
+        const elTotal = document.getElementById("modal-total-seleccion");
+
+        if (elPrecioContainer) {
+            if (descAplicar > 0) {
+                elPrecioContainer.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="bg-rose-600 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">${porcentajeTexto}% OFF</span>
+                        <span class="text-3xl font-black text-rose-600">$${precioFinalUnitario.toFixed(2)}</span>
+                        <span class="text-sm text-slate-400 line-through font-semibold">$${precioOriginal.toFixed(2)}</span>
+                    </div>
+                `;
+            } else {
+                elPrecioContainer.innerHTML = `
+                    <span class="text-3xl font-black text-slate-900">$${precioOriginal.toFixed(2)}</span>
+                `;
+            }
+        }
+
+        if (elTalla) elTalla.innerText = variante.talla || '';
+        if (elColor) elColor.innerText = variante.color || '';
+        if (elStock) elStock.innerText = `Stock: ${variante.stock_actual !== undefined ? variante.stock_actual : (variante.stock || 0)} disp.`;
+        if (elTotal) elTotal.innerText = `$${totalLinea.toFixed(2)}`;
     }
 }
 
