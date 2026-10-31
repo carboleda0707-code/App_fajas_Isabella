@@ -853,6 +853,7 @@ function limpiarEstadoYFormularioPostCompra() {
     actualizarCarritoUI();
     toggleCarrito();
 
+    // Ocultar el modal de checkout / pedido
     const modalCheckout = document.getElementById('modal-checkout') || document.querySelector('.modal-checkout') || document.getElementById('modal-pedido');
     if (modalCheckout) {
         modalCheckout.classList.add('hidden');
@@ -864,7 +865,22 @@ function limpiarEstadoYFormularioPostCompra() {
         formCheckout.reset();
     }
 
-    alert("¡Gracias por su compra! Su pedido se ha generado con éxito.");
+    // Crear un banner flotante verde súper amigable en lugar de la alerta del navegador
+    const bannerExito = document.createElement('div');
+    bannerExito.className = "fixed inset-x-0 top-6 mx-auto max-w-md bg-emerald-600 text-white px-6 py-4 rounded-2xl shadow-2xl z-50 text-center animate-bounce transition-all";
+    bannerExito.innerHTML = `
+        <h4 class="font-black text-base">🎉 ¡Felicitaciones!</h4>
+        <p class="text-xs mt-1 text-emerald-50">Tu compra fue enviada con éxito. ¡Gracias por elegirnos!</p>
+    `;
+    document.body.appendChild(bannerExito);
+
+    // Desaparecer el banner y regresar automáticamente a la galería / catálogo
+    setTimeout(() => {
+        bannerExito.remove();
+        filtrarCategoria('TODAS'); // Regresa automáticamente a la tienda / galería
+    }, 3500);
+
+    // Lanzar los globitos si la librería está disponible
     if (typeof st !== 'undefined' && st.balloons) {
         st.balloons();
     }
