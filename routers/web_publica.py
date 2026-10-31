@@ -480,7 +480,11 @@ async def checkout_whatsapp(
 
         total_pedido = sum(float(item.get('precio', 0)) * int(item.get('cantidad', 1)) for item in lista_items)
         
-        num_factura_str = f"FAC-WAPP-{int(date.today().strftime('%Y%m%d'))}-{cliente_db.id}"
+        # Generación del número de factura con formato AAMM (AñoMes) + Consecutivo mensual de 3 dígitos (ej: 2610003)
+        prefijo_ym = date.today().strftime('%y%m')
+        facturas_mes_count = db.query(Factura).filter(Factura.numero_factura.like(f"{prefijo_ym}%")).count()
+        siguiente_consecutivo = facturas_mes_count + 1
+        num_factura_str = f"{prefijo_ym}{siguiente_consecutivo:03d}"
         
         nueva_factura = Factura(
             tipo_factura="VENTA WEB WHATSAPP",
