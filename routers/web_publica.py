@@ -495,8 +495,9 @@ async def _procesar_checkout_comun(
     siguiente_consecutivo = facturas_mes_count + 1
     num_factura_str = f"{prefijo_ym}{siguiente_consecutivo:03d}"
     
+    tipo_factura_str = f"VENTA WEB {tipo_venta.upper()}"
     nueva_factura = Factura(
-        tipo_factura=tipo_tipo_factura := f"VENTA WEB {tipo_venta.upper()}",
+        tipo_factura=tipo_factura_str,
         numero_factura=num_factura_str,
         entidad_ruc=ruc_cedula,
         entidad_nombre=razon_social,
