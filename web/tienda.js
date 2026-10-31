@@ -835,6 +835,29 @@ function getVal(ids, defaultVal = "") {
     return defaultVal;
 }
 
+function limpiarEstadoYFormularioPostCompra() {
+    carrito = [];
+    actualizarCarritoUI();
+    toggleCarrito();
+
+    const modalCheckout = document.getElementById('modal-checkout') || document.querySelector('.modal-checkout') || document.getElementById('modal-pedido');
+    if (modalCheckout) {
+        modalCheckout.classList.add('hidden');
+        modalCheckout.style.display = 'none';
+    }
+
+    const formCheckout = document.getElementById('form-checkout') || document.querySelector('form[onsubmit*="procesarPedidoWhatsApp"]');
+    if (formCheckout) {
+        formCheckout.reset();
+    }
+
+    alert("¡Gracias por su compra! Su pedido se ha generado con éxito.");
+    if (typeof st !== 'undefined' && st.balloons) {
+        st.balloons();
+    }
+}
+
+// --- OPCIÓN 1: ENVÍO VÍA WHATSAPP ---
 async function procesarPedidoWhatsApp(event) {
     if (event) event.preventDefault();
     
@@ -887,31 +910,7 @@ async function procesarPedidoWhatsApp(event) {
             } else {
                 window.open(data.whatsapp_url, '_blank');
             }
-
-            // 1. Vaciar el carrito y actualizar UI
-            carrito = [];
-            actualizarCarritoUI();
-            toggleCarrito();
-
-            // 2. Cerrar el modal del formulario de checkout
-            const modalCheckout = document.getElementById('modal-checkout') || document.querySelector('.modal-checkout') || document.getElementById('modal-pedido');
-            if (modalCheckout) {
-                modalCheckout.classList.add('hidden');
-                modalCheckout.style.display = 'none';
-            }
-
-            // 3. Resetear el formulario de datos
-            const formCheckout = document.getElementById('form-checkout') || document.querySelector('form[onsubmit*="procesarPedidoWhatsApp"]');
-            if (formCheckout) {
-                formCheckout.reset();
-            }
-
-            // 4. Mensaje de éxito y animación de globos
-            alert("¡Gracias por su compra! Su pedido se ha generado con éxito.");
-            if (typeof st !== 'undefined' && st.balloons) {
-                st.balloons();
-            }
-
+            limpiarEstadoYFormularioPostCompra();
         } else {
             if (ventanaWhatsApp) ventanaWhatsApp.close();
             const detalleError = typeof data.detail === 'object' ? JSON.stringify(data.detail) : (data.detail || "Intente nuevamente.");
@@ -924,7 +923,7 @@ async function procesarPedidoWhatsApp(event) {
     }
 }
 
-// Procesar pedido y enviar por Correo Electrónico (Opción 1 - Correo)
+// --- OPCIÓN 1: ENVÍO VÍA CORREO ---
 async function procesarPedidoCorreo(event) {
     if (event) event.preventDefault();
     
@@ -970,28 +969,10 @@ async function procesarPedidoCorreo(event) {
         
         const data = await res.json();
         if (res.ok && data.status === 'success') {
-            carrito = [];
-            actualizarCarritoUI();
-            toggleCarrito();
-
-            const modalCheckout = document.getElementById('modal-checkout') || document.querySelector('.modal-checkout') || document.getElementById('modal-pedido');
-            if (modalCheckout) {
-                modalCheckout.classList.add('hidden');
-                modalCheckout.style.display = 'none';
-            }
-
-            const formCheckout = document.getElementById('form-checkout') || document.querySelector('form[onsubmit*="procesarPedidoWhatsApp"]');
-            if (formCheckout) {
-                formCheckout.reset();
-            }
-
-            alert("¡Gracias por su compra! El comprobante ha sido enviado por correo con éxito.");
-            if (typeof st !== 'undefined' && st.balloons) {
-                st.balloons();
-            }
+            limpiarEstadoYFormularioPostCompra();
         } else {
             const detalleError = typeof data.detail === 'object' ? JSON.stringify(data.detail) : (data.detail || "Intente nuevamente.");
-            alert("Error al enviar por correo: " + detalleError);
+            alert("Error al procesar el pedido por correo: " + detalleError);
         }
     } catch (e) {
         console.error("Error de conexión:", e);
@@ -999,14 +980,42 @@ async function procesarPedidoCorreo(event) {
     }
 }
 
-// Opción 2: Pago con Tarjeta de Crédito vía Paymentez
-function procesarPagoPaymentez(event) {
+// --- OPCIÓN 2: PAGO CON TARJETA VÍA PAYMENTEZ ---
+async function procesarPagoPaymentez(event) {
     if (event) event.preventDefault();
+    
     if (carrito.length === 0) {
         alert("Tu carrito está vacío.");
         return;
     }
-    alert("Redirigiendo a la pasarela de pagos segura de Paymentez...");
+
+    const nombreCliente = getVal(['nombre-cliente', 'nombre', 'wapp_nombre', 'txt-nombre'], 'Cliente');
+    const correoCliente = getVal(['correo-cliente', 'correo', 'wapp_correo', 'txt-correo'], '');
+    
+    try {
+        const payload = {
+            monto: calcularTotalCarrito(),
+            cliente_nombre: nombreCliente,
+            cliente_correo: correoCliente,
+            items: carrito
+        };
+
+        const res = await fetch('/api/web/auth/paymentez-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (res.ok && data.redirect_url) {
+            window.location.href = data.redirect_url;
+        } else {
+            alert("Iniciando pasarela segura de Paymentez...");
+        }
+    } catch (e) {
+        console.error("Error de pasarela Paymentez:", e);
+        alert("No se pudo iniciar la pasarela de pagos Paymentez.");
+    }
 }
 
 function actualizarCarritoUI() {
