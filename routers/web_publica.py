@@ -5,7 +5,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
-from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, Form, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from database import get_db, Producto, Categoria, Cliente, Factura, Pago, MovimientoInventario
@@ -586,6 +586,45 @@ async def _procesar_checkout_comun(
 
 
 # ==============================================================================
+# FUNCIÓN DE ENVÍO DE CORREO EN SEGUNDO PLANO (BACKGROUND TASKS)
+# ==============================================================================
+
+def enviar_correo_background(
+    smtp_server, smtp_port, emisor, password, destinatarios, 
+    empresa, num_factura, cuerpo_html, comprobante_bytes, comprobante_nombre
+):
+    try:
+        print("==========================================")
+        print("🔍 [CHIVATO SMTP BACKGROUND] Iniciando envío...")
+        print(f"📌 Servidor: {smtp_server}:{smtp_port} | Emisor: {emisor}")
+        print(f"📌 Destinatarios: {destinatarios}")
+        
+        msg = MIMEMultipart()
+        msg['From'] = f"{empresa} <{emisor}>"
+        msg['To'] = ", ".join(destinatarios)
+        msg['Subject'] = f"🛍️ Confirmación de Pedido #{num_factura} - {empresa}"
+        msg.attach(MIMEText(cuerpo_html, 'html'))
+
+        if comprobante_bytes and comprobante_nombre:
+            part = MIMEBase('application', 'octet-stream')
+            part.set_payload(comprobante_bytes)
+            encoders.encode_base64(part)
+            part.add_header('Content-Disposition', f'attachment; filename="{comprobante_nombre}"')
+            msg.attach(part)
+
+        # Timeout de 15 segundos para evitar bloqueos
+        server = smtplib.SMTP(smtp_server, smtp_port, timeout=15)
+        server.starttls()
+        server.login(emisor, password)
+        server.sendmail(emisor, destinatarios, msg.as_string())
+        server.quit()
+        print("✅ [CHIVATO SMTP BACKGROUND]: ¡Correo enviado exitosamente!")
+        
+    except Exception as smtp_err:
+        print(f"❌ [CHIVATO SMTP BACKGROUND ERROR]: {type(smtp_err).__name__}: {str(smtp_err)}")
+
+
+# ==============================================================================
 # ENDPOINTS DE CHECKOUT (WHATSAPP Y CORREO)
 # ==============================================================================
 
@@ -642,6 +681,7 @@ async def checkout_whatsapp(
 
 @router.post("/api/web/auth/checkout-correo")
 async def checkout_correo(
+    background_tasks: BackgroundTasks,
     nombre: str = Form(...),
     telefono: str = Form(...),
     correo: Optional[str] = Form(None),
@@ -663,27 +703,11 @@ async def checkout_correo(
         
         correo_limpio = correo.lower().strip() if (correo and correo.strip() != "") else None
 
-        # --- CHIVATO DEPURACIÓN SMTP ---
-        print("==========================================")
-        print("🔍 [CHIVATO SMTP] Intentando enviar correo...")
-        print(f"📌 Servidor SMTP: {SMTP_SERVER}")
-        print(f"📌 Puerto SMTP: {SMTP_PORT}")
-        print(f"📌 Emisor configurado: '{EMAIL_EMISOR}'")
-        print(f"📌 Contraseña configurada: {'SÍ (Longitud: ' + str(len(EMAIL_PASSWORD)) + ')' if EMAIL_PASSWORD else 'NO (¡ESTÁ VACÍA!)'}")
-        print("==========================================")
-
-        # --- ENVÍO DE NOTIFICACIÓN SMTP (EMPRESA + CLIENTE) ---
+        # --- ENVÍO DE NOTIFICACIÓN SMTP EN SEGUNDO PLANO ---
         if EMAIL_EMISOR and EMAIL_PASSWORD:
             destinatarios = [CORREO_EMPRESA]
             if correo_limpio and correo_limpio not in destinatarios:
                 destinatarios.append(correo_limpio)
-
-            print(f"📌 Destinatarios finales: {destinatarios}")
-
-            msg = MIMEMultipart()
-            msg['From'] = f"{NOMBRE_EMPRESA} <{EMAIL_EMISOR}>"
-            msg['To'] = ", ".join(destinatarios)
-            msg['Subject'] = f"🛍️ Confirmación de Pedido #{res['num_factura_str']} - {NOMBRE_EMPRESA}"
 
             filas_items = ""
             for item in res["lista_items"]:
@@ -750,45 +774,19 @@ async def checkout_correo(
             </div>
             """
 
-            msg.attach(MIMEText(cuerpo_html, 'html'))
-
-            if res["comprobante_bytes"] and res["comprobante_nombre"]:
-                part = MIMEBase('application', 'octet-stream')
-                part.set_payload(res["comprobante_bytes"])
-                encoders.encode_base64(part)
-                part.add_header('Content-Disposition', f'attachment; filename="{res["comprobante_nombre"]}"')
-                msg.attach(part)
-
-            try:
-                print("🔌 Conectando al servidor SMTP...")
-                server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-                
-                print("🔒 Iniciando STARTTLS...")
-                server.starttls()
-                
-                print("🔑 Realizando login SMTP...")
-                server.login(EMAIL_EMISOR, EMAIL_PASSWORD)
-                
-                print("✉️ Enviando mensaje...")
-                server.sendmail(EMAIL_EMISOR, destinatarios, msg.as_string())
-                
-                print("🚪 Cerrando conexión SMTP...")
-                server.quit()
-                
-                print("✅ [CHIVATO SMTP]: ¡Correo enviado exitosamente!")
-                
-            except Exception as smtp_err:
-                print(f"❌ [CHIVATO SMTP ERROR]: Ocurrió un error al enviar el correo:")
-                print(f"Tipo de error: {type(smtp_err).__name__}")
-                print(f"Detalle: {str(smtp_err)}")
-                import traceback
-                traceback.print_exc()
+            # Encolar la tarea para que responda al instante en la tienda
+            background_tasks.add_task(
+                enviar_correo_background,
+                SMTP_SERVER, SMTP_PORT, EMAIL_EMISOR, EMAIL_PASSWORD,
+                destinatarios, NOMBRE_EMPRESA, res['num_factura_str'],
+                cuerpo_html, res["comprobante_bytes"], res["comprobante_nombre"]
+            )
         else:
             print("⚠️ [CHIVATO SMTP WARNING]: No se intentó el envío porque EMAIL_EMISOR o EMAIL_PASSWORD están vacíos.")
 
         return {
             "status": "success",
-            "mensaje": "Pedido registrado y enviado por correo exitosamente."
+            "mensaje": "Pedido registrado y en proceso de notificación por correo."
         }
 
     except Exception as db_err:
