@@ -297,30 +297,26 @@ function cargarCategoriasWeb() {
 
 function generarHTMLTarjetaProducto(p) {
     const variantes = p.variantes || [];
-    const descuento = Number(p.descuento_oferta || 0);
     let preciosTextoHtml = "";
 
     if (variantes.length > 0) {
-        const preciosCalculados = variantes.map(v => {
-            let precioV = Number(v.precio || 0);
-            if ((p.en_oferta || p.en_liquidacion) && descuento > 0) {
-                precioV = Math.max(0, precioV - (precioV * (descuento / 100)));
-            }
-            return precioV;
-        });
+        const preciosOriginales = variantes.map(v => Number(v.precio || 0));
+        const preciosFinales = variantes.map(v => Number(v.precio_final !== undefined ? v.precio_final : v.precio || 0));
+        const tieneDescuento = variantes.some(v => Number(v.descuento_porcentaje || 0) > 0) || Number(p.descuento_oferta || 0) > 0;
 
-        const precioMin = Math.min(...preciosCalculados);
-        const precioMax = Math.max(...preciosCalculados);
-        const precioMinOrig = Math.min(...variantes.map(v => Number(v.precio || 0)));
+        const minOrig = Math.min(...preciosOriginales);
+        const maxOrig = Math.max(...preciosOriginales);
+        const minFinal = Math.min(...preciosFinales);
+        const maxFinal = Math.max(...preciosFinales);
 
-        if ((p.en_oferta || p.en_liquidacion) && descuento > 0) {
-            preciosTextoHtml = precioMin === precioMax 
-                ? `<div class="flex items-center gap-2"><span class="text-xs text-slate-400 line-through">$${precioMinOrig.toFixed(2)}</span><span class="text-sm font-black text-rose-600">$${precioMin.toFixed(2)}</span></div>`
-                : `<div class="flex items-center gap-1"><span class="text-[10px] text-slate-400 line-through">$${precioMinOrig.toFixed(2)}</span><span class="text-sm font-black text-rose-600">$${precioMin.toFixed(2)} - $${precioMax.toFixed(2)}</span></div>`;
+        if (tieneDescuento) {
+            preciosTextoHtml = minFinal === maxFinal 
+                ? `<div class="flex items-center gap-2"><span class="text-xs text-slate-400 line-through">$${minOrig.toFixed(2)}</span><span class="text-sm font-black text-rose-600">$${minFinal.toFixed(2)}</span></div>`
+                : `<div class="flex items-center gap-1"><span class="text-[10px] text-slate-400 line-through">$${minOrig.toFixed(2)}</span><span class="text-sm font-black text-rose-600">$${minFinal.toFixed(2)} - $${maxFinal.toFixed(2)}</span></div>`;
         } else {
-            preciosTextoHtml = precioMin === precioMax 
-                ? `<span class="text-sm font-black text-slate-900">$${precioMin.toFixed(2)}</span>`
-                : `<span class="text-sm font-black text-slate-900">$${precioMin.toFixed(2)} - $${precioMax.toFixed(2)}</span>`;
+            preciosTextoHtml = minOrig === maxOrig 
+                ? `<span class="text-sm font-black text-slate-900">$${minOrig.toFixed(2)}</span>`
+                : `<span class="text-sm font-black text-slate-900">$${minOrig.toFixed(2)} - $${maxOrig.toFixed(2)}</span>`;
         }
     } else {
         preciosTextoHtml = `<span class="text-sm font-black text-slate-900">$0.00</span>`;
@@ -349,7 +345,7 @@ function generarHTMLTarjetaProducto(p) {
                 </div>
                 <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
                     <div>
-                        <span class="text-[9px] text-slate-400 block">${(p.en_liquidacion || p.en_oferta) ? 'Precio Oferta' : 'Precio'}</span>
+                        <span class="text-[9px] text-slate-400 block">Precio</span>
                         ${preciosTextoHtml}
                     </div>
                     <button onclick="abrirModal(${p.id})" class="bg-slate-900 hover:bg-rose-600 text-white font-bold text-[10px] px-2.5 py-1.5 rounded-xl transition shadow-xs cursor-pointer">Ver Tallas</button>
@@ -565,13 +561,6 @@ function abrirModal(productoId) {
     colorSeleccionado = colores[0] || "Negro";
     cantidadSeleccionada = 1;
 
-    const varianteInicial = obtenerVarianteActual();
-    const primerPrecio = varianteInicial ? varianteInicial.precio : (variantes[0] ? variantes[0].precio : 0);
-    const descuento = Number(productoSeleccionado.descuento_oferta || 0);
-    const precioFinalModal = (productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0 
-        ? Math.max(0, primerPrecio - (primerPrecio * (descuento / 100))) 
-        : primerPrecio;
-
     let listaMedia = [];
     if (productoSeleccionado.imagen_url) listaMedia.push({ tipo: 'img', url: productoSeleccionado.imagen_url });
     if (productoSeleccionado.imagen_1) listaMedia.push({ tipo: 'img', url: productoSeleccionado.imagen_1 });
@@ -623,7 +612,15 @@ function abrirModal(productoId) {
                 <div>
                     <span class="text-[10px] font-bold text-rose-600 tracking-wider uppercase bg-rose-50 px-2.5 py-1 rounded-md">${productoSeleccionado.categoria}</span>
                     <h3 class="text-lg font-extrabold text-slate-900 leading-snug mt-1.5 mb-1">${productoSeleccionado.nombre}</h3>
-                    <p id="modal-precio" class="text-3xl font-black text-rose-600">$${precioFinalModal.toFixed(2)}</p>
+                    
+                    <!-- BLOQUE DE PRECIOS Y DESCUENTOS DINÁMICOS EN EL MODAL -->
+                    <div class="mt-2 space-y-1">
+                        <span id="etiqueta-descuento" class="inline-block bg-rose-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider mb-1" style="display: none;"></span>
+                        <div class="flex items-center gap-3">
+                            <span id="precio-tachado" class="text-sm text-slate-400 line-through font-bold" style="display: none;"></span>
+                            <p id="modal-precio" class="text-3xl font-black text-rose-600">$0.00</p>
+                        </div>
+                    </div>
                 </div>
                 ${cartillaHTML}
                 <div class="space-y-3 border-t border-slate-100 pt-3">
@@ -751,13 +748,33 @@ function seleccionarColor(color) {
 function actualizarDetalleVariante() {
     const variante = obtenerVarianteActual();
     if (variante && productoSeleccionado) {
-        let precioUnitario = variante.precio;
-        const descuento = Number(productoSeleccionado.descuento_oferta || 0);
-        if ((productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0) {
-            precioUnitario = Math.max(0, precioUnitario - (precioUnitario * (descuento / 100)));
+        const precioOriginal = Number(variante.precio || 0);
+        const precioFinal = Number(variante.precio_final !== undefined ? variante.precio_final : precioOriginal);
+        const porcentajeDesc = Number(variante.descuento_porcentaje || 0);
+
+        const etiquetaDesc = document.getElementById("etiqueta-descuento");
+        const precioTachado = document.getElementById("precio-tachado");
+        const modalPrecio = document.getElementById("modal-precio");
+
+        if (porcentajeDesc > 0) {
+            if (etiquetaDesc) {
+                etiquetaDesc.innerText = `DESCUENTO ${porcentajeDesc}%`;
+                etiquetaDesc.style.display = 'inline-block';
+            }
+            if (precioTachado) {
+                precioTachado.innerText = `$${precioOriginal.toFixed(2)}`;
+                precioTachado.style.display = 'inline';
+            }
+            if (modalPrecio) {
+                modalPrecio.innerText = `$${precioFinal.toFixed(2)}`;
+            }
+        } else {
+            if (etiquetaDesc) etiquetaDesc.style.display = 'none';
+            if (precioTachado) precioTachado.style.display = 'none';
+            if (modalPrecio) modalPrecio.innerText = `$${precioOriginal.toFixed(2)}`;
         }
-        const totalLinea = precioUnitario * cantidadSeleccionada;
-        document.getElementById("modal-precio").innerText = `$${precioUnitario.toFixed(2)}`;
+
+        const totalLinea = precioFinal * cantidadSeleccionada;
         document.getElementById("resumen-talla").innerText = tallaSeleccionada;
         document.getElementById("resumen-color").innerText = colorSeleccionado;
         document.getElementById("modal-stock").innerText = `Stock: ${variante.stock} disp.`;
@@ -773,11 +790,7 @@ function cerrarModal() {
 function agregarAlCarrito(abrirDrawer = false) {
     const variante = obtenerVarianteActual();
     const cantAgregar = cantidadSeleccionada > 0 ? cantidadSeleccionada : 1;
-    let precioFinalUnitario = variante.precio;
-    const descuento = Number(productoSeleccionado.descuento_oferta || 0);
-    if ((productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0) {
-        precioFinalUnitario = Math.max(0, precioFinalUnitario - (precioFinalUnitario * (descuento / 100)));
-    }
+    const precioFinalUnitario = Number(variante.precio_final !== undefined ? variante.precio_final : variante.precio || 0);
 
     const itemExistente = carrito.find(item => item.sku === variante.sku);
     if (itemExistente) {
@@ -857,7 +870,7 @@ function limpiarEstadoYFormularioPostCompra() {
     }
 }
 
-// --- OPCIÓN 1: ENVÍO VÍA WHATSAPP ---
+// --- CHECKOUT VÍA WHATSAPP ---
 async function procesarPedidoWhatsApp(event) {
     if (event) event.preventDefault();
     
@@ -923,7 +936,7 @@ async function procesarPedidoWhatsApp(event) {
     }
 }
 
-// --- OPCIÓN 1: ENVÍO VÍA CORREO ---
+// --- CHECKOUT VÍA CORREO ---
 async function procesarPedidoCorreo(event) {
     if (event) event.preventDefault();
     
@@ -980,7 +993,7 @@ async function procesarPedidoCorreo(event) {
     }
 }
 
-// --- OPCIÓN 2: PAGO CON TARJETA VÍA PAYMENTEZ ---
+// --- PAGO CON TARJETA VÍA PAYMENTEZ ---
 async function procesarPagoPaymentez(event) {
     if (event) event.preventDefault();
     
