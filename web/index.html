@@ -321,7 +321,7 @@
                 <h3 style="margin:0; color:#1e293b; font-size:16px; font-weight:800;">📦 Finalizar Pedido por WhatsApp</h3>
                 <button onclick="cerrarModalCheckout()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#64748b;">&times;</button>
             </div>
-            <form id="formCheckoutWapp" onsubmit="procesarPedidoWapp(event)">
+                onsubmit="procesarPedidoWhatsApp(event)">
                 
                 <!-- MODALIDAD DE PAGO (PLAN ACUMULATIVO) -->
                 <div class="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-xl" style="margin-bottom:15px;">
@@ -405,7 +405,7 @@
                     <input type="file" id="wapp_comprobante" accept="image/*,application/pdf" style="width:100%; font-size:11px; color:#475569;">
                 </div>
 
-                <button type="submit" style="width:100%; background:#16a34a; color:white; border:none; padding:12px; font-size:14px; font-weight:bold; border-radius:8px; cursor:pointer;">
+                <button type="button" onclick="procesarPedidoWhatsApp(event)" style="width:100%; background: #16a34a; color: white; border:none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer;">
                     ✅ Registrar y Enviar Pedido por WhatsApp
                 </button>
             </form>
