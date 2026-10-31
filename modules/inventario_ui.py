@@ -93,7 +93,6 @@ def render_inventario():
             st.markdown("###### 🏷️ Variantes (Tallas, Colores, Precios, Stock y Descuento %)")
             st.caption("Agrega las variantes reales de tu producto. Si usas modalidad Individual, el % de oferta base se aplicará a las variantes.")
 
-            # DataFrame 100% limpio sin datos quemados ni tallas inventadas
             df_inicial = pd.DataFrame(columns=["sku", "talla", "color", "precio", "descuento_%", "stock_actual", "stock_minimo", "stock_maximo", "imagen_variante"])
 
             df_variantes_editado = st.data_editor(
@@ -114,7 +113,7 @@ def render_inventario():
             )
 
         with col_der:
-            st.markdown("##### 📸 Imagen Principal")
+            st.markdown("##### 📸 Imagen Principal del Producto")
             archivo_imagen = st.file_uploader("Subir imagen general:", type=["jpg", "jpeg", "png", "webp"], label_visibility="collapsed")
             
             if archivo_imagen is not None:
@@ -154,31 +153,12 @@ def render_inventario():
 
         if btn_guardar:
             campos_faltantes = []
-            
             if not nombre_producto or str(nombre_producto).strip() in ["", "None", "nan"]:
                 campos_faltantes.append("Nombre del Modelo / Producto")
-            
             if archivo_imagen is None:
                 campos_faltantes.append("Imagen Principal del Producto")
-                
             if df_variantes_editado is None or df_variantes_editado.empty:
                 campos_faltantes.append("Al menos una variante en la tabla")
-            else:
-                for idx, row in df_variantes_editado.iterrows():
-                    talla_v = str(row.get("talla", "")).strip()
-                    color_v = str(row.get("color", "")).strip()
-                    
-                    if not talla_v or talla_v.lower() in ["none", "nan", ""]:
-                        campos_faltantes.append(f"Talla (Fila #{idx+1})")
-                    if not color_v or color_v.lower() in ["none", "nan", ""]:
-                        campos_faltantes.append(f"Color (Fila #{idx+1})")
-                        
-                    try:
-                        p_val = float(row.get("precio", 0))
-                        if p_val <= 0:
-                            campos_faltantes.append(f"Precio válido mayor a 0 (Fila #{idx+1})")
-                    except:
-                        campos_faltantes.append(f"Precio numérico (Fila #{idx+1})")
 
             if campos_faltantes:
                 with col_msg:
@@ -193,7 +173,6 @@ def render_inventario():
                         img_var_val = str(row.get("imagen_variante", "")).strip() if pd.notna(row.get("imagen_variante")) else ""
                         desc_var_val = float(row.get("descuento_%", 0) or 0)
                         
-                        # Regla de oro: Si es INDIVIDUAL, hereda la base si está en 0. Si es GENERAL, se limpia a 0.
                         if tipo_desc_reg == "GENERAL":
                             desc_var_val = 0.0
                         elif tipo_desc_reg == "INDIVIDUAL" and desc_var_val == 0 and desc_oferta_reg > 0:
@@ -293,8 +272,8 @@ def render_inventario():
                         df_filtrado = df_filtrado[mask]
 
                     st.divider()
-                    st.markdown("##### 🛠️ Corrección de Variante, Estados, Multimedia y Foto Específica")
-                    st.caption("Selecciona la variante, edita sus atributos, precio, descuento individual, galería, video o cartilla.")
+                    st.markdown("##### 🛠️ Corrección de Variante, Estados, Multimedia y Fotos")
+                    st.caption("Selecciona la variante, edita sus atributos y gestiona por separado su foto específica y la foto general del ítem.")
 
                     col_id_sel, col_btn_del = st.columns([3.0, 1.0], vertical_alignment="bottom")
                     
@@ -401,27 +380,31 @@ def render_inventario():
                                 edit_cartilla_file = st.file_uploader("Actualizar Cartilla / Guía Tallas", type=["jpg", "jpeg", "png", "webp", "pdf"], key="edit_cartilla")
 
                         with col_form_der:
-                            st.markdown("**Foto Actual de la Variante**")
-                            if variante_encontrada:
-                                img_var_url = variante_encontrada.get("imagen_url")
-                                img_gen_url = p_info.get("imagen_url")
-                                
-                                if img_var_url and str(img_var_url).strip() not in ["", "None", "nan", "null", "None"]:
-                                    url_final = str(img_var_url).strip()
-                                    if not url_final.startswith("http"):
-                                        url_final = resolver_url_imagen(url_final)
-                                    st.image(url_final, width=120, caption="✅ Foto Específica de la Variante")
-                                elif img_gen_url and str(img_gen_url).strip() not in ["", "None", "nan", "null"]:
-                                    url_final_gen = str(img_gen_url).strip()
-                                    if not url_final_gen.startswith("http"):
-                                        url_final_gen = resolver_url_imagen(url_final_gen)
-                                    st.image(url_final_gen, width=120, caption="⚠️ Usa Foto General del Producto")
+                            st.markdown("**Gestión de Fotos (Variante vs Ítem)**")
+                            
+                            col_f_var, col_f_prod = st.columns(2)
+                            
+                            with col_f_var:
+                                st.markdown("<p style='font-size:11px; font-weight:bold; text-align:center;'>FOTO VARIANTE</p>", unsafe_allow_html=True)
+                                img_var_url = variante_encontrada.get("imagen_url") if variante_encontrada else ""
+                                if img_var_url and str(img_var_url).strip() not in ["", "None", "nan", "null"]:
+                                    url_v = str(img_var_url).strip()
+                                    if not url_v.startswith("http"): url_v = resolver_url_imagen(url_v)
+                                    st.image(url_v, width=100)
                                 else:
-                                    st.info("Sin imagen registrada")
-                            else:
-                                st.warning("ID no encontrado")
+                                    st.info("Sin foto variante")
+                                archivo_nueva_imagen_variante = st.file_uploader("Subir Variante", type=["jpg", "jpeg", "png", "webp"], key="up_img_var", label_visibility="collapsed")
 
-                            archivo_nueva_imagen_variante = st.file_uploader("Subir foto para esta variante", type=["jpg", "jpeg", "png", "webp"], key="up_img_var")
+                            with col_f_prod:
+                                st.markdown("<p style='font-size:11px; font-weight:bold; text-align:center;'>FOTO DEL ÍTEM</p>", unsafe_allow_html=True)
+                                img_gen_url = p_info.get("imagen_url") if p_info else ""
+                                if img_gen_url and str(img_gen_url).strip() not in ["", "None", "nan", "null"]:
+                                    url_p = str(img_gen_url).strip()
+                                    if not url_p.startswith("http"): url_p = resolver_url_imagen(url_p)
+                                    st.image(url_p, width=100)
+                                else:
+                                    st.info("Sin foto ítem")
+                                archivo_nueva_imagen_producto = st.file_uploader("Subir Ítem", type=["jpg", "jpeg", "png", "webp"], key="up_img_prod", label_visibility="collapsed")
 
                         col_btn_acc, col_msg_acc = st.columns([1.8, 2.2])
                         with col_btn_acc:
@@ -435,8 +418,9 @@ def render_inventario():
                                 try:
                                     files = {}
                                     if archivo_nueva_imagen_variante is not None:
-                                        files["imagen"] = (archivo_nueva_imagen_variante.name, archivo_nueva_imagen_variante.getvalue(), archivo_nueva_imagen_variante.type)
                                         files["imagen_variante"] = (archivo_nueva_imagen_variante.name, archivo_nueva_imagen_variante.getvalue(), archivo_nueva_imagen_variante.type)
+                                    if archivo_nueva_imagen_producto is not None:
+                                        files["imagen_producto"] = (archivo_nueva_imagen_producto.name, archivo_nueva_imagen_producto.getvalue(), archivo_nueva_imagen_producto.type)
                                     
                                     if 'edit_img_1' in locals() and edit_img_1: files["imagen_1"] = (edit_img_1.name, edit_img_1.getvalue(), edit_img_1.type)
                                     if 'edit_img_2' in locals() and edit_img_2: files["imagen_2"] = (edit_img_2.name, edit_img_2.getvalue(), edit_img_2.type)
