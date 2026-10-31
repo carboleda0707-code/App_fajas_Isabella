@@ -232,6 +232,7 @@ def listar_inventario_publico(categoria: Optional[str] = Query(None), db: Sessio
                     "talla": v.talla,
                     "color": v.color,
                     "precio": float(v.precio),
+                    "descuento_porcentaje": float(getattr(v, 'descuento_porcentaje', 0.0) or 0.0),
                     "stock": stock_val,
                     "imagen_url": getattr(v, 'imagen_url', '') or ''
                 })
@@ -274,6 +275,7 @@ def obtener_producto_dinamico(producto_id: int, db: Session = Depends(get_db)):
             "talla": v.talla,
             "color": v.color,
             "precio": float(v.precio),
+            "descuento_porcentaje": float(getattr(v, 'descuento_porcentaje', 0.0) or 0.0),
             "stock": v.stock_actual,
             "imagen_url": getattr(v, 'imagen_url', '') or ''
         })
