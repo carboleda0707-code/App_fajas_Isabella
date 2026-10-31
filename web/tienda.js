@@ -297,42 +297,30 @@ function cargarCategoriasWeb() {
 
 function generarHTMLTarjetaProducto(p) {
     const variantes = p.variantes || [];
-    const tipoDesc = (p.tipo_descuento || 'GENERAL').toUpperCase();
-    const descuentoGeneral = Number(p.descuento_oferta || 0);
-    const estaEnOfertaGeneral = (p.en_oferta || p.en_liquidacion) && tipoDesc === 'GENERAL' && descuentoGeneral > 0;
-    
+    const descuento = Number(p.descuento_oferta || 0);
     let preciosTextoHtml = "";
-    let tieneDescuentoActivo = false;
 
     if (variantes.length > 0) {
-        const preciosReales = variantes.map(v => Number(v.precio || 0));
-        
-        const preciosOferta = variantes.map(v => {
-            const precioV = Number(v.precio || 0);
-            
-            if (estaEnOfertaGeneral) {
-                return Math.max(0, precioV - (precioV * (descuentoGeneral / 100)));
+        const preciosCalculados = variantes.map(v => {
+            let precioV = Number(v.precio || 0);
+            if ((p.en_oferta || p.en_liquidacion) && descuento > 0) {
+                precioV = Math.max(0, precioV - (precioV * (descuento / 100)));
             }
-            
-            const descVar = Number(v.descuento_porcentaje || 0);
-            return descVar > 0 ? Math.max(0, precioV - (precioV * (descVar / 100))) : precioV;
+            return precioV;
         });
 
-        const minReal = Math.min(...preciosReales);
-        const maxReal = Math.max(...preciosReales);
-        const minOferta = Math.min(...preciosOferta);
-        const maxOferta = Math.max(...preciosOferta);
+        const precioMin = Math.min(...preciosCalculados);
+        const precioMax = Math.max(...preciosCalculados);
+        const precioMinOrig = Math.min(...variantes.map(v => Number(v.precio || 0)));
 
-        tieneDescuentoActivo = estaEnOfertaGeneral || variantes.some(v => Number(v.descuento_porcentaje || 0) > 0) || Boolean(p.en_oferta) || Boolean(p.en_liquidacion);
-
-        if (tieneDescuentoActivo && minOferta < minReal) {
-            preciosTextoHtml = minReal === maxReal 
-                ? `<div class="flex flex-col"><span class="text-xs text-slate-400 line-through">$${minReal.toFixed(2)}</span><span class="text-sm font-black text-rose-600">$${minOferta.toFixed(2)}</span></div>`
-                : `<div class="flex flex-col"><span class="text-xs text-slate-400 line-through">$${minReal.toFixed(2)} - $${maxReal.toFixed(2)}</span><span class="text-sm font-black text-rose-600">$${minOferta.toFixed(2)} - $${maxOferta.toFixed(2)}</span></div>`;
+        if ((p.en_oferta || p.en_liquidacion) && descuento > 0) {
+            preciosTextoHtml = precioMin === precioMax 
+                ? `<div class="flex items-center gap-2"><span class="text-xs text-slate-400 line-through">$${precioMinOrig.toFixed(2)}</span><span class="text-sm font-black text-rose-600">$${precioMin.toFixed(2)}</span></div>`
+                : `<div class="flex items-center gap-1"><span class="text-[10px] text-slate-400 line-through">$${precioMinOrig.toFixed(2)}</span><span class="text-sm font-black text-rose-600">$${precioMin.toFixed(2)} - $${precioMax.toFixed(2)}</span></div>`;
         } else {
-            preciosTextoHtml = minReal === maxReal 
-                ? `<span class="text-sm font-black text-slate-900">$${minReal.toFixed(2)}</span>`
-                : `<span class="text-sm font-black text-slate-900">$${minReal.toFixed(2)} - $${maxReal.toFixed(2)}</span>`;
+            preciosTextoHtml = precioMin === precioMax 
+                ? `<span class="text-sm font-black text-slate-900">$${precioMin.toFixed(2)}</span>`
+                : `<span class="text-sm font-black text-slate-900">$${precioMin.toFixed(2)} - $${precioMax.toFixed(2)}</span>`;
         }
     } else {
         preciosTextoHtml = `<span class="text-sm font-black text-slate-900">$0.00</span>`;
@@ -341,27 +329,27 @@ function generarHTMLTarjetaProducto(p) {
     const coloresUnicos = variantes.length > 0 ? [...new Set(variantes.map(v => v.color))].join(", ") : "Variados";
     let badgePromo = '';
     if (p.en_liquidacion) badgePromo = `<span class="absolute top-2 left-2 bg-rose-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md animate-pulse">🔥 LIQUIDACIÓN</span>`;
-    else if (p.en_oferta || estaEnOfertaGeneral) badgePromo = `<span class="absolute top-2 left-2 bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md">🏷️ OFERTA</span>`;
+    else if (p.en_oferta) badgePromo = `<span class="absolute top-2 left-2 bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md">🏷️ OFERTA</span>`;
     else if (p.es_nuevo) badgePromo = `<span class="absolute top-2 left-2 bg-blue-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md">✨ NUEVO</span>`;
 
-    const imgSrc = typeof obtenerRutaImagenProducto === 'function' ? obtenerRutaImagenProducto(p.imagen_url) : (p.imagen_url || '');
+    const imgSrc = obtenerRutaImagenProducto(p.imagen_url);
 
     return `
         <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:shadow-lg transition flex flex-col justify-between group">
             <div class="relative bg-slate-50 h-64 w-full flex items-center justify-center p-3 overflow-hidden">
                 ${badgePromo}
-                <img src="${imgSrc}" onerror="this.onerror=null; this.src='https://via.placeholder.com/300'" class="w-full h-full object-contain group-hover:scale-105 transition-all duration-300" alt="${p.nombre || 'Producto'}">
+                <img src="${imgSrc}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-full h-full object-contain group-hover:scale-105 transition-all duration-300" alt="${p.nombre}">
                 <span class="absolute top-2 right-2 bg-slate-900/80 text-white text-[9px] font-bold px-2 py-0.5 rounded-full backdrop-blur-xs">${variantes.length} Opciones</span>
             </div>
             <div class="p-3.5 flex-1 flex flex-col justify-between">
                 <div>
-                    <span class="text-[9px] font-bold text-rose-600 tracking-wider uppercase">${p.categoria || 'GENERAL'}</span>
-                    <h3 class="text-xs font-bold text-slate-800 line-clamp-1 mb-1">${p.nombre || ''}</h3>
+                    <span class="text-[9px] font-bold text-rose-600 tracking-wider uppercase">${p.categoria}</span>
+                    <h3 class="text-xs font-bold text-slate-800 line-clamp-1 mb-1">${p.nombre}</h3>
                     <p class="text-[10px] text-slate-500 mb-2">Colores: <span class="font-medium text-slate-700">${coloresUnicos}</span></p>
                 </div>
                 <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
                     <div>
-                        <span class="text-[9px] text-slate-400 block">${tieneDescuentoActivo ? 'Precio Oferta' : 'Precio'}</span>
+                        <span class="text-[9px] text-slate-400 block">${(p.en_liquidacion || p.en_oferta) ? 'Precio Oferta' : 'Precio'}</span>
                         ${preciosTextoHtml}
                     </div>
                     <button onclick="abrirModal(${p.id})" class="bg-slate-900 hover:bg-rose-600 text-white font-bold text-[10px] px-2.5 py-1.5 rounded-xl transition shadow-xs cursor-pointer">Ver Tallas</button>
@@ -635,9 +623,7 @@ function abrirModal(productoId) {
                 <div>
                     <span class="text-[10px] font-bold text-rose-600 tracking-wider uppercase bg-rose-50 px-2.5 py-1 rounded-md">${productoSeleccionado.categoria}</span>
                     <h3 class="text-lg font-extrabold text-slate-900 leading-snug mt-1.5 mb-1">${productoSeleccionado.nombre}</h3>
-                    <div id="modal-precio-container">
-                        <span class="text-3xl font-black text-rose-600">$${precioFinalModal.toFixed(2)}</span>
-                    </div>
+                    <p id="modal-precio" class="text-3xl font-black text-rose-600">$${precioFinalModal.toFixed(2)}</p>
                 </div>
                 ${cartillaHTML}
                 <div class="space-y-3 border-t border-slate-100 pt-3">
@@ -765,58 +751,17 @@ function seleccionarColor(color) {
 function actualizarDetalleVariante() {
     const variante = obtenerVarianteActual();
     if (variante && productoSeleccionado) {
-        const precioOriginal = Number(variante.precio || 0);
-        const tipoDesc = (productoSeleccionado.tipo_descuento || 'GENERAL').toUpperCase();
-        const descGeneral = Number(productoSeleccionado.descuento_oferta || 0);
-        const descIndividual = Number(variante.descuento_porcentaje || 0);
-
-        let descAplicar = 0;
-        let porcentajeTexto = 0;
-
-        if (productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) {
-            if (tipoDesc === 'GENERAL' && descGeneral > 0) {
-                descAplicar = descGeneral;
-                porcentajeTexto = descGeneral;
-            } else if (tipoDesc === 'INDIVIDUAL' && descIndividual > 0) {
-                descAplicar = descIndividual;
-                porcentajeTexto = descIndividual;
-            }
+        let precioUnitario = variante.precio;
+        const descuento = Number(productoSeleccionado.descuento_oferta || 0);
+        if ((productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0) {
+            precioUnitario = Math.max(0, precioUnitario - (precioUnitario * (descuento / 100)));
         }
-
-        let precioFinalUnitario = precioOriginal;
-        if (descAplicar > 0) {
-            precioFinalUnitario = Math.max(0, precioOriginal - (precioOriginal * (descAplicar / 100)));
-        }
-
-        const cantidad = typeof cantidadSeleccionada !== 'undefined' ? cantidadSeleccionada : 1;
-        const totalLinea = precioFinalUnitario * cantidad;
-        
-        const elPrecioContainer = document.getElementById("modal-precio-container");
-        const elTalla = document.getElementById("resumen-talla");
-        const elColor = document.getElementById("resumen-color");
-        const elStock = document.getElementById("modal-stock");
-        const elTotal = document.getElementById("modal-total-seleccion");
-
-        if (elPrecioContainer) {
-            if (descAplicar > 0) {
-                elPrecioContainer.innerHTML = `
-                    <div class="flex items-center gap-2">
-                        <span class="bg-rose-600 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">${porcentajeTexto}% OFF</span>
-                        <span class="text-3xl font-black text-rose-600">$${precioFinalUnitario.toFixed(2)}</span>
-                        <span class="text-sm text-slate-400 line-through font-semibold">$${precioOriginal.toFixed(2)}</span>
-                    </div>
-                `;
-            } else {
-                elPrecioContainer.innerHTML = `
-                    <span class="text-3xl font-black text-slate-900">$${precioOriginal.toFixed(2)}</span>
-                `;
-            }
-        }
-
-        if (elTalla) elTalla.innerText = variante.talla || '';
-        if (elColor) elColor.innerText = variante.color || '';
-        if (elStock) elStock.innerText = `Stock: ${variante.stock_actual !== undefined ? variante.stock_actual : (variante.stock || 0)} disp.`;
-        if (elTotal) elTotal.innerText = `$${totalLinea.toFixed(2)}`;
+        const totalLinea = precioUnitario * cantidadSeleccionada;
+        document.getElementById("modal-precio").innerText = `$${precioUnitario.toFixed(2)}`;
+        document.getElementById("resumen-talla").innerText = tallaSeleccionada;
+        document.getElementById("resumen-color").innerText = colorSeleccionado;
+        document.getElementById("modal-stock").innerText = `Stock: ${variante.stock} disp.`;
+        document.getElementById("modal-total-seleccion").innerText = `$${totalLinea.toFixed(2)}`;
     }
 }
 
@@ -828,21 +773,10 @@ function cerrarModal() {
 function agregarAlCarrito(abrirDrawer = false) {
     const variante = obtenerVarianteActual();
     const cantAgregar = cantidadSeleccionada > 0 ? cantidadSeleccionada : 1;
-    
-    const precioOriginal = Number(variante.precio || 0);
-    const tipoDesc = (productoSeleccionado.tipo_descuento || 'GENERAL').toUpperCase();
-    const descGeneral = Number(productoSeleccionado.descuento_oferta || 0);
-    const descIndividual = Number(variante.descuento_porcentaje || 0);
-
-    let descAplicar = 0;
-    if (productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) {
-        if (tipoDesc === 'GENERAL' && descGeneral > 0) descAplicar = descGeneral;
-        else if (tipoDesc === 'INDIVIDUAL' && descIndividual > 0) descAplicar = descIndividual;
-    }
-
-    let precioFinalUnitario = precioOriginal;
-    if (descAplicar > 0) {
-        precioFinalUnitario = Math.max(0, precioOriginal - (precioOriginal * (descAplicar / 100)));
+    let precioFinalUnitario = variante.precio;
+    const descuento = Number(productoSeleccionado.descuento_oferta || 0);
+    if ((productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0) {
+        precioFinalUnitario = Math.max(0, precioFinalUnitario - (precioFinalUnitario * (descuento / 100)));
     }
 
     const itemExistente = carrito.find(item => item.sku === variante.sku);
@@ -850,15 +784,8 @@ function agregarAlCarrito(abrirDrawer = false) {
         itemExistente.cantidad += cantAgregar;
     } else {
         carrito.push({
-            nombre: productoSeleccionado.nombre, 
-            sku: variante.sku, 
-            talla: tallaSeleccionada, 
-            color: colorSeleccionado,
-            precio: precioFinalUnitario, 
-            precio_real: precioOriginal,
-            imagen_url: variante.imagen_url || productoSeleccionado.imagen_url || SVG_FALLBACK, 
-            categoria: productoSeleccionado.categoria, 
-            cantidad: cantAgregar
+            nombre: productoSeleccionado.nombre, sku: variante.sku, talla: tallaSeleccionada, color: colorSeleccionado,
+            precio: precioFinalUnitario, imagen_url: productoSeleccionado.imagen_url || SVG_FALLBACK, categoria: productoSeleccionado.categoria, cantidad: cantAgregar
         });
     }
     cerrarModal();
@@ -898,7 +825,9 @@ function calcularSaldoPendiente() {
     }
 }
 
-// Función anti-bloqueo de ventanas emergentes en navegadores
+// ==============================================================================
+// FUNCIÓN CORREGIDA Y CONECTADA AL BACKEND PARA DISPARAR WHATSAPP SIN BLOQUEO
+// ==============================================================================
 async function procesarPedidoWhatsApp(event) {
     if (event) event.preventDefault();
     
@@ -907,30 +836,21 @@ async function procesarPedidoWhatsApp(event) {
         return;
     }
 
-    // Buscamos inputs flexibles por múltiples alternativas de id/name
-    const getVal = (...ids) => {
-        for (let id of ids) {
-            const el = document.getElementById(id) || document.querySelector(`[name="${id}"]`);
-            if (el && el.value) return el.value.trim();
-        }
-        return '';
-    };
+    // Abrimos una pestaña en blanco inmediatamente para evitar el bloqueo del navegador (Pop-up Blocker)
+    const ventanaWhatsApp = window.open('about:blank', '_blank');
 
-    const nombreCliente = getVal('nombre-cliente', 'nombre') || 'Cliente';
-    const telefonoCliente = getVal('telefono-cliente', 'telefono', 'whatsapp') || '';
-    const correoCliente = getVal('correo-cliente', 'correo', 'email') || '';
-    const rucCedula = getVal('ruccedula-cliente', 'ruc_cedula', 'cedula', 'ruc') || '9999999999';
-    const razonSocial = getVal('razon-social-cliente', 'razon_social') || nombreCliente;
-    const provincia = getVal('provincia-cliente', 'provincia') || 'Guayas';
-    const ciudad = getVal('ciudad-cliente', 'ciudad') || 'Guayaquil';
-    const direccion = getVal('direccion-cliente', 'direccion') || 'Dirección Principal';
-    const referencia = getVal('referencia-cliente', 'referencia') || '';
+    const nombreCliente = document.getElementById('nombre-cliente')?.value || 'Cliente';
+    const telefonoCliente = document.getElementById('telefono-cliente')?.value || '';
+    const correoCliente = document.getElementById('correo-cliente')?.value || '';
+    const rucCedula = document.getElementById('ruccedula-cliente')?.value || '9999999999';
+    const razonSocial = document.getElementById('razon-social-cliente')?.value || nombreCliente;
+    const provincia = document.getElementById('provincia-cliente')?.value || 'Guayas';
+    const ciudad = document.getElementById('ciudad-cliente')?.value || 'Guayaquil';
+    const direccion = document.getElementById('direccion-cliente')?.value || 'Dirección Principal';
+    const referencia = document.getElementById('referencia-cliente')?.value || '';
     
-    const inputComprobante = document.getElementById('input-comprobante-pago') || document.querySelector('input[type="file"]');
+    const inputComprobante = document.getElementById('input-comprobante-pago');
     const archivoComprobante = inputComprobante && inputComprobante.files[0] ? inputComprobante.files[0] : null;
-
-    // ABRIR VENTANA PREVIA PARA EVITAR EL BLOQUEO DE POPUPS DEL NAVEGADOR
-    const win = window.open('about:blank', '_blank');
 
     const formData = new FormData();
     formData.append("nombre", nombreCliente);
@@ -956,17 +876,18 @@ async function procesarPedidoWhatsApp(event) {
         
         const data = await res.json();
         if (res.ok && data.status === 'success' && data.whatsapp_url) {
-            if (win) {
-                win.location.href = data.whatsapp_url;
+            // Redirigimos la pestaña en blanco directamente a la URL de WhatsApp generada por Python
+            if (ventanaWhatsApp) {
+                ventanaWhatsApp.location.href = data.whatsapp_url;
             } else {
-                window.location.href = data.whatsapp_url;
+                window.open(data.whatsapp_url, '_blank');
             }
         } else {
-            if (win) win.close();
+            if (ventanaWhatsApp) ventanaWhatsApp.close();
             alert("Error al procesar el pedido: " + (data.detail || "Intente nuevamente."));
         }
     } catch (e) {
-        if (win) win.close();
+        if (ventanaWhatsApp) ventanaWhatsApp.close();
         console.error("Error de conexión:", e);
         alert("Error de conexión al procesar el pedido.");
     }
@@ -974,47 +895,9 @@ async function procesarPedidoWhatsApp(event) {
 
 function actualizarCarritoUI() {
     const count = carrito.reduce((acc, item) => acc + item.cantidad, 0);
-    
-    let subtotalReal = 0;
-    let totalAhorro = 0;
-    let totalAPagar = 0;
-
-    carrito.forEach(item => {
-        const pReal = Number(item.precio_real || item.precio || 0);
-        const pFinal = Number(item.precio || 0);
-        const cant = Number(item.cantidad || 1);
-
-        subtotalReal += pReal * cant;
-        if (pReal > pFinal) {
-            totalAhorro += (pReal - pFinal) * cant;
-        }
-        totalAPagar += pFinal * cant;
-    });
-
+    const total = calcularTotalCarrito();
     if (document.getElementById("cart-count")) document.getElementById("cart-count").innerText = count;
-    
-    const contenedorTotales = document.getElementById("carrito-totales-container");
-    if (contenedorTotales) {
-        contenedorTotales.innerHTML = `
-            <div class="space-y-1 text-xs text-slate-600 border-b border-slate-200 pb-2">
-                <div class="flex justify-between">
-                    <span>Valor Real:</span>
-                    <span class="font-semibold line-through">$${subtotalReal.toFixed(2)}</span>
-                </div>
-                <div class="flex justify-between text-emerald-600 font-bold">
-                    <span>Ahorro Total:</span>
-                    <span>-$${totalAhorro.toFixed(2)}</span>
-                </div>
-            </div>
-            <div class="flex justify-between items-center text-base font-black text-slate-900 pt-1">
-                <span>A Pagar:</span>
-                <span id="carrito-total" class="text-rose-600 text-xl">$${totalAPagar.toFixed(2)}</span>
-            </div>
-        `;
-    } else {
-        const elTotalSimple = document.getElementById("carrito-total");
-        if (elTotalSimple) elTotalSimple.innerText = `$${totalAPagar.toFixed(2)}`;
-    }
+    if (document.getElementById("carrito-total")) document.getElementById("carrito-total").innerText = `$${total.toFixed(2)}`;
 
     if (esPlanAcumulativoActivo) calcularSaldoPendiente();
 
@@ -1025,28 +908,19 @@ function actualizarCarritoUI() {
         return;
     }
 
-    container.innerHTML = carrito.map((item, index) => {
-        const pReal = Number(item.precio_real || item.precio);
-        const pFinal = Number(item.precio);
-        const tieneDescItem = pReal > pFinal;
-
-        return `
-            <div class="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
-                <div class="flex items-center gap-3">
-                    <img src="${obtenerRutaImagenProducto(item.imagen_url)}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-12 h-12 object-contain rounded-lg bg-white p-1 border">
-                    <div>
-                        <h4 class="text-xs font-bold text-slate-800 line-clamp-1">${item.nombre}</h4>
-                        <p class="text-[10px] text-slate-500">Talla: <b>${item.talla}</b> | Color: <b>${item.color}</b></p>
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs font-black text-rose-600">$${pFinal.toFixed(2)} x ${item.cantidad}</span>
-                            ${tieneDescItem ? `<span class="text-[10px] text-slate-400 line-through">$${pReal.toFixed(2)}</span>` : ''}
-                        </div>
-                    </div>
+    container.innerHTML = carrito.map((item, index) => `
+        <div class="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
+            <div class="flex items-center gap-3">
+                <img src="${obtenerRutaImagenProducto(item.imagen_url)}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-12 h-12 object-contain rounded-lg bg-white p-1 border">
+                <div>
+                    <h4 class="text-xs font-bold text-slate-800 line-clamp-1">${item.nombre}</h4>
+                    <p class="text-[10px] text-slate-500">Talla: <b>${item.talla}</b> | Color: <b>${item.color}</b></p>
+                    <span class="text-xs font-black text-rose-600">$${item.precio.toFixed(2)} x ${item.cantidad}</span>
                 </div>
-                <button onclick="eliminarDelCarrito(${index})" class="text-slate-400 hover:text-rose-600 text-xs p-1 cursor-pointer"><i class="fa-solid fa-trash-can"></i></button>
             </div>
-        `;
-    }).join('');
+            <button onclick="eliminarDelCarrito(${index})" class="text-slate-400 hover:text-rose-600 text-xs p-1 cursor-pointer"><i class="fa-solid fa-trash-can"></i></button>
+        </div>
+    `).join('');
 }
 
 function eliminarDelCarrito(index) {
