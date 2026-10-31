@@ -642,11 +642,22 @@ async def checkout_correo(
         
         correo_limpio = correo.lower().strip() if (correo and correo.strip() != "") else None
 
+        # --- CHIVATO DEPURACIÓN SMTP ---
+        print("==========================================")
+        print("🔍 [CHIVATO SMTP] Intentando enviar correo...")
+        print(f"📌 Servidor SMTP: {SMTP_SERVER}")
+        print(f"📌 Puerto SMTP: {SMTP_PORT}")
+        print(f"📌 Emisor configurado: '{EMAIL_EMISOR}'")
+        print(f"📌 Contraseña configurada: {'SÍ (Longitud: ' + str(len(EMAIL_PASSWORD)) + ')' if EMAIL_PASSWORD else 'NO (¡ESTÁ VACÍA!)'}")
+        print("==========================================")
+
         # --- ENVÍO DE NOTIFICACIÓN SMTP (EMPRESA + CLIENTE) ---
         if EMAIL_EMISOR and EMAIL_PASSWORD:
             destinatarios = [CORREO_EMPRESA]
             if correo_limpio and correo_limpio not in destinatarios:
                 destinatarios.append(correo_limpio)
+
+            print(f"📌 Destinatarios finales: {destinatarios}")
 
             msg = MIMEMultipart()
             msg['From'] = f"{NOMBRE_EMPRESA} <{EMAIL_EMISOR}>"
@@ -727,11 +738,32 @@ async def checkout_correo(
                 part.add_header('Content-Disposition', f'attachment; filename="{res["comprobante_nombre"]}"')
                 msg.attach(part)
 
-            server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-            server.starttls()
-            server.login(EMAIL_EMISOR, EMAIL_PASSWORD)
-            server.sendmail(EMAIL_EMISOR, destinatarios, msg.as_string())
-            server.quit()
+            try:
+                print("🔌 Conectando al servidor SMTP...")
+                server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+                
+                print("🔒 Iniciando STARTTLS...")
+                server.starttls()
+                
+                print("🔑 Realizando login SMTP...")
+                server.login(EMAIL_EMISOR, EMAIL_PASSWORD)
+                
+                print("✉️ Enviando mensaje...")
+                server.sendmail(EMAIL_EMISOR, destinatarios, msg.as_string())
+                
+                print("🚪 Cerrando conexión SMTP...")
+                server.quit()
+                
+                print("✅ [CHIVATO SMTP]: ¡Correo enviado exitosamente!")
+                
+            except Exception as smtp_err:
+                print(f"❌ [CHIVATO SMTP ERROR]: Ocurrió un error al enviar el correo:")
+                print(f"Tipo de error: {type(smtp_err).__name__}")
+                print(f"Detalle: {str(smtp_err)}")
+                import traceback
+                traceback.print_exc()
+        else:
+            print("⚠️ [CHIVATO SMTP WARNING]: No se intentó el envío porque EMAIL_EMISOR o EMAIL_PASSWORD están vacíos.")
 
         return {
             "status": "success",
