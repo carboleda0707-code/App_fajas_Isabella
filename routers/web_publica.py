@@ -1,5 +1,10 @@
 import hashlib
 import urllib.parse
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
 from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -14,7 +19,8 @@ import cloudinary.uploader
 from datetime import date
 from config import (
     NOMBRE_EMPRESA, TELEFONO_WHATSAPP, CORREO_EMPRESA, DIRECCION_EMPRESA,
-    INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL, WHATSAPP_LINK
+    INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL, WHATSAPP_LINK,
+    SMTP_SERVER, SMTP_PORT, EMAIL_EMISOR, EMAIL_PASSWORD
 )
 
 router = APIRouter()
@@ -413,6 +419,154 @@ def registrar_cliente_web(
         "cliente": {"id": nuevo_cliente.id, "nombre": nuevo_cliente.nombre, "correo": nuevo_cliente.correo}
     }
 
+
+# ==============================================================================
+# FUNCIÓN AUXILIAR COMÚN PARA PROCESAR PEDIDOS (EVITA CÓDIGO DUPLICADO)
+# ==============================================================================
+
+async def _procesar_checkout_comun(
+    nombre: str,
+    telefono: str,
+    correo: Optional[str],
+    ruc_cedula: str,
+    razon_social: str,
+    provincia: str,
+    ciudad: str,
+    direccion: str,
+    referencia: Optional[str],
+    items: str,
+    comprobante: Optional[UploadFile],
+    tipo_venta: str,
+    db: Session
+):
+    correo_limpio = correo.lower().strip() if (correo and correo.strip() != "") else None
+    
+    cliente_db = None
+    if correo_limpio:
+        cliente_db = db.query(Cliente).filter(Cliente.correo == correo_limpio).first()
+    if not cliente_db and ruc_cedula:
+        cliente_db = db.query(Cliente).filter(Cliente.ruc_cedula == ruc_cedula).first()
+
+    password_temporal = None
+    if cliente_db:
+        cliente_db.nombre = razon_social
+        cliente_db.telefono = telefono
+        cliente_db.direccion = direccion
+        cliente_db.ciudad = ciudad
+        cliente_db.cliente_web = True
+        if correo_limpio and not cliente_db.correo:
+            cliente_db.correo = correo_limpio
+            
+        if not cliente_db.password:
+            password_temporal = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
+            cliente_db.password = generar_hash_sha256(password_temporal)
+        db.commit()
+    else:
+        password_temporal = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
+        password_hash_temp = generar_hash_sha256(password_temporal)
+        reg_correo = correo_limpio if correo_limpio else f"{ruc_cedula.strip()}@fajasisabella.com"
+        
+        cliente_db = Cliente(
+            ruc_cedula=ruc_cedula,
+            nombre=razon_social,
+            correo=reg_correo,
+            telefono=telefono,
+            direccion=direccion,
+            ciudad=ciudad,
+            cliente_web=True,
+            password=password_hash_temp
+        )
+        db.add(cliente_db)
+        db.commit()
+        db.refresh(cliente_db)
+
+    try:
+        lista_items = json.loads(items) if items else []
+    except Exception:
+        raise HTTPException(status_code=400, detail="El formato de los ítems del carrito es inválido.")
+
+    if not lista_items:
+        raise HTTPException(status_code=400, detail="El carrito está vacío.")
+
+    total_pedido = sum(float(item.get('precio', 0)) * int(item.get('cantidad', 1)) for item in lista_items)
+    
+    prefijo_ym = date.today().strftime('%y%m')
+    facturas_mes_count = db.query(Factura).filter(Factura.numero_factura.like(f"{prefijo_ym}%")).count()
+    siguiente_consecutivo = facturas_mes_count + 1
+    num_factura_str = f"{prefijo_ym}{siguiente_consecutivo:03d}"
+    
+    nueva_factura = Factura(
+        tipo_factura=tipo_tipo_factura := f"VENTA WEB {tipo_venta.upper()}",
+        numero_factura=num_factura_str,
+        entidad_ruc=ruc_cedula,
+        entidad_nombre=razon_social,
+        total_factura=total_pedido,
+        cliente_id=cliente_db.id,
+        provincia=provincia,
+        ciudad=ciudad,
+        direccion_entrega=direccion,
+        referencia_direccion=referencia,
+        estado_despacho="POR APROBAR",
+    )
+    db.add(nueva_factura)
+    db.commit()
+    db.refresh(nueva_factura)
+
+    for item in lista_items:
+        sku_p = item.get("sku") or item.get("codigo") or item.get("name") or "FAJA-WEB"
+        cant_p = int(item.get("cantidad", 1))
+        prec_p = float(item.get("precio", 0))
+        subtotal_p = cant_p * prec_p
+        
+        nuevo_mov = MovimientoInventario(
+            sku=sku_p,
+            tipo_movimiento="VENTA",
+            cantidad=-cant_p,
+            referencia_factura=num_factura_str,
+            valor_neto=subtotal_p,
+            entidad_asociada=razon_social,
+            fecha_hora=date.today()
+        )
+        db.add(nuevo_mov)
+    db.commit()
+
+    file_url = None
+    comprobante_bytes = None
+    comprobante_nombre = None
+
+    if comprobante:
+        comprobante_bytes = await comprobante.read()
+        comprobante_nombre = comprobante.filename
+        try:
+            upload_result = cloudinary.uploader.upload(comprobante_bytes)
+            file_url = upload_result.get("secure_url", comprobante_nombre)
+        except Exception:
+            file_url = comprobante_nombre
+
+        pago = Pago(
+            factura_id=nueva_factura.id,
+            metodo_pago="TRANSFERENCIA",
+            codigo_transferencia=file_url,
+            monto=total_pedido
+        )
+        db.add(pago)
+        db.commit()
+
+    return {
+        "cliente_db": cliente_db,
+        "lista_items": lista_items,
+        "total_pedido": total_pedido,
+        "num_factura_str": num_factura_str,
+        "password_temporal": password_temporal,
+        "comprobante_bytes": comprobante_bytes,
+        "comprobante_nombre": comprobante_nombre
+    }
+
+
+# ==============================================================================
+# ENDPOINTS DE CHECKOUT (WHATSAPP Y CORREO)
+# ==============================================================================
+
 @router.post("/api/web/auth/checkout-whatsapp")
 async def checkout_whatsapp(
     nombre: str = Form(...),
@@ -429,126 +583,22 @@ async def checkout_whatsapp(
     db: Session = Depends(get_db)
 ):
     try:
-        correo_limpio = correo.lower().strip() if (correo and correo.strip() != "") else None
-        
-        cliente_db = None
-        if correo_limpio:
-            cliente_db = db.query(Cliente).filter(Cliente.correo == correo_limpio).first()
-        if not cliente_db and ruc_cedula:
-            cliente_db = db.query(Cliente).filter(Cliente.ruc_cedula == ruc_cedula).first()
-
-        password_temporal = None
-        if cliente_db:
-            cliente_db.nombre = razon_social
-            cliente_db.telefono = telefono
-            cliente_db.direccion = direccion
-            cliente_db.ciudad = ciudad
-            cliente_db.cliente_web = True
-            if correo_limpio and not cliente_db.correo:
-                cliente_db.correo = correo_limpio
-                
-            if not cliente_db.password:
-                password_temporal = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
-                cliente_db.password = generar_hash_sha256(password_temporal)
-            db.commit()
-        else:
-            password_temporal = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
-            password_hash_temp = generar_hash_sha256(password_temporal)
-            reg_correo = correo_limpio if correo_limpio else f"{ruc_cedula.strip()}@fajasisabella.com"
-            
-            cliente_db = Cliente(
-                ruc_cedula=ruc_cedula,
-                nombre=razon_social,
-                correo=reg_correo,
-                telefono=telefono,
-                direccion=direccion,
-                ciudad=ciudad,
-                cliente_web=True,
-                password=password_hash_temp
-            )
-            db.add(cliente_db)
-            db.commit()
-            db.refresh(cliente_db)
-
-        try:
-            lista_items = json.loads(items) if items else []
-        except Exception:
-            raise HTTPException(status_code=400, detail="El formato de los ítems del carrito es inválido.")
-
-        if not lista_items:
-            raise HTTPException(status_code=400, detail="El carrito está vacío.")
-
-        total_pedido = sum(float(item.get('precio', 0)) * int(item.get('cantidad', 1)) for item in lista_items)
-        
-        # Generación del número de factura formato AAMM + Consecutivo de 3 dígitos mensual (ej: 2610003)
-        prefijo_ym = date.today().strftime('%y%m')
-        facturas_mes_count = db.query(Factura).filter(Factura.numero_factura.like(f"{prefijo_ym}%")).count()
-        siguiente_consecutivo = facturas_mes_count + 1
-        num_factura_str = f"{prefijo_ym}{siguiente_consecutivo:03d}"
-        
-        nueva_factura = Factura(
-            tipo_factura="VENTA WEB WHATSAPP",
-            numero_factura=num_factura_str,
-            entidad_ruc=ruc_cedula,
-            entidad_nombre=razon_social,
-            total_factura=total_pedido,
-            cliente_id=cliente_db.id,
-            provincia=provincia,
-            ciudad=ciudad,
-            direccion_entrega=direccion,
-            referencia_direccion=referencia,
-            estado_despacho="POR APROBAR",
+        res = await _procesar_checkout_comun(
+            nombre, telefono, correo, ruc_cedula, razon_social,
+            provincia, ciudad, direccion, referencia, items, comprobante, "WHATSAPP", db
         )
-        db.add(nueva_factura)
-        db.commit()
-        db.refresh(nueva_factura)
-
-        for item in lista_items:
-            sku_p = item.get("sku") or item.get("codigo") or item.get("name") or "FAJA-WEB"
-            cant_p = int(item.get("cantidad", 1))
-            prec_p = float(item.get("precio", 0))
-            subtotal_p = cant_p * prec_p
-            
-            nuevo_mov = MovimientoInventario(
-                sku=sku_p,
-                tipo_movimiento="VENTA",
-                cantidad=-cant_p,
-                referencia_factura=num_factura_str,
-                valor_neto=subtotal_p,
-                entidad_asociada=razon_social,
-                fecha_hora=date.today()
-            )
-            db.add(nuevo_mov)
-        db.commit()
-
-        if comprobante:
-            try:
-                file_bytes = await comprobante.read()
-                upload_result = cloudinary.uploader.upload(file_bytes)
-                file_url = upload_result.get("secure_url", comprobante.filename)
-            except Exception as e:
-                file_url = comprobante.filename
-
-            pago = Pago(
-                factura_id=nueva_factura.id,
-                metodo_pago="TRANSFERENCIA",
-                codigo_transferencia=file_url,
-                monto=total_pedido
-            )
-            db.add(pago)
-            db.commit()
-
+        
         detalle_texto = ""
-        for idx, item in enumerate(lista_items, 1):
+        for idx, item in enumerate(res["lista_items"], 1):
             p_precio = float(item.get('precio', 0))
             p_cant = int(item.get('cantidad', 1))
             subtotal = p_precio * p_cant
             detalle_texto += f"{idx}. *{item.get('nombre', 'Prenda')}*\n   - Talla: {item.get('talla', 'N/D')} | Color: {item.get('color', 'N/D')}\n   - SKU: {item.get('sku', 'N/D')}\n   - Cantidad: {p_cant} x ${p_precio:.2f} = ${subtotal:.2f}\n\n"
 
-        mensaje_plano = f"¡Hola Fajas Isabella! 👋 Acabo de realizar un pedido y transferencia:\n\n*Factura:* #{num_factura_str}\n*Cliente:* {nombre}\n*RUC/Cédula:* {ruc_cedula}\n*Destino:* {provincia}, {ciudad} - {direccion}\n\n{detalle_texto}💰 *Total Pagado:* ${total_pedido:.2f}\n\n"
+        mensaje_plano = f"¡Hola Fajas Isabella! 👋 Acabo de realizar un pedido y transferencia:\n\n*Factura:* #{res['num_factura_str']}\n*Cliente:* {nombre}\n*RUC/Cédula:* {ruc_cedula}\n*Destino:* {provincia}, {ciudad} - {direccion}\n\n{detalle_texto}💰 *Total Pagado:* ${res['total_pedido']:.2f}\n\n"
         
-        if password_temporal:
-            mensaje_plano += f"🔐 *Acceso Web Temporal:*\n- Usuario: {cliente_db.correo}\n- Clave Temporal: *{password_temporal}*\n*(Por seguridad se te pedirá cambiarla al iniciar sesión)*\n\n"
+        if res["password_temporal"]:
+            mensaje_plano += f"🔐 *Acceso Web Temporal:*\n- Usuario: {res['cliente_db'].correo}\n- Clave Temporal: *{res['password_temporal']}*\n*(Por seguridad se te pedirá cambiarla al iniciar sesión)*\n\n"
         
         mensaje_plano += "Adjunto mi comprobante para la verificación."
 
@@ -564,7 +614,132 @@ async def checkout_whatsapp(
 
     except Exception as db_err:
         db.rollback()
-        print(f"❌ [CHIVATO CHECKOUT ERROR]: {str(db_err)}")
+        print(f"❌ [CHIVATO CHECKOUT WHATSAPP ERROR]: {str(db_err)}")
+        raise HTTPException(status_code=500, detail=f"Error en servidor/BD: {str(db_err)}")
+
+
+@router.post("/api/web/auth/checkout-correo")
+async def checkout_correo(
+    nombre: str = Form(...),
+    telefono: str = Form(...),
+    correo: Optional[str] = Form(None),
+    ruc_cedula: str = Form(...),
+    razon_social: str = Form(...),
+    provincia: str = Form(...),
+    ciudad: str = Form(...),
+    direccion: str = Form(...),
+    referencia: Optional[str] = Form(None),
+    items: str = Form(...),
+    comprobante: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db)
+):
+    try:
+        res = await _procesar_checkout_comun(
+            nombre, telefono, correo, ruc_cedula, razon_social,
+            provincia, ciudad, direccion, referencia, items, comprobante, "CORREO", db
+        )
+        
+        correo_limpio = correo.lower().strip() if (correo and correo.strip() != "") else None
+
+        # --- ENVÍO DE NOTIFICACIÓN SMTP (EMPRESA + CLIENTE) ---
+        if EMAIL_EMISOR and EMAIL_PASSWORD:
+            destinatarios = [CORREO_EMPRESA]
+            if correo_limpio and correo_limpio not in destinatarios:
+                destinatarios.append(correo_limpio)
+
+            msg = MIMEMultipart()
+            msg['From'] = f"{NOMBRE_EMPRESA} <{EMAIL_EMISOR}>"
+            msg['To'] = ", ".join(destinatarios)
+            msg['Subject'] = f"🛍️ Confirmación de Pedido #{res['num_factura_str']} - {NOMBRE_EMPRESA}"
+
+            filas_items = ""
+            for item in res["lista_items"]:
+                cant = int(item.get('cantidad', 1))
+                prec = float(item.get('precio', 0))
+                filas_items += f"""
+                <tr>
+                    <td style="padding: 8px; border-bottom: 1px solid #ddd;">{item.get('nombre')} ({item.get('talla', 'N/D')} / {item.get('color', 'N/D')})</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">{cant}</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">${prec:.2f}</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">${(cant * prec):.2f}</td>
+                </tr>
+                """
+
+            cuerpo_html = f"""
+            <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 10px; padding: 20px;">
+                <h2 style="color: #e11d48; text-align: center;">¡Nuevo Pedido Generado en {NOMBRE_EMPRESA}!</h2>
+                <p>Se ha registrado el pedido <strong>#{res['num_factura_str']}</strong> exitosamente.</p>
+                
+                <hr style="border: 0; border-top: 1px solid #eee;">
+                
+                <h3>📋 Datos del Cliente y Envío</h3>
+                <p>
+                    <strong>Cliente / Razón Social:</strong> {razon_social}<br>
+                    <strong>RUC / Cédula:</strong> {ruc_cedula}<br>
+                    <strong>Teléfono:</strong> {telefono}<br>
+                    <strong>Correo:</strong> {correo_limpio or 'No registrado'}<br>
+                    <strong>Dirección de Entrega:</strong> {direccion}, {ciudad}, {provincia}<br>
+                    <strong>Referencia:</strong> {referencia or 'N/A'}
+                </p>
+
+                <h3>🛍️ Detalle del Pedido</h3>
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                    <thead>
+                        <tr style="background-color: #f8fafc;">
+                            <th style="padding: 8px; text-align: left;">Producto</th>
+                            <th style="padding: 8px; text-align: center;">Cant.</th>
+                            <th style="padding: 8px; text-align: right;">Precio</th>
+                            <th style="padding: 8px; text-align: right;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {filas_items}
+                    </tbody>
+                </table>
+
+                <h3 style="text-align: right; color: #e11d48; margin-top: 15px;">Total Pedido: ${res['total_pedido']:.2f}</h3>
+            """
+
+            if res["password_temporal"]:
+                cuerpo_html += f"""
+                <div style="background-color: #fff1f2; padding: 12px; border-radius: 8px; margin-top: 15px;">
+                    <p style="margin: 0; font-size: 13px; color: #9f1239;">
+                        🔑 <strong>Acceso a Cuenta Cliente:</strong><br>
+                        <strong>Usuario:</strong> {res['cliente_db'].correo}<br>
+                        <strong>Clave Temporal:</strong> {res['password_temporal']}
+                    </p>
+                </div>
+                """
+
+            cuerpo_html += f"""
+                <hr style="border: 0; border-top: 1px solid #eee; margin-top: 20px;">
+                <p style="font-size: 11px; color: #888; text-align: center;">Mensaje automático enviado desde la plataforma de {NOMBRE_EMPRESA}.</p>
+            </div>
+            """
+
+            msg.attach(MIMEText(cuerpo_html, 'html'))
+
+            if res["comprobante_bytes"] and res["comprobante_nombre"]:
+                part = MIMEBase('application', 'octet-stream')
+                part.set_payload(res["comprobante_bytes"])
+                encoders.encode_base64(part)
+                part.add_header('Content-Disposition', f'attachment; filename="{res["comprobante_nombre"]}"')
+                msg.attach(part)
+
+            server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+            server.starttls()
+            server.login(EMAIL_EMISOR, EMAIL_PASSWORD)
+            server.sendmail(EMAIL_EMISOR, destinatarios, msg.as_string())
+            server.quit()
+
+        return {
+            "status": "success",
+            "mensaje": "Pedido registrado y enviado por correo exitosamente."
+        }
+
+    except Exception as db_err:
+        db.rollback()
+        print(f"❌ [CHIVATO CHECKOUT CORREO ERROR]: {str(db_err)}")
         raise HTTPException(status_code=500, detail=f"Error en servidor/BD: {str(db_err)}")
 
 
