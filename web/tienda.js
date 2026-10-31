@@ -372,36 +372,56 @@ function generarHTMLTarjetaProducto(p) {
 }
 
 function actualizarDetalleVariante() {
-    const variante = typeof obtenerVarianteActual === 'function' ? obtenerVarianteActual() : null;
-    if (variante && typeof productoSeleccionado !== 'undefined' && productoSeleccionado) {
-        let precioUnitario = Number(variante.precio || 0);
+    const variante = obtenerVarianteActual();
+    if (variante && productoSeleccionado) {
+        const precioOriginal = Number(variante.precio || 0);
         const tipoDesc = (productoSeleccionado.tipo_descuento || 'GENERAL').toUpperCase();
         const descGeneral = Number(productoSeleccionado.descuento_oferta || 0);
         const descIndividual = Number(variante.descuento_porcentaje || 0);
 
         let descAplicar = 0;
+        let porcentajeTexto = 0;
+
         if (productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) {
             if (tipoDesc === 'GENERAL' && descGeneral > 0) {
-                descAplicar = descGeneral; 
-            } else {
-                descAplicar = descIndividual; 
+                descAplicar = descGeneral;
+                porcentajeTexto = descGeneral;
+            } else if (tipoDesc === 'INDIVIDUAL' && descIndividual > 0) {
+                descAplicar = descIndividual;
+                porcentajeTexto = descIndividual;
             }
         }
 
+        let precioFinalUnitario = precioOriginal;
         if (descAplicar > 0) {
-            precioUnitario = Math.max(0, precioUnitario - (precioUnitario * (descAplicar / 100)));
+            precioFinalUnitario = Math.max(0, precioOriginal - (precioOriginal * (descAplicar / 100)));
         }
 
         const cantidad = typeof cantidadSeleccionada !== 'undefined' ? cantidadSeleccionada : 1;
-        const totalLinea = precioUnitario * cantidad;
+        const totalLinea = precioFinalUnitario * cantidad;
         
-        const elPrecio = document.getElementById("modal-precio");
+        const elPrecioContainer = document.getElementById("modal-precio-container");
         const elTalla = document.getElementById("resumen-talla");
         const elColor = document.getElementById("resumen-color");
         const elStock = document.getElementById("modal-stock");
         const elTotal = document.getElementById("modal-total-seleccion");
 
-        if (elPrecio) elPrecio.innerText = `$${precioUnitario.toFixed(2)}`;
+        if (elPrecioContainer) {
+            if (descAplicar > 0) {
+                elPrecioContainer.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="bg-rose-600 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">${porcentajeTexto}% OFF</span>
+                        <span class="text-3xl font-black text-rose-600">$${precioFinalUnitario.toFixed(2)}</span>
+                        <span class="text-sm text-slate-400 line-through font-semibold">$${precioOriginal.toFixed(2)}</span>
+                    </div>
+                `;
+            } else {
+                elPrecioContainer.innerHTML = `
+                    <span class="text-3xl font-black text-slate-900">$${precioOriginal.toFixed(2)}</span>
+                `;
+            }
+        }
+
         if (elTalla) elTalla.innerText = variante.talla || '';
         if (elColor) elColor.innerText = variante.color || '';
         if (elStock) elStock.innerText = `Stock: ${variante.stock_actual !== undefined ? variante.stock_actual : (variante.stock || 0)} disp.`;
@@ -836,10 +856,21 @@ function cerrarModal() {
 function agregarAlCarrito(abrirDrawer = false) {
     const variante = obtenerVarianteActual();
     const cantAgregar = cantidadSeleccionada > 0 ? cantidadSeleccionada : 1;
-    let precioFinalUnitario = variante.precio;
-    const descuento = Number(productoSeleccionado.descuento_oferta || 0);
-    if ((productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0) {
-        precioFinalUnitario = Math.max(0, precioFinalUnitario - (precioFinalUnitario * (descuento / 100)));
+    
+    const precioOriginal = Number(variante.precio || 0);
+    const tipoDesc = (productoSeleccionado.tipo_descuento || 'GENERAL').toUpperCase();
+    const descGeneral = Number(productoSeleccionado.descuento_oferta || 0);
+    const descIndividual = Number(variante.descuento_porcentaje || 0);
+
+    let descAplicar = 0;
+    if (productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) {
+        if (tipoDesc === 'GENERAL' && descGeneral > 0) descAplicar = descGeneral;
+        else if (tipoDesc === 'INDIVIDUAL' && descIndividual > 0) descAplicar = descIndividual;
+    }
+
+    let precioFinalUnitario = precioOriginal;
+    if (descAplicar > 0) {
+        precioFinalUnitario = Math.max(0, precioOriginal - (precioOriginal * (descAplicar / 100)));
     }
 
     const itemExistente = carrito.find(item => item.sku === variante.sku);
@@ -847,8 +878,15 @@ function agregarAlCarrito(abrirDrawer = false) {
         itemExistente.cantidad += cantAgregar;
     } else {
         carrito.push({
-            nombre: productoSeleccionado.nombre, sku: variante.sku, talla: tallaSeleccionada, color: colorSeleccionado,
-            precio: precioFinalUnitario, imagen_url: productoSeleccionado.imagen_url || SVG_FALLBACK, categoria: productoSeleccionado.categoria, cantidad: cantAgregar
+            nombre: productoSeleccionado.nombre, 
+            sku: variante.sku, 
+            talla: tallaSeleccionada, 
+            color: colorSeleccionado,
+            precio: precioFinalUnitario, 
+            precio_real: precioOriginal,
+            imagen_url: variante.imagen_url || productoSeleccionado.imagen_url || SVG_FALLBACK, 
+            categoria: productoSeleccionado.categoria, 
+            cantidad: cantAgregar
         });
     }
     cerrarModal();
@@ -946,9 +984,49 @@ function procesarPedidoWhatsApp() {
 
 function actualizarCarritoUI() {
     const count = carrito.reduce((acc, item) => acc + item.cantidad, 0);
-    const total = calcularTotalCarrito();
+    
+    // Cálculos financieros del carrito
+    let subtotalReal = 0;
+    let totalAhorro = 0;
+    let totalAPagar = 0;
+
+    carrito.forEach(item => {
+        const pReal = Number(item.precio_real || item.precio || 0);
+        const pFinal = Number(item.precio || 0);
+        const cant = Number(item.cantidad || 1);
+
+        subtotalReal += pReal * cant;
+        if (pReal > pFinal) {
+            totalAhorro += (pReal - pFinal) * cant;
+        }
+        totalAPagar += pFinal * cant;
+    });
+
     if (document.getElementById("cart-count")) document.getElementById("cart-count").innerText = count;
-    if (document.getElementById("carrito-total")) document.getElementById("carrito-total").innerText = `$${total.toFixed(2)}`;
+    
+    // Renderizado de totales en el Drawer del Carrito
+    const contenedorTotales = document.getElementById("carrito-totales-container");
+    if (contenedorTotales) {
+        contenedorTotales.innerHTML = `
+            <div class="space-y-1 text-xs text-slate-600 border-b border-slate-200 pb-2">
+                <div class="flex justify-between">
+                    <span>Valor Real:</span>
+                    <span class="font-semibold line-through">$${subtotalReal.toFixed(2)}</span>
+                </div>
+                <div class="flex justify-between text-emerald-600 font-bold">
+                    <span>Ahorro Total:</span>
+                    <span>-$${totalAhorro.toFixed(2)}</span>
+                </div>
+            </div>
+            <div class="flex justify-between items-center text-base font-black text-slate-900 pt-1">
+                <span>A Pagar:</span>
+                <span id="carrito-total" class="text-rose-600 text-xl">$${totalAPagar.toFixed(2)}</span>
+            </div>
+        `;
+    } else {
+        const elTotalSimple = document.getElementById("carrito-total");
+        if (elTotalSimple) elTotalSimple.innerText = `$${totalAPagar.toFixed(2)}`;
+    }
 
     if (esPlanAcumulativoActivo) calcularSaldoPendiente();
 
@@ -959,19 +1037,28 @@ function actualizarCarritoUI() {
         return;
     }
 
-    container.innerHTML = carrito.map((item, index) => `
-        <div class="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
-            <div class="flex items-center gap-3">
-                <img src="${obtenerRutaImagenProducto(item.imagen_url)}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-12 h-12 object-contain rounded-lg bg-white p-1 border">
-                <div>
-                    <h4 class="text-xs font-bold text-slate-800 line-clamp-1">${item.nombre}</h4>
-                    <p class="text-[10px] text-slate-500">Talla: <b>${item.talla}</b> | Color: <b>${item.color}</b></p>
-                    <span class="text-xs font-black text-rose-600">$${item.precio.toFixed(2)} x ${item.cantidad}</span>
+    container.innerHTML = carrito.map((item, index) => {
+        const pReal = Number(item.precio_real || item.precio);
+        const pFinal = Number(item.precio);
+        const tieneDescItem = pReal > pFinal;
+
+        return `
+            <div class="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                <div class="flex items-center gap-3">
+                    <img src="${obtenerRutaImagenProducto(item.imagen_url)}" onerror="this.onerror=null; this.src='${SVG_FALLBACK}'" class="w-12 h-12 object-contain rounded-lg bg-white p-1 border">
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-800 line-clamp-1">${item.nombre}</h4>
+                        <p class="text-[10px] text-slate-500">Talla: <b>${item.talla}</b> | Color: <b>${item.color}</b></p>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-black text-rose-600">$${pFinal.toFixed(2)} x ${item.cantidad}</span>
+                            ${tieneDescItem ? `<span class="text-[10px] text-slate-400 line-through">$${pReal.toFixed(2)}</span>` : ''}
+                        </div>
+                    </div>
                 </div>
+                <button onclick="eliminarDelCarrito(${index})" class="text-slate-400 hover:text-rose-600 text-xs p-1 cursor-pointer"><i class="fa-solid fa-trash-can"></i></button>
             </div>
-            <button onclick="eliminarDelCarrito(${index})" class="text-slate-400 hover:text-rose-600 text-xs p-1 cursor-pointer"><i class="fa-solid fa-trash-can"></i></button>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 function eliminarDelCarrito(index) {
