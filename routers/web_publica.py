@@ -1,4 +1,5 @@
 import hashlib
+import urllib.parse
 from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -537,16 +538,18 @@ async def checkout_whatsapp(
             p_precio = float(item.get('precio', 0))
             p_cant = int(item.get('cantidad', 1))
             subtotal = p_precio * p_cant
-            detalle_texto += f"{idx}. *{item.get('nombre', 'Prenda')}*%0A   - Talla: {item.get('talla', 'N/D')} | Color: {item.get('color', 'N/D')}%0A   - SKU: {item.get('sku', 'N/D')}%0A   - Cantidad: {p_cant} x ${p_precio:.2f} = ${subtotal:.2f}%0A%0A"
+            detalle_texto += f"{idx}. *{item.get('nombre', 'Prenda')}*\n   - Talla: {item.get('talla', 'N/D')} | Color: {item.get('color', 'N/D')}\n   - SKU: {item.get('sku', 'N/D')}\n   - Cantidad: {p_cant} x ${p_precio:.2f} = ${subtotal:.2f}\n\n"
 
-        mensaje_wapp = f"¡Hola Fajas Isabella! 👋 Acabo de realizar un pedido y transferencia:%0A%0A*Factura:* #{num_factura_str}%0A*Cliente:* {nombre}%0A*RUC/Cédula:* {ruc_cedula}%0A*Destino:* {provincia}, {ciudad} - {direccion}%0A%0A{detalle_texto}💰 *Total Pagado:* ${total_pedido:.2f}%0A%0A"
+        mensaje_plano = f"¡Hola Fajas Isabella! 👋 Acabo de realizar un pedido y transferencia:\n\n*Factura:* #{num_factura_str}\n*Cliente:* {nombre}\n*RUC/Cédula:* {ruc_cedula}\n*Destino:* {provincia}, {ciudad} - {direccion}\n\n{detalle_texto}💰 *Total Pagado:* ${total_pedido:.2f}\n\n"
         
         if password_temporal:
-            mensaje_wapp += f"🔐 *Acceso Web Temporal:*%0A- Usuario: {cliente_db.correo}%0A- Clave Temporal: *{password_temporal}*%0A*(Por seguridad se te pedirá cambiarla al iniciar sesión)*%0A%0A"
+            mensaje_plano += f"🔐 *Acceso Web Temporal:*\n- Usuario: {cliente_db.correo}\n- Clave Temporal: *{password_temporal}*\n*(Por seguridad se te pedirá cambiarla al iniciar sesión)*\n\n"
         
-        mensaje_wapp += "Adjunto mi comprobante para la verificación."
-        
-        whatsapp_url = f"https://wa.me/{TELEFONO_WHATSAPP}?text={mensaje_wapp}"
+        mensaje_plano += "Adjunto mi comprobante para la verificación."
+
+        phone_clean = str(TELEFONO_WHATSAPP).replace("+", "").replace(" ", "").strip()
+        mensaje_encoded = urllib.parse.quote(mensaje_plano)
+        whatsapp_url = f"https://wa.me/{phone_clean}?text={mensaje_encoded}"
 
         return {
             "status": "success",
