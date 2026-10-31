@@ -497,6 +497,7 @@ async def checkout_whatsapp(
             ciudad=ciudad,
             direccion_entrega=direccion,
             referencia_direccion=referencia,
+            estado_despacho="POR APROBAR",
         )
         db.add(nueva_factura)
         db.commit()
