@@ -371,64 +371,6 @@ function generarHTMLTarjetaProducto(p) {
     `;
 }
 
-function actualizarDetalleVariante() {
-    const variante = obtenerVarianteActual();
-    if (variante && productoSeleccionado) {
-        const precioOriginal = Number(variante.precio || 0);
-        const tipoDesc = (productoSeleccionado.tipo_descuento || 'GENERAL').toUpperCase();
-        const descGeneral = Number(productoSeleccionado.descuento_oferta || 0);
-        const descIndividual = Number(variante.descuento_porcentaje || 0);
-
-        let descAplicar = 0;
-        let porcentajeTexto = 0;
-
-        if (productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) {
-            if (tipoDesc === 'GENERAL' && descGeneral > 0) {
-                descAplicar = descGeneral;
-                porcentajeTexto = descGeneral;
-            } else if (tipoDesc === 'INDIVIDUAL' && descIndividual > 0) {
-                descAplicar = descIndividual;
-                porcentajeTexto = descIndividual;
-            }
-        }
-
-        let precioFinalUnitario = precioOriginal;
-        if (descAplicar > 0) {
-            precioFinalUnitario = Math.max(0, precioOriginal - (precioOriginal * (descAplicar / 100)));
-        }
-
-        const cantidad = typeof cantidadSeleccionada !== 'undefined' ? cantidadSeleccionada : 1;
-        const totalLinea = precioFinalUnitario * cantidad;
-        
-        const elPrecioContainer = document.getElementById("modal-precio-container");
-        const elTalla = document.getElementById("resumen-talla");
-        const elColor = document.getElementById("resumen-color");
-        const elStock = document.getElementById("modal-stock");
-        const elTotal = document.getElementById("modal-total-seleccion");
-
-        if (elPrecioContainer) {
-            if (descAplicar > 0) {
-                elPrecioContainer.innerHTML = `
-                    <div class="flex items-center gap-2">
-                        <span class="bg-rose-600 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">${porcentajeTexto}% OFF</span>
-                        <span class="text-3xl font-black text-rose-600">$${precioFinalUnitario.toFixed(2)}</span>
-                        <span class="text-sm text-slate-400 line-through font-semibold">$${precioOriginal.toFixed(2)}</span>
-                    </div>
-                `;
-            } else {
-                elPrecioContainer.innerHTML = `
-                    <span class="text-3xl font-black text-slate-900">$${precioOriginal.toFixed(2)}</span>
-                `;
-            }
-        }
-
-        if (elTalla) elTalla.innerText = variante.talla || '';
-        if (elColor) elColor.innerText = variante.color || '';
-        if (elStock) elStock.innerText = `Stock: ${variante.stock_actual !== undefined ? variante.stock_actual : (variante.stock || 0)} disp.`;
-        if (elTotal) elTotal.innerText = `$${totalLinea.toFixed(2)}`;
-    }
-}
-
 function renderizarCatalogo() {
     const container = document.getElementById("catalog-container");
     const contadorElem = document.getElementById("total-productos");
@@ -956,7 +898,7 @@ function calcularSaldoPendiente() {
     }
 }
 
-// Función conectada al backend para procesar factura, inventario, pago y WhatsApp
+// Función anti-bloqueo de ventanas emergentes en navegadores
 async function procesarPedidoWhatsApp(event) {
     if (event) event.preventDefault();
     
@@ -965,18 +907,30 @@ async function procesarPedidoWhatsApp(event) {
         return;
     }
 
-    const nombreCliente = document.getElementById('nombre-cliente')?.value || 'Cliente';
-    const telefonoCliente = document.getElementById('telefono-cliente')?.value || '';
-    const correoCliente = document.getElementById('correo-cliente')?.value || '';
-    const rucCedula = document.getElementById('ruccedula-cliente')?.value || '9999999999';
-    const razonSocial = document.getElementById('razon-social-cliente')?.value || nombreCliente;
-    const provincia = document.getElementById('provincia-cliente')?.value || 'Guayas';
-    const ciudad = document.getElementById('ciudad-cliente')?.value || 'Guayaquil';
-    const direccion = document.getElementById('direccion-cliente')?.value || 'Dirección Principal';
-    const referencia = document.getElementById('referencia-cliente')?.value || '';
+    // Buscamos inputs flexibles por múltiples alternativas de id/name
+    const getVal = (...ids) => {
+        for (let id of ids) {
+            const el = document.getElementById(id) || document.querySelector(`[name="${id}"]`);
+            if (el && el.value) return el.value.trim();
+        }
+        return '';
+    };
+
+    const nombreCliente = getVal('nombre-cliente', 'nombre') || 'Cliente';
+    const telefonoCliente = getVal('telefono-cliente', 'telefono', 'whatsapp') || '';
+    const correoCliente = getVal('correo-cliente', 'correo', 'email') || '';
+    const rucCedula = getVal('ruccedula-cliente', 'ruc_cedula', 'cedula', 'ruc') || '9999999999';
+    const razonSocial = getVal('razon-social-cliente', 'razon_social') || nombreCliente;
+    const provincia = getVal('provincia-cliente', 'provincia') || 'Guayas';
+    const ciudad = getVal('ciudad-cliente', 'ciudad') || 'Guayaquil';
+    const direccion = getVal('direccion-cliente', 'direccion') || 'Dirección Principal';
+    const referencia = getVal('referencia-cliente', 'referencia') || '';
     
-    const inputComprobante = document.getElementById('input-comprobante-pago');
+    const inputComprobante = document.getElementById('input-comprobante-pago') || document.querySelector('input[type="file"]');
     const archivoComprobante = inputComprobante && inputComprobante.files[0] ? inputComprobante.files[0] : null;
+
+    // ABRIR VENTANA PREVIA PARA EVITAR EL BLOQUEO DE POPUPS DEL NAVEGADOR
+    const win = window.open('about:blank', '_blank');
 
     const formData = new FormData();
     formData.append("nombre", nombreCliente);
@@ -1002,11 +956,17 @@ async function procesarPedidoWhatsApp(event) {
         
         const data = await res.json();
         if (res.ok && data.status === 'success' && data.whatsapp_url) {
-            window.open(data.whatsapp_url, '_blank');
+            if (win) {
+                win.location.href = data.whatsapp_url;
+            } else {
+                window.location.href = data.whatsapp_url;
+            }
         } else {
+            if (win) win.close();
             alert("Error al procesar el pedido: " + (data.detail || "Intente nuevamente."));
         }
     } catch (e) {
+        if (win) win.close();
         console.error("Error de conexión:", e);
         alert("Error de conexión al procesar el pedido.");
     }
