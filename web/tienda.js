@@ -375,10 +375,22 @@ function actualizarDetalleVariante() {
     const variante = obtenerVarianteActual();
     if (variante && productoSeleccionado) {
         const precioOriginal = Number(variante.precio || 0);
-        
-        // ¡Aquí está la clave! Tomamos el descuento directamente de la variante seleccionada
-        const descAplicar = Number(variante.descuento_porcentaje || 0);
-        const porcentajeTexto = descAplicar;
+        const tipoDesc = (productoSeleccionado.tipo_descuento || 'GENERAL').toUpperCase();
+        const descGeneral = Number(productoSeleccionado.descuento_oferta || 0);
+        const descIndividual = Number(variante.descuento_porcentaje || 0);
+
+        let descAplicar = 0;
+        let porcentajeTexto = 0;
+
+        if (productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) {
+            if (tipoDesc === 'GENERAL' && descGeneral > 0) {
+                descAplicar = descGeneral;
+                porcentajeTexto = descGeneral;
+            } else if (tipoDesc === 'INDIVIDUAL' && descIndividual > 0) {
+                descAplicar = descIndividual;
+                porcentajeTexto = descIndividual;
+            }
+        }
 
         let precioFinalUnitario = precioOriginal;
         if (descAplicar > 0) {
@@ -876,7 +888,15 @@ function agregarAlCarrito(abrirDrawer = false) {
     const cantAgregar = cantidadSeleccionada > 0 ? cantidadSeleccionada : 1;
     
     const precioOriginal = Number(variante.precio || 0);
-    const descAplicar = Number(variante.descuento_porcentaje || 0);
+    const tipoDesc = (productoSeleccionado.tipo_descuento || 'GENERAL').toUpperCase();
+    const descGeneral = Number(productoSeleccionado.descuento_oferta || 0);
+    const descIndividual = Number(variante.descuento_porcentaje || 0);
+
+    let descAplicar = 0;
+    if (productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) {
+        if (tipoDesc === 'GENERAL' && descGeneral > 0) descAplicar = descGeneral;
+        else if (tipoDesc === 'INDIVIDUAL' && descIndividual > 0) descAplicar = descIndividual;
+    }
 
     let precioFinalUnitario = precioOriginal;
     if (descAplicar > 0) {
@@ -936,66 +956,65 @@ function calcularSaldoPendiente() {
     }
 }
 
-function generarMensajeWhatsAppFinal() {
-    const total = calcularTotalCarrito();
-    const nombreCliente = document.getElementById('nombre-cliente')?.value || 'Cliente';
-    const telefonoCliente = document.getElementById('telefono-cliente')?.value || '';
-    const ciudadCliente = document.getElementById('ciudad-cliente')?.value || '';
-    const direccionCliente = document.getElementById('direccion-cliente')?.value || '';
-
-    let mensaje = "";
-
-    if (esPlanAcumulativoActivo) {
-        const abonoInicial = parseFloat(document.getElementById('input-abono-inicial')?.value) || 0;
-        const saldoPendiente = total - abonoInicial;
-
-        mensaje = `*✨ NUEVA SOLICITUD DE PLAN ACUMULATIVO - FAJAS ISABELLA ✨*\n\n`;
-        mensaje += `👤 *Cliente:* ${nombreCliente}\n`;
-        mensaje += `📞 *Teléfono:* ${telefonoCliente}\n`;
-        mensaje += `📍 *Ciudad/Dirección:* ${ciudadCliente} - ${direccionCliente}\n\n`;
-        mensaje += `🛍️ *Detalle de Prendas:* \n`;
-        
-        carrito.forEach(item => {
-            mensaje += `- ${item.cantidad}x ${item.nombre} (Talla: ${item.talla}, Color: ${item.color}) - $${(item.precio * item.cantidad).toFixed(2)}\n`;
-        });
-
-        mensaje += `\n💰 *Total del Pedido:* $${total.toFixed(2)}`;
-        mensaje += `\n💵 *Abono Inicial Realizado:* $${abonoInicial.toFixed(2)}`;
-        mensaje += `\n⏳ *Saldo Pendiente:* $${saldoPendiente.toFixed(2)}`;
-        mensaje += `\n\n*Adjunto el comprobante de mi abono inicial para congelar y apartar las prendas.* ¡Quedo atenta/o!`;
-
-    } else {
-        mensaje = `*🛍️ NUEVO PEDIDO - FAJAS ISABELLA*\n\n`;
-        mensaje += `👤 *Cliente:* ${nombreCliente}\n`;
-        mensaje += `📞 *Teléfono:* ${telefonoCliente}\n`;
-        mensaje += `📍 *Ciudad/Dirección:* ${ciudadCliente} - ${direccionCliente}\n\n`;
-        mensaje += `🛍️ *Productos:* \n`;
-        
-        carrito.forEach(item => {
-            mensaje += `- ${item.cantidad}x ${item.nombre} (Talla: ${item.talla}, Color: ${item.color}) - $${(item.precio * item.cantidad).toFixed(2)}\n`;
-        });
-
-        mensaje += `\n💰 *TOTAL A PAGAR:* $${total.toFixed(2)}`;
-        mensaje += `\n\n*Adjunto comprobante de pago.* ¡Muchas gracias!`;
-    }
-
-    return encodeURIComponent(mensaje);
-}
-
-function procesarPedidoWhatsApp() {
+// Función conectada al backend para procesar factura, inventario, pago y WhatsApp
+async function procesarPedidoWhatsApp(event) {
+    if (event) event.preventDefault();
+    
     if (carrito.length === 0) {
         alert("Tu carrito está vacío.");
         return;
     }
-    const mensaje = generarMensajeWhatsAppFinal();
-    const url = `${whatsappUrlGlobal}?text=${mensaje}`;
-    window.open(url, '_blank');
+
+    const nombreCliente = document.getElementById('nombre-cliente')?.value || 'Cliente';
+    const telefonoCliente = document.getElementById('telefono-cliente')?.value || '';
+    const correoCliente = document.getElementById('correo-cliente')?.value || '';
+    const rucCedula = document.getElementById('ruccedula-cliente')?.value || '9999999999';
+    const razonSocial = document.getElementById('razon-social-cliente')?.value || nombreCliente;
+    const provincia = document.getElementById('provincia-cliente')?.value || 'Guayas';
+    const ciudad = document.getElementById('ciudad-cliente')?.value || 'Guayaquil';
+    const direccion = document.getElementById('direccion-cliente')?.value || 'Dirección Principal';
+    const referencia = document.getElementById('referencia-cliente')?.value || '';
+    
+    const inputComprobante = document.getElementById('input-comprobante-pago');
+    const archivoComprobante = inputComprobante && inputComprobante.files[0] ? inputComprobante.files[0] : null;
+
+    const formData = new FormData();
+    formData.append("nombre", nombreCliente);
+    formData.append("telefono", telefonoCliente);
+    formData.append("correo", correoCliente);
+    formData.append("ruc_cedula", rucCedula);
+    formData.append("razon_social", razonSocial);
+    formData.append("provincia", provincia);
+    formData.append("ciudad", ciudad);
+    formData.append("direccion", direccion);
+    formData.append("referencia", referencia);
+    formData.append("items", JSON.stringify(carrito));
+    
+    if (archivoComprobante) {
+        formData.append("comprobante", archivoComprobante);
+    }
+
+    try {
+        const res = await fetch('/api/web/auth/checkout-whatsapp', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await res.json();
+        if (res.ok && data.status === 'success' && data.whatsapp_url) {
+            window.open(data.whatsapp_url, '_blank');
+        } else {
+            alert("Error al procesar el pedido: " + (data.detail || "Intente nuevamente."));
+        }
+    } catch (e) {
+        console.error("Error de conexión:", e);
+        alert("Error de conexión al procesar el pedido.");
+    }
 }
 
 function actualizarCarritoUI() {
     const count = carrito.reduce((acc, item) => acc + item.cantidad, 0);
     
-    // Cálculos financieros del carrito
     let subtotalReal = 0;
     let totalAhorro = 0;
     let totalAPagar = 0;
@@ -1014,7 +1033,6 @@ function actualizarCarritoUI() {
 
     if (document.getElementById("cart-count")) document.getElementById("cart-count").innerText = count;
     
-    // Renderizado de totales en el Drawer del Carrito
     const contenedorTotales = document.getElementById("carrito-totales-container");
     if (contenedorTotales) {
         contenedorTotales.innerHTML = `
