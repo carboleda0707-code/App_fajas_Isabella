@@ -825,9 +825,6 @@ function calcularSaldoPendiente() {
     }
 }
 
-// ==============================================================================
-// FUNCIÓN CORREGIDA Y CONECTADA AL BACKEND PARA DISPARAR WHATSAPP SIN BLOQUEO
-// ==============================================================================
 function getVal(ids, defaultVal = "") {
     for (let id of ids) {
         const el = document.getElementById(id);
@@ -846,7 +843,6 @@ async function procesarPedidoWhatsApp(event) {
         return;
     }
 
-    // Ventana preventiva para evitar bloqueo de popups del navegador
     const ventanaWhatsApp = window.open('about:blank', '_blank');
 
     const nombreCliente = getVal(['nombre-cliente', 'nombre', 'wapp_nombre', 'txt-nombre'], 'Cliente');
@@ -891,6 +887,19 @@ async function procesarPedidoWhatsApp(event) {
             } else {
                 window.open(data.whatsapp_url, '_blank');
             }
+
+            // --- LIMPIEZA AUTOMÁTICA DEL CARRITO Y CIERRE DE MODAL ---
+            carrito = [];
+            actualizarCarritoUI();
+            toggleCarrito(); // Cierra el drawer del carrito
+
+            // Ocultar modal de checkout / formulario si está abierto
+            const modalCheckout = document.getElementById('modal-checkout');
+            if (modalCheckout) modalCheckout.classList.add('hidden');
+
+            const formCheckout = document.getElementById('form-checkout');
+            if (formCheckout) formCheckout.reset();
+
         } else {
             if (ventanaWhatsApp) ventanaWhatsApp.close();
             const detalleError = typeof data.detail === 'object' ? JSON.stringify(data.detail) : (data.detail || "Intente nuevamente.");
