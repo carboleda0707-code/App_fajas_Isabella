@@ -7,7 +7,9 @@ router = APIRouter(prefix="/api/logistica", tags=["Logística y Despachos"])
 
 @router.get("/reporte")
 def obtener_reporte_logistica(db: Session = Depends(get_db)):
-    facturas = db.query(Factura).filter(Factura.tipo_factura == "VENTA").all()
+    facturas = db.query(Factura).filter(
+    Factura.tipo_factura.in_(["VENTA", "VENTA WEB WHATSAPP"])
+    ).all()
     resultado = []
     for f in facturas:
         val_nc = f.numero_control

@@ -126,7 +126,9 @@ def eliminar_cliente(cliente_id: int, db: Session = Depends(get_db)):
 
 @router.get("/ventas/reporte")
 def obtener_reporte_ventas(db: Session = Depends(get_db)):
-    facturas = db.query(Factura).filter(Factura.tipo_factura == "VENTA").all()
+    facturas = db.query(Factura).filter(
+    Factura.tipo_factura.in_(["VENTA", "VENTA WEB WHATSAPP"])
+    ).all()
     resultado = []
     for f in facturas:
         total_real = f.total_factura
