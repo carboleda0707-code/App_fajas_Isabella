@@ -386,14 +386,29 @@ def render_inventario():
                             
                             with col_f_var:
                                 st.markdown("<p style='font-size:11px; font-weight:bold; text-align:center;'>FOTO VARIANTE</p>", unsafe_allow_html=True)
+                                # Leemos específicamente la imagen de la variante
                                 img_var_url = variante_encontrada.get("imagen_url") if variante_encontrada else ""
-                                if img_var_url and str(img_var_url).strip() not in ["", "None", "nan", "null"]:
+                                p_img_base = p_info.get("imagen_url") if p_info else ""
+                                
+                                # Si la variante tiene una foto propia diferente a la del producto, la mostramos
+                                if img_var_url and str(img_var_url).strip() not in ["", "None", "nan", "null"] and img_var_url != p_img_base:
                                     url_v = str(img_var_url).strip()
                                     if not url_v.startswith("http"): url_v = resolver_url_imagen(url_v)
                                     st.image(url_v, width=100)
                                 else:
-                                    st.info("Sin foto variante")
+                                    st.info("Sin foto específica (Usa la del ítem)")
                                 archivo_nueva_imagen_variante = st.file_uploader("Subir Variante", type=["jpg", "jpeg", "png", "webp"], key="up_img_var", label_visibility="collapsed")
+
+                            with col_f_prod:
+                                st.markdown("<p style='font-size:11px; font-weight:bold; text-align:center;'>FOTO DEL ÍTEM</p>", unsafe_allow_html=True)
+                                img_gen_url = p_info.get("imagen_url") if p_info else ""
+                                if img_gen_url and str(img_gen_url).strip() not in ["", "None", "nan", "null"]:
+                                    url_p = str(img_gen_url).strip()
+                                    if not url_p.startswith("http"): url_p = resolver_url_imagen(url_p)
+                                    st.image(url_p, width=100)
+                                else:
+                                    st.info("Sin foto ítem")
+                                archivo_nueva_imagen_producto = st.file_uploader("Subir Ítem", type=["jpg", "jpeg", "png", "webp"], key="up_img_prod", label_visibility="collapsed")
 
                             with col_f_prod:
                                 st.markdown("<p style='font-size:11px; font-weight:bold; text-align:center;'>FOTO DEL ÍTEM</p>", unsafe_allow_html=True)
