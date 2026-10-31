@@ -888,17 +888,29 @@ async function procesarPedidoWhatsApp(event) {
                 window.open(data.whatsapp_url, '_blank');
             }
 
-            // --- LIMPIEZA AUTOMÁTICA DEL CARRITO Y CIERRE DE MODAL ---
+            // 1. Vaciar el carrito y actualizar UI
             carrito = [];
             actualizarCarritoUI();
             toggleCarrito(); // Cierra el drawer del carrito
 
-            // Ocultar modal de checkout / formulario si está abierto
-            const modalCheckout = document.getElementById('modal-checkout');
-            if (modalCheckout) modalCheckout.classList.add('hidden');
+            // 2. Cerrar el modal del formulario de checkout (ocultando el contenedor principal del modal)
+            const modalCheckout = document.getElementById('modal-checkout') || document.querySelector('.modal-checkout') || document.getElementById('modal-pedido');
+            if (modalCheckout) {
+                modalCheckout.classList.add('hidden');
+                modalCheckout.style.display = 'none';
+            }
 
-            const formCheckout = document.getElementById('form-checkout');
-            if (formCheckout) formCheckout.reset();
+            // 3. Limpiar/resetear todos los campos del formulario de datos
+            const formCheckout = document.getElementById('form-checkout') || document.querySelector('form[onsubmit*="procesarPedidoWhatsApp"]');
+            if (formCheckout) {
+                formCheckout.reset();
+            }
+
+            // 4. Mostrar mensaje de éxito y globos de celebración
+            alert("¡Gracias por su compra! Su pedido se ha generado con éxito.");
+            if (typeof st !== 'undefined' && st.balloons) {
+                st.balloons();
+            }
 
         } else {
             if (ventanaWhatsApp) ventanaWhatsApp.close();
