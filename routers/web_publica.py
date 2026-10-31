@@ -233,13 +233,24 @@ def listar_inventario_publico(categoria: Optional[str] = Query(None), db: Sessio
             variantes_data = []
             for v in variantes:
                 stock_val = getattr(v, 'stock_actual', 0) or getattr(v, 'stock', 0)
+                
+                # Jerarquía de Descuentos (Variante o Descuento General / Global de Oferta)
+                precio_original = float(v.precio)
+                desc_var = float(getattr(v, 'descuento_porcentaje', 0.0) or 0.0)
+                en_oferta_prod = bool(getattr(prod, 'en_oferta', False))
+                desc_oferta_prod = float(getattr(prod, 'descuento_oferta', 0.0) or 0.0)
+                
+                porcentaje_aplicado = desc_var if desc_var > 0 else (desc_oferta_prod if en_oferta_prod else 0.0)
+                precio_final = precio_original * (1 - (porcentaje_aplicado / 100.0)) if porcentaje_aplicado > 0 else precio_original
+
                 variantes_data.append({
                     "id": v.id,
                     "sku": v.sku,
                     "talla": v.talla,
                     "color": v.color,
-                    "precio": float(v.precio),
-                    "descuento_porcentaje": float(getattr(v, 'descuento_porcentaje', 0.0) or 0.0),
+                    "precio": precio_original,
+                    "descuento_porcentaje": porcentaje_aplicado,
+                    "precio_final": round(precio_final, 2),
                     "stock": stock_val,
                     "imagen_url": getattr(v, 'imagen_url', '') or ''
                 })
@@ -276,13 +287,23 @@ def obtener_producto_dinamico(producto_id: int, db: Session = Depends(get_db)):
     
     variantes_data = []
     for v in variantes_activas:
+        precio_original = float(v.precio)
+        desc_var = float(getattr(v, 'descuento_porcentaje', 0.0) or 0.0)
+        en_oferta_prod = bool(getattr(prod, 'en_oferta', False))
+        desc_oferta_prod = float(getattr(prod, 'descuento_oferta', 0.0) or 0.0)
+        
+        # Jerarquía de Descuentos (Variante o Descuento Global / Oferta estacional)
+        porcentaje_aplicado = desc_var if desc_var > 0 else (desc_oferta_prod if en_oferta_prod else 0.0)
+        precio_final = precio_original * (1 - (porcentaje_aplicado / 100.0)) if porcentaje_aplicado > 0 else precio_original
+
         variantes_data.append({
             "id": v.id,
             "sku": v.sku,
             "talla": v.talla,
             "color": v.color,
-            "precio": float(v.precio),
-            "descuento_porcentaje": float(getattr(v, 'descuento_porcentaje', 0.0) or 0.0),
+            "precio": precio_original,
+            "descuento_porcentaje": porcentaje_aplicado,
+            "precio_final": round(precio_final, 2),
             "stock": v.stock_actual,
             "imagen_url": getattr(v, 'imagen_url', '') or ''
         })
