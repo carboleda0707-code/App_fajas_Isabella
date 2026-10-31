@@ -158,9 +158,14 @@ async def actualizar_variante(
     v.talla = talla.strip()
     v.color = color.strip()
     v.precio = float(precio)
-    v.descuento_porcentaje = float(descuento_porcentaje)
     v.stock_minimo = stock_minimo
     v.stock_maximo = stock_maximo
+    
+    # Si el producto está en modo general o sin oferta, se limpia el descuento individual de esta variante
+    if tipo_descuento == "GENERAL" or (not en_oferta and not en_liquidacion):
+        v.descuento_porcentaje = 0.0
+    else:
+        v.descuento_porcentaje = float(descuento_porcentaje)
     
     archivo_imagen = imagen if (imagen and imagen.filename) else imagen_variante
     if archivo_imagen and archivo_imagen.filename:
@@ -174,7 +179,7 @@ async def actualizar_variante(
         v.producto.en_liquidacion = en_liquidacion
         v.producto.es_nuevo = es_nuevo
         v.producto.en_oferta = en_oferta
-        v.producto.descuento_oferta = descuento_oferta
+        v.producto.descuento_oferta = float(descuento_oferta) if (en_oferta or en_liquidacion) else 0.0
         v.producto.tipo_descuento = tipo_descuento
         
     db.commit()
@@ -226,6 +231,8 @@ async def crear_o_actualizar_producto(
         if cartilla and cartilla.filename:
             cart_url = await subir_archivo_a_nube(cartilla, folder="fajas_isabella/productos/cartillas")
 
+        val_desc_oferta = float(descuento_oferta) if (en_oferta or en_liquidacion) else 0.0
+
         if prod:
             prod.modelo = modelo or nombre
             prod.categoria = categoria or prod.categoria
@@ -239,7 +246,7 @@ async def crear_o_actualizar_producto(
             prod.en_liquidacion = en_liquidacion
             prod.es_nuevo = es_nuevo
             prod.en_oferta = en_oferta
-            prod.descuento_oferta = descuento_oferta
+            prod.descuento_oferta = val_desc_oferta
             prod.tipo_descuento = tipo_descuento
         else:
             prod = Producto(
@@ -256,7 +263,7 @@ async def crear_o_actualizar_producto(
                 en_liquidacion=en_liquidacion, 
                 es_nuevo=es_nuevo,
                 en_oferta=en_oferta, 
-                descuento_oferta=descuento_oferta,
+                descuento_oferta=val_desc_oferta,
                 tipo_descuento=tipo_descuento
             )
             db.add(prod)
@@ -273,12 +280,17 @@ async def crear_o_actualizar_producto(
             p_val = float(v_data.get("precio", 0.0))
             s_min = int(v_data.get("stock_minimo", 2))
             s_max = int(v_data.get("stock_maximo", 20))
-            desc_var = float(v_data.get("descuento_porcentaje", 0.0))
             v_img = str(v_data.get("imagen_url", "")).strip()
 
-            # Forzar herencia en modo individual si la variante no tiene descuento personalizado
-            if tipo_descuento == "INDIVIDUAL" and (desc_var == 0 or desc_var == 25):
-                desc_var = float(descuento_oferta)
+            # --- SANEAMIENTO Y REGLA DE ORO AUTOMÁTICA AL GUARDAR ---
+            if tipo_descuento == "GENERAL" or (not en_oferta and not en_liquidacion):
+                desc_var = 0.0  # Si es general o no hay oferta, limpiamos el individual a 0 en todas las variantes
+            elif tipo_descuento == "INDIVIDUAL":
+                desc_var = float(v_data.get("descuento_porcentaje", 0.0))
+                if desc_var == 0 and val_desc_oferta > 0:
+                    desc_var = val_desc_oferta  # Hereda la base si está en 0
+            else:
+                desc_var = 0.0
             
             sku = generar_sku_compacto(nombre, t_val, c_val)
             cnt = 1

@@ -93,7 +93,7 @@ def render_inventario():
             st.markdown("###### 🏷️ Variantes (Tallas, Colores, Precios, Stock y Descuento %)")
             st.caption("Agrega las variantes reales de tu producto. Si usas modalidad Individual, el % de oferta base se aplicará a las variantes.")
 
-            # DataFrame limpio sin filas inventadas ni datos quemados
+            # DataFrame 100% limpio sin datos quemados ni tallas inventadas
             df_inicial = pd.DataFrame(columns=["sku", "talla", "color", "precio", "descuento_%", "stock_actual", "stock_minimo", "stock_maximo", "imagen_variante"])
 
             df_variantes_editado = st.data_editor(
@@ -193,8 +193,10 @@ def render_inventario():
                         img_var_val = str(row.get("imagen_variante", "")).strip() if pd.notna(row.get("imagen_variante")) else ""
                         desc_var_val = float(row.get("descuento_%", 0) or 0)
                         
-                        # Si es modo INDIVIDUAL y la variante tiene 0, hereda automáticamente la base
-                        if tipo_desc_reg == "INDIVIDUAL" and desc_var_val == 0 and desc_oferta_reg > 0:
+                        # Regla de oro: Si es INDIVIDUAL, hereda la base si está en 0. Si es GENERAL, se limpia a 0.
+                        if tipo_desc_reg == "GENERAL":
+                            desc_var_val = 0.0
+                        elif tipo_desc_reg == "INDIVIDUAL" and desc_var_val == 0 and desc_oferta_reg > 0:
                             desc_var_val = float(desc_oferta_reg)
 
                         if not sku_val or sku_val.lower() in ["none", "nan", ""]:
