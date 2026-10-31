@@ -828,6 +828,16 @@ function calcularSaldoPendiente() {
 // ==============================================================================
 // FUNCIÓN CORREGIDA Y CONECTADA AL BACKEND PARA DISPARAR WHATSAPP SIN BLOQUEO
 // ==============================================================================
+function getVal(ids, defaultVal = "") {
+    for (let id of ids) {
+        const el = document.getElementById(id);
+        if (el && el.value !== undefined && el.value !== null && el.value.trim() !== "") {
+            return el.value.trim();
+        }
+    }
+    return defaultVal;
+}
+
 async function procesarPedidoWhatsApp(event) {
     if (event) event.preventDefault();
     
@@ -839,17 +849,17 @@ async function procesarPedidoWhatsApp(event) {
     // Ventana preventiva para evitar bloqueo de popups del navegador
     const ventanaWhatsApp = window.open('about:blank', '_blank');
 
-    const nombreCliente = document.getElementById('nombre-cliente')?.value || 'Cliente';
-    const telefonoCliente = document.getElementById('telefono-cliente')?.value || '';
-    const correoCliente = document.getElementById('correo-cliente')?.value || '';
-    const rucCedula = document.getElementById('ruccedula-cliente')?.value || '9999999999';
-    const razonSocial = document.getElementById('razon-social-cliente')?.value || nombreCliente;
-    const provincia = document.getElementById('provincia-cliente')?.value || 'Guayas';
-    const ciudad = document.getElementById('ciudad-cliente')?.value || 'Guayaquil';
-    const direccion = document.getElementById('direccion-cliente')?.value || 'Dirección Principal';
-    const referencia = document.getElementById('referencia-cliente')?.value || '';
+    const nombreCliente = getVal(['nombre-cliente', 'nombre', 'wapp_nombre', 'txt-nombre'], 'Cliente');
+    const telefonoCliente = getVal(['telefono-cliente', 'telefono', 'wapp_telefono', 'txt-telefono'], '0999999999');
+    const correoCliente = getVal(['correo-cliente', 'correo', 'wapp_correo', 'txt-correo'], '');
+    const rucCedula = getVal(['ruccedula-cliente', 'ruc_cedula', 'ruccedula', 'wapp_ruc'], '9999999999');
+    const razonSocial = getVal(['razon-social-cliente', 'razon_social', 'razonsocial', 'wapp_razon'], nombreCliente);
+    const provincia = getVal(['provincia-cliente', 'provincia', 'wapp_provincia'], 'Guayas');
+    const ciudad = getVal(['ciudad-cliente', 'ciudad', 'wapp_ciudad'], 'Guayaquil');
+    const direccion = getVal(['direccion-cliente', 'direccion', 'wapp_direccion', 'direccion_entrega'], 'Principal');
+    const referencia = getVal(['referencia-cliente', 'referencia', 'wapp_referencia'], '');
     
-    const inputComprobante = document.getElementById('input-comprobante-pago');
+    const inputComprobante = document.getElementById('input-comprobante-pago') || document.getElementById('wapp_comprobante') || document.getElementById('comprobante');
     const archivoComprobante = inputComprobante && inputComprobante.files[0] ? inputComprobante.files[0] : null;
 
     const formData = new FormData();
@@ -883,7 +893,6 @@ async function procesarPedidoWhatsApp(event) {
             }
         } else {
             if (ventanaWhatsApp) ventanaWhatsApp.close();
-            // Esto mostrará el detalle exacto del error de FastAPI si vuelve a ocurrir
             const detalleError = typeof data.detail === 'object' ? JSON.stringify(data.detail) : (data.detail || "Intente nuevamente.");
             alert("Error al procesar el pedido: " + detalleError);
         }
