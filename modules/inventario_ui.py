@@ -113,7 +113,7 @@ def render_inventario():
             )
 
         with col_der:
-            st.markdown("##### 📸 Imagen Principal del Producto")
+            st.markdown("##### 📸 Imagen Principal del Ítem")
             archivo_imagen = st.file_uploader("Subir imagen general:", type=["jpg", "jpeg", "png", "webp"], label_visibility="collapsed")
             
             if archivo_imagen is not None:
@@ -273,7 +273,7 @@ def render_inventario():
 
                     st.divider()
                     st.markdown("##### 🛠️ Corrección de Variante, Estados, Multimedia y Fotos")
-                    st.caption("Selecciona la variante, edita sus atributos y gestiona por separado su foto específica y la foto general del ítem.")
+                    st.caption("Selecciona la variante, edita sus atributos y gestiona por separado su foto específica (tabla variantes_producto) y la foto general (tabla productos).")
 
                     col_id_sel, col_btn_del = st.columns([3.0, 1.0], vertical_alignment="bottom")
                     
@@ -388,7 +388,6 @@ def render_inventario():
                                 st.markdown("<p style='font-size:11px; font-weight:bold; text-align:center;'>FOTO VARIANTE</p>", unsafe_allow_html=True)
                                 img_var_url = variante_encontrada.get("imagen_url") if variante_encontrada else ""
                                 
-                                # Mostramos la foto si la variante tiene cualquier URL válida registrada
                                 if img_var_url and str(img_var_url).strip() not in ["", "None", "nan", "null"]:
                                     url_v = str(img_var_url).strip()
                                     if not url_v.startswith("http"): url_v = resolver_url_imagen(url_v)

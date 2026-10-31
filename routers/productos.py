@@ -24,7 +24,7 @@ def listar_inventario(db: Session = Depends(get_db)):
         p_nom = p.nombre if p else f"Producto #{v.producto_id}"
         p_cat = p.categoria if p else "GENERAL"
         p_img = p.imagen_url if p else ""
-        v_img = v.imagen_url or p_img
+        v_img = v.imagen_url or ""
         
         prod_dict = {
             "nombre": p_nom, 
@@ -149,6 +149,13 @@ async def actualizar_variante(
     tipo_descuento: str = Form("GENERAL"),
     imagen: Optional[UploadFile] = File(None),
     imagen_variante: Optional[UploadFile] = File(None), 
+    imagen_producto: Optional[UploadFile] = File(None),
+    imagen_1: Optional[UploadFile] = File(None),
+    imagen_2: Optional[UploadFile] = File(None),
+    imagen_3: Optional[UploadFile] = File(None),
+    imagen_4: Optional[UploadFile] = File(None),
+    video: Optional[UploadFile] = File(None),
+    cartilla: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
     v = db.query(VarianteProducto).filter(VarianteProducto.id == var_id).first()
@@ -161,26 +168,53 @@ async def actualizar_variante(
     v.stock_minimo = stock_minimo
     v.stock_maximo = stock_maximo
     
-    # Si el producto está en modo general o sin oferta, se limpia el descuento individual de esta variante
+    # SANEAMIENTO: Limpieza automática de descuentos
+    val_desc_oferta = float(descuento_oferta) if (en_oferta or en_liquidacion) else 0.0
+
     if tipo_descuento == "GENERAL" or (not en_oferta and not en_liquidacion):
         v.descuento_porcentaje = 0.0
     else:
         v.descuento_porcentaje = float(descuento_porcentaje)
     
-    archivo_imagen = imagen if (imagen and imagen.filename) else imagen_variante
-    if archivo_imagen and archivo_imagen.filename:
-        img_url = await subir_archivo_a_nube(archivo_imagen, folder="fajas_isabella/variantes")
-        if img_url: 
-            v.imagen_url = img_url
-    
+    # 1. Foto específica de la variante
+    archivo_var = imagen_variante if (imagen_variante and imagen_variante.filename) else None
+    if archivo_var:
+        img_v_url = await subir_archivo_a_nube(archivo_var, folder="fajas_isabella/variantes")
+        if img_v_url: 
+            v.imagen_url = img_v_url
+            
+    # 2. Foto del producto general e ítem + archivos adicionales
     if v.producto:
         v.sku = generar_sku_compacto(v.producto.nombre, v.talla, v.color)
         v.producto.categoria = categoria.strip()
         v.producto.en_liquidacion = en_liquidacion
         v.producto.es_nuevo = es_nuevo
         v.producto.en_oferta = en_oferta
-        v.producto.descuento_oferta = float(descuento_oferta) if (en_oferta or en_liquidacion) else 0.0
+        v.producto.descuento_oferta = val_desc_oferta
         v.producto.tipo_descuento = tipo_descuento
+
+        archivo_prod = imagen if (imagen and imagen.filename) else imagen_producto
+        if archivo_prod and archivo_prod.filename:
+            img_p_url = await subir_archivo_a_nube(archivo_prod, folder="fajas_isabella/productos")
+            if img_p_url:
+                v.producto.imagen_url = img_p_url
+
+        if imagen_1 and imagen_1.filename:
+            v.producto.imagen_1 = await subir_archivo_a_nube(imagen_1, folder="fajas_isabella/productos/galeria")
+        if imagen_2 and imagen_2.filename:
+            v.producto.imagen_2 = await subir_archivo_a_nube(imagen_2, folder="fajas_isabella/productos/galeria")
+        if imagen_3 and imagen_3.filename:
+            v.producto.imagen_3 = await subir_archivo_a_nube(imagen_3, folder="fajas_isabella/productos/galeria")
+        if imagen_4 and imagen_4.filename:
+            v.producto.imagen_4 = await subir_archivo_a_nube(imagen_4, folder="fajas_isabella/productos/galeria")
+        if video and video.filename:
+            v.producto.video_url = await subir_archivo_a_nube(video, folder="fajas_isabella/productos/videos")
+        if cartilla and cartilla.filename:
+            v.producto.cartilla_url = await subir_archivo_a_nube(cartilla, folder="fajas_isabella/productos/cartillas")
+
+        # Saneamiento a todas las demás variantes del producto si se cambia a GENERAL
+        if tipo_descuento == "GENERAL" or (not en_oferta and not en_liquidacion):
+            db.query(VarianteProducto).filter(VarianteProducto.producto_id == v.producto.id).update({"descuento_porcentaje": 0.0})
         
     db.commit()
     return {"status": "success", "message": f"Variante ID {var_id} actualizada correctamente."}
@@ -284,11 +318,11 @@ async def crear_o_actualizar_producto(
 
             # --- SANEAMIENTO Y REGLA DE ORO AUTOMÁTICA AL GUARDAR ---
             if tipo_descuento == "GENERAL" or (not en_oferta and not en_liquidacion):
-                desc_var = 0.0  # Si es general o no hay oferta, limpiamos el individual a 0 en todas las variantes
+                desc_var = 0.0
             elif tipo_descuento == "INDIVIDUAL":
                 desc_var = float(v_data.get("descuento_porcentaje", 0.0))
                 if desc_var == 0 and val_desc_oferta > 0:
-                    desc_var = val_desc_oferta  # Hereda la base si está en 0
+                    desc_var = val_desc_oferta
             else:
                 desc_var = 0.0
             
