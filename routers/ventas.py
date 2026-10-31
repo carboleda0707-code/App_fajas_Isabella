@@ -122,7 +122,7 @@ def eliminar_cliente(cliente_id: int, db: Session = Depends(get_db)):
     return {"status": "success", "mensaje": f"Cliente ID {cliente_id} eliminado correctamente."}
 
 
-# --- ENDPOINT DE REPORTE Y LISTADO DE VENTAS ---
+# --- ENDPOINTS DE REPORTE Y GESTIÓN DE VENTAS ---
 
 @router.get("/ventas/reporte")
 def obtener_reporte_ventas(db: Session = Depends(get_db)):
@@ -160,7 +160,64 @@ def obtener_reporte_ventas(db: Session = Depends(get_db)):
     return resultado
 
 
-# --- ENDPOINT REGISTRO DE VENTA ---
+@router.get("/ventas/por-aprobar")
+def listar_ventas_por_aprobar(db: Session = Depends(get_db)):
+    """Obtiene las ventas web cuyo comprobante de pago está pendiente de aprobación financiera."""
+    facturas = db.query(Factura).filter(
+        Factura.tipo_factura.in_(["VENTA WEB WHATSAPP", "VENTA WEB CORREO"]),
+        Factura.estado_despacho == "POR APROBAR"
+    ).all()
+
+    resultado = []
+    for f in facturas:
+        items_orden = []
+        if hasattr(f, 'detalles') and f.detalles:
+            for item in f.detalles:
+                items_orden.append({
+                    "sku": getattr(item, 'sku', ''),
+                    "cantidad": getattr(item, 'cantidad', 1),
+                    "precio_unitario": float(getattr(item, 'precio_unitario', 0.0) or 0.0)
+                })
+
+        resultado.append({
+            "id": f.id,
+            "numero_factura": f.numero_factura,
+            "fecha": str(f.fecha_factura),
+            "ruc_cedula": f.entidad_ruc,
+            "cliente": f.entidad_nombre,
+            "total_factura": float(f.total_factura or 0.0),
+            "provincia": f.provincia or "Guayas",
+            "ciudad": f.ciudad or "Guayaquil",
+            "direccion_entrega": f.direccion_entrega or "",
+            "referencia_direccion": f.referencia_direccion or "",
+            "telefono": getattr(f, 'telefono_cliente', '') or "",
+            "comprobante_url": getattr(f, 'comprobante_pago_url', '') or getattr(f, 'url_comprobante', '') or "",
+            "items": items_orden
+        })
+    return resultado
+
+
+@router.post("/ventas/{factura_id}/aprobar-pago")
+def aprobar_pago_venta_web(factura_id: int, db: Session = Depends(get_db)):
+    """Aprueba el pago de una venta web y actualiza su estado a PENDIENTE para que pase a Logística."""
+    factura = db.query(Factura).filter(Factura.id == factura_id).first()
+    if not factura:
+        raise HTTPException(status_code=404, detail="Orden de venta no encontrada.")
+        
+    if factura.estado_despacho != "POR APROBAR":
+        raise HTTPException(status_code=400, detail="La orden no se encuentra en estado 'POR APROBAR'.")
+
+    # Transición clave de estado: Pasa de POR APROBAR a PENDIENTE (disponible para Bodega/Logística)
+    factura.estado_despacho = "PENDIENTE"
+    db.commit()
+    
+    return {
+        "status": "success",
+        "message": f"Orden Nº {factura.numero_factura} aprobada exitosamente y transferida a Logística."
+    }
+
+
+# --- ENDPOINT REGISTRO DE VENTA MANUAL ---
 
 @router.post("/ventas-factura")
 def registrar_venta(venta: VentaFacturaSchema, db: Session = Depends(get_db)):
