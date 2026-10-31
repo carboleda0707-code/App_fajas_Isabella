@@ -273,7 +273,7 @@ def render_inventario():
 
                     st.divider()
                     st.markdown("##### 🛠️ Corrección de Variante, Estados, Multimedia y Fotos")
-                    st.caption("Selecciona la variante, edita sus atributos y gestiona por separado su foto específica (tabla variantes_producto) y la foto general (tabla productos).")
+                    st.caption("Selecciona la variante, edita sus atributos y gestiona por separado su foto específica y la foto general.")
 
                     col_id_sel, col_btn_del = st.columns([3.0, 1.0], vertical_alignment="bottom")
                     
@@ -387,9 +387,7 @@ def render_inventario():
                             with col_f_var:
                                 st.markdown("<p style='font-size:11px; font-weight:bold; text-align:center;'>FOTO VARIANTE</p>", unsafe_allow_html=True)
                                 
-                                # Chivato de la variable y url de variante
                                 img_var_url = variante_encontrada.get("imagen_url") if variante_encontrada else ""
-                                st.caption(f"Var URL: `{img_var_url}`")
                                 
                                 if img_var_url and str(img_var_url).strip() not in ["", "None", "nan", "null"]:
                                     url_v = str(img_var_url).strip()
@@ -408,9 +406,7 @@ def render_inventario():
                             with col_f_prod:
                                 st.markdown("<p style='font-size:11px; font-weight:bold; text-align:center;'>FOTO DEL ÍTEM</p>", unsafe_allow_html=True)
                                 
-                                # Chivato de la variable y url del producto/ítem general
                                 img_gen_url = p_info.get("imagen_url") if p_info else ""
-                                st.caption(f"Prod URL: `{img_gen_url}`")
                                 
                                 if img_gen_url and str(img_gen_url).strip() not in ["", "None", "nan", "null"]:
                                     url_p = str(img_gen_url).strip()
