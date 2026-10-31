@@ -891,22 +891,22 @@ async function procesarPedidoWhatsApp(event) {
             // 1. Vaciar el carrito y actualizar UI
             carrito = [];
             actualizarCarritoUI();
-            toggleCarrito(); // Cierra el drawer del carrito
+            toggleCarrito();
 
-            // 2. Cerrar el modal del formulario de checkout (ocultando el contenedor principal del modal)
+            // 2. Cerrar el modal del formulario de checkout
             const modalCheckout = document.getElementById('modal-checkout') || document.querySelector('.modal-checkout') || document.getElementById('modal-pedido');
             if (modalCheckout) {
                 modalCheckout.classList.add('hidden');
                 modalCheckout.style.display = 'none';
             }
 
-            // 3. Limpiar/resetear todos los campos del formulario de datos
+            // 3. Resetear el formulario de datos
             const formCheckout = document.getElementById('form-checkout') || document.querySelector('form[onsubmit*="procesarPedidoWhatsApp"]');
             if (formCheckout) {
                 formCheckout.reset();
             }
 
-            // 4. Mostrar mensaje de éxito y globos de celebración
+            // 4. Mensaje de éxito y animación de globos
             alert("¡Gracias por su compra! Su pedido se ha generado con éxito.");
             if (typeof st !== 'undefined' && st.balloons) {
                 st.balloons();
@@ -922,6 +922,91 @@ async function procesarPedidoWhatsApp(event) {
         console.error("Error de conexión:", e);
         alert("Error de conexión al procesar el pedido.");
     }
+}
+
+// Procesar pedido y enviar por Correo Electrónico (Opción 1 - Correo)
+async function procesarPedidoCorreo(event) {
+    if (event) event.preventDefault();
+    
+    if (carrito.length === 0) {
+        alert("Tu carrito está vacío.");
+        return;
+    }
+
+    const nombreCliente = getVal(['nombre-cliente', 'nombre', 'wapp_nombre', 'txt-nombre'], 'Cliente');
+    const telefonoCliente = getVal(['telefono-cliente', 'telefono', 'wapp_telefono', 'txt-telefono'], '0999999999');
+    const correoCliente = getVal(['correo-cliente', 'correo', 'wapp_correo', 'txt-correo'], '');
+    const rucCedula = getVal(['ruccedula-cliente', 'ruc_cedula', 'ruccedula', 'wapp_ruc'], '9999999999');
+    const razonSocial = getVal(['razon-social-cliente', 'razon_social', 'razonsocial', 'wapp_razon'], nombreCliente);
+    const provincia = getVal(['provincia-cliente', 'provincia', 'wapp_provincia'], 'Guayas');
+    const ciudad = getVal(['ciudad-cliente', 'ciudad', 'wapp_ciudad'], 'Guayaquil');
+    const direccion = getVal(['direccion-cliente', 'direccion', 'wapp_direccion', 'direccion_entrega'], 'Principal');
+    const referencia = getVal(['referencia-cliente', 'referencia', 'wapp_referencia'], '');
+    
+    const inputComprobante = document.getElementById('input-comprobante-pago') || document.getElementById('wapp_comprobante') || document.getElementById('comprobante');
+    const archivoComprobante = inputComprobante && inputComprobante.files[0] ? inputComprobante.files[0] : null;
+
+    const formData = new FormData();
+    formData.append("nombre", nombreCliente);
+    formData.append("telefono", telefonoCliente);
+    formData.append("correo", correoCliente);
+    formData.append("ruc_cedula", rucCedula);
+    formData.append("razon_social", razonSocial);
+    formData.append("provincia", provincia);
+    formData.append("ciudad", ciudad);
+    formData.append("direccion", direccion);
+    formData.append("referencia", referencia);
+    formData.append("items", JSON.stringify(carrito));
+    
+    if (archivoComprobante) {
+        formData.append("comprobante", archivoComprobante);
+    }
+
+    try {
+        const res = await fetch('/api/web/auth/checkout-correo', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+            carrito = [];
+            actualizarCarritoUI();
+            toggleCarrito();
+
+            const modalCheckout = document.getElementById('modal-checkout') || document.querySelector('.modal-checkout') || document.getElementById('modal-pedido');
+            if (modalCheckout) {
+                modalCheckout.classList.add('hidden');
+                modalCheckout.style.display = 'none';
+            }
+
+            const formCheckout = document.getElementById('form-checkout') || document.querySelector('form[onsubmit*="procesarPedidoWhatsApp"]');
+            if (formCheckout) {
+                formCheckout.reset();
+            }
+
+            alert("¡Gracias por su compra! El comprobante ha sido enviado por correo con éxito.");
+            if (typeof st !== 'undefined' && st.balloons) {
+                st.balloons();
+            }
+        } else {
+            const detalleError = typeof data.detail === 'object' ? JSON.stringify(data.detail) : (data.detail || "Intente nuevamente.");
+            alert("Error al enviar por correo: " + detalleError);
+        }
+    } catch (e) {
+        console.error("Error de conexión:", e);
+        alert("Error de conexión al procesar el correo.");
+    }
+}
+
+// Opción 2: Pago con Tarjeta de Crédito vía Paymentez
+function procesarPagoPaymentez(event) {
+    if (event) event.preventDefault();
+    if (carrito.length === 0) {
+        alert("Tu carrito está vacío.");
+        return;
+    }
+    alert("Redirigiendo a la pasarela de pagos segura de Paymentez...");
 }
 
 function actualizarCarritoUI() {
