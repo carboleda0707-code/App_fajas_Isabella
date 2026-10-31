@@ -54,8 +54,8 @@ def listar_inventario(db: Session = Depends(get_db)):
             "Stock Máximo": v.stock_maximo or 20,
             "Fecha Creación": str(v.fecha_creacion)[:10] if v.fecha_creacion else "",
             "Última Venta": str(v.fecha_ultima_venta)[:10] if v.fecha_ultima_venta else "Sin ventas",
-            "imagen_url": v_img, 
             **prod_dict, 
+            "imagen_url": v.imagen_url or p_img, # <--- Asignado al final para que mande la variante
             "producto": prod_dict
         })
     return lista
