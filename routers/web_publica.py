@@ -431,6 +431,7 @@ async def checkout_whatsapp(
     try:
         correo_limpio = correo.lower().strip() if (correo and correo.strip() != "") else None
         
+        # Búsqueda segura del cliente en la tabla unificada 'clientes'
         cliente_db = None
         if correo_limpio:
             cliente_db = db.query(Cliente).filter(Cliente.correo == correo_limpio).first()
@@ -439,11 +440,10 @@ async def checkout_whatsapp(
 
         password_temporal = None
         if cliente_db:
-            cliente_db.nombre = razon_social
+            cliente_db.nombre = razon_social or nombre
             cliente_db.telefono = telefono
             cliente_db.direccion = direccion
             cliente_db.ciudad = ciudad
-            cliente_db.cliente_web = True
             if correo_limpio and not cliente_db.correo:
                 cliente_db.correo = correo_limpio
                 
@@ -458,12 +458,11 @@ async def checkout_whatsapp(
             
             cliente_db = Cliente(
                 ruc_cedula=ruc_cedula,
-                nombre=razon_social,
+                nombre=razon_social or nombre,
                 correo=reg_correo,
                 telefono=telefono,
                 direccion=direccion,
                 ciudad=ciudad,
-                cliente_web=True,
                 password=password_hash_temp
             )
             db.add(cliente_db)
@@ -480,17 +479,13 @@ async def checkout_whatsapp(
 
         total_pedido = sum(float(item.get('precio', 0)) * int(item.get('cantidad', 1)) for item in lista_items)
         
-        # Generación del número de factura con formato AAMM (AñoMes) + Consecutivo mensual de 3 dígitos (ej: 2610003)
-        prefijo_ym = date.today().strftime('%y%m')
-        facturas_mes_count = db.query(Factura).filter(Factura.numero_factura.like(f"{prefijo_ym}%")).count()
-        siguiente_consecutivo = facturas_mes_count + 1
-        num_factura_str = f"{prefijo_ym}{siguiente_consecutivo:03d}"
+        num_factura_str = f"FAC-WAPP-{int(date.today().strftime('%Y%m%d'))}-{cliente_db.id}"
         
         nueva_factura = Factura(
             tipo_factura="VENTA WEB WHATSAPP",
             numero_factura=num_factura_str,
             entidad_ruc=ruc_cedula,
-            entidad_nombre=razon_social,
+            entidad_nombre=razon_social or nombre,
             total_factura=total_pedido,
             cliente_id=cliente_db.id,
             provincia=provincia,
@@ -514,7 +509,7 @@ async def checkout_whatsapp(
                 cantidad=-cant_p,
                 referencia_factura=num_factura_str,
                 valor_neto=subtotal_p,
-                entidad_asociada=razon_social,
+                entidad_asociada=razon_social or nombre,
                 fecha_hora=date.today()
             )
             db.add(nuevo_mov)
@@ -542,18 +537,16 @@ async def checkout_whatsapp(
             p_precio = float(item.get('precio', 0))
             p_cant = int(item.get('cantidad', 1))
             subtotal = p_precio * p_cant
-            detalle_texto += f"{idx}. *{item.get('nombre', 'Prenda')}*\n   - Talla: {item.get('talla', 'N/D')} | Color: {item.get('color', 'N/D')}\n   - SKU: {item.get('sku', 'N/D')}\n   - Cantidad: {p_cant} x ${p_precio:.2f} = ${subtotal:.2f}\n\n"
+            detalle_texto += f"{idx}. *{item.get('nombre', 'Prenda')}*%0A   - Talla: {item.get('talla', 'N/D')} | Color: {item.get('color', 'N/D')}%0A   - SKU: {item.get('sku', 'N/D')}%0A   - Cantidad: {p_cant} x ${p_precio:.2f} = ${subtotal:.2f}%0A%0A"
 
-        mensaje_plano = f"¡Hola Fajas Isabella! 👋 Acabo de realizar un pedido y transferencia:\n\n*Factura:* #{num_factura_str}\n*Cliente:* {nombre}\n*RUC/Cédula:* {ruc_cedula}\n*Destino:* {provincia}, {ciudad} - {direccion}\n\n{detalle_texto}💰 *Total Pagado:* ${total_pedido:.2f}\n\n"
+        mensaje_wapp = f"¡Hola Fajas Isabella! 👋 Acabo de realizar un pedido y transferencia:%0A%0A*Factura:* #{num_factura_str}%0A*Cliente:* {nombre}%0A*RUC/Cédula:* {ruc_cedula}%0A*Destino:* {provincia}, {ciudad} - {direccion}%0A%0A{detalle_texto}💰 *Total Pagado:* ${total_pedido:.2f}%0A%0A"
         
         if password_temporal:
-            mensaje_plano += f"🔐 *Acceso Web Temporal:*\n- Usuario: {cliente_db.correo}\n- Clave Temporal: *{password_temporal}*\n*(Por seguridad se te pedirá cambiarla al iniciar sesión)*\n\n"
+            mensaje_wapp += f"🔐 *Acceso Web Temporal:*%0A- Usuario: {cliente_db.correo}%0A- Clave Temporal: *{password_temporal}*%0A*(Por seguridad se te pedirá cambiarla al iniciar sesión)*%0A%0A"
         
-        mensaje_plano += "Adjunto mi comprobante para la verificación."
-
-        phone_clean = str(TELEFONO_WHATSAPP).replace("+", "").replace(" ", "").strip()
-        mensaje_encoded = urllib.parse.quote(mensaje_plano)
-        whatsapp_url = f"https://wa.me/{phone_clean}?text={mensaje_encoded}"
+        mensaje_wapp += "Adjunto mi comprobante para la verificación."
+        
+        whatsapp_url = f"https://wa.me/{TELEFONO_WHATSAPP}?text={mensaje_wapp}"
 
         return {
             "status": "success",
@@ -562,9 +555,11 @@ async def checkout_whatsapp(
         }
 
     except Exception as db_err:
+        
         db.rollback()
+        print(f"❌ [CHIVATO CHECKOUT ERROR]: {str(db_err)}")
         raise HTTPException(status_code=500, detail=f"Error en servidor/BD: {str(db_err)}")
-
+        
 
 @router.get("/api/web/auth/pedidos/{cliente_id}")
 def obtener_pedidos_cliente(cliente_id: int, db: Session = Depends(get_db)):
