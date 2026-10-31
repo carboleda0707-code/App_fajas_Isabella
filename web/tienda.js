@@ -89,7 +89,7 @@ async function cargarConfiguracionHomeDinamica() {
         { tag: "Alta Compresión", titulo: "Moldea tu Figura al Instante", descripcion: "Descubre la nueva línea de fajas reductoras y postoperatorias de máxima comodidad.", btn_texto: "Ver Colección →", imagen: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80" },
         { tag: "Calidad Colombiana", titulo: "Recuperación y Cuidado Seguro", descripcion: "Diseños especializados con microcápsulas y costuras invisibles para tu diario vivir.", btn_texto: "Explorar Modelos →", imagen: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=80" },
         { tag: "Efecto Cintura", titulo: "Definición Reloj de Arena", descripcion: "Cinturillas de látex térmico ideales para moldear postura y reducir medidas.", btn_texto: "Ver Cinturillas →", imagen: "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1200&q=80" },
-        { tag: "Envíos Seguros", titulo: "Envíos Directos a Todo Ecuador", descripcion: "Garantía de fábrica directa hasta la puerta de tu hogar.", btn_texto: "Comprar Ahora →", imagen: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=80" }
+        { tag: "Envíos Seguros", titulo: "Envíos Directos A Todo Ecuador", descripcion: "Garantía de fábrica directa hasta la puerta de tu hogar.", btn_texto: "Comprar Ahora →", imagen: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=80" }
     ];
 
     let slidesUsar = slidesDefault;
@@ -371,246 +371,6 @@ function generarHTMLTarjetaProducto(p) {
     `;
 }
 
-function actualizarDetalleVariante() {
-    const variante = obtenerVarianteActual();
-    if (variante && productoSeleccionado) {
-        const precioOriginal = Number(variante.precio || 0);
-        
-        // ¡Aquí está la clave! Tomamos el descuento directamente de la variante seleccionada
-        const descAplicar = Number(variante.descuento_porcentaje || 0);
-        const porcentajeTexto = descAplicar;
-
-        let precioFinalUnitario = precioOriginal;
-        if (descAplicar > 0) {
-            precioFinalUnitario = Math.max(0, precioOriginal - (precioOriginal * (descAplicar / 100)));
-        }
-
-        const cantidad = typeof cantidadSeleccionada !== 'undefined' ? cantidadSeleccionada : 1;
-        const totalLinea = precioFinalUnitario * cantidad;
-        
-        const elPrecioContainer = document.getElementById("modal-precio-container");
-        const elTalla = document.getElementById("resumen-talla");
-        const elColor = document.getElementById("resumen-color");
-        const elStock = document.getElementById("modal-stock");
-        const elTotal = document.getElementById("modal-total-seleccion");
-
-        if (elPrecioContainer) {
-            if (descAplicar > 0) {
-                elPrecioContainer.innerHTML = `
-                    <div class="flex items-center gap-2">
-                        <span class="bg-rose-600 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">${porcentajeTexto}% OFF</span>
-                        <span class="text-3xl font-black text-rose-600">$${precioFinalUnitario.toFixed(2)}</span>
-                        <span class="text-sm text-slate-400 line-through font-semibold">$${precioOriginal.toFixed(2)}</span>
-                    </div>
-                `;
-            } else {
-                elPrecioContainer.innerHTML = `
-                    <span class="text-3xl font-black text-slate-900">$${precioOriginal.toFixed(2)}</span>
-                `;
-            }
-        }
-
-        if (elTalla) elTalla.innerText = variante.talla || '';
-        if (elColor) elColor.innerText = variante.color || '';
-        if (elStock) elStock.innerText = `Stock: ${variante.stock_actual !== undefined ? variante.stock_actual : (variante.stock || 0)} disp.`;
-        if (elTotal) elTotal.innerText = `$${totalLinea.toFixed(2)}`;
-    }
-}
-
-function renderizarCatalogo() {
-    const container = document.getElementById("catalog-container");
-    const contadorElem = document.getElementById("total-productos");
-    if (!container) return;
-    if (contadorElem) contadorElem.innerText = `${productosFiltrados.length} modelos`;
-
-    if (productosFiltrados.length === 0) {
-        container.innerHTML = `<div class="col-span-full text-center py-12 text-slate-400 text-sm">No encontramos modelos en esta categoría.</div>`;
-    } else {
-        container.innerHTML = productosFiltrados.map(p => generarHTMLTarjetaProducto(p)).join('');
-    }
-}
-
-function irAInicio() {
-    categoriaSeleccionadaActual = 'INICIO';
-    
-    const introContainer = document.getElementById('secciones-intro-container');
-    if (introContainer) introContainer.style.display = 'block';
-
-    const catalogoSec = document.getElementById('catalogo');
-    if (catalogoSec) catalogoSec.style.display = 'none';
-
-    const contenedorCategoriasScroll = document.getElementById('categorias-scroll');
-    if (contenedorCategoriasScroll) {
-        const barraCategorias = contenedorCategoriasScroll.closest('nav') || contenedorCategoriasScroll.parentElement.parentElement;
-        if (barraCategorias) barraCategorias.style.display = 'none';
-    }
-
-    renderizarNovedadesEnHome();
-    iniciarHeroSlider();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function renderizarNovedadesEnHome() {
-    let contenedorDestacados = document.getElementById('home-destacados-home');
-    
-    if (!contenedorDestacados) {
-        const seccionesIntro = document.querySelectorAll('#secciones-intro-container > section');
-        const seccionPublicidad = seccionesIntro[seccionesIntro.length - 1];
-        
-        if (seccionPublicidad) {
-            contenedorDestacados = document.createElement('section');
-            contenedorDestacados.id = 'home-destacados-home';
-            contenedorDestacados.className = 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10';
-            seccionPublicidad.parentNode.insertBefore(contenedorDestacados, seccionPublicidad);
-        }
-    }
-
-    if (!contenedorDestacados) return;
-
-    const destacados = productos.filter(p => p.en_oferta || p.es_nuevo || p.en_liquidacion).slice(0, 5);
-
-    if (destacados.length === 0) {
-        contenedorDestacados.innerHTML = '';
-        return;
-    }
-
-    let htmlCards = destacados.map(p => generarHTMLTarjetaProducto(p)).join('');
-
-    contenedorDestacados.innerHTML = `
-        <div class="mb-6 pb-3 border-b border-slate-200 flex items-center justify-between">
-            <div>
-                <span class="text-rose-600 font-bold text-xs uppercase tracking-wider">Colección Exclusiva</span>
-                <h3 class="text-xl font-black text-slate-900">✨ Novedades y Promociones Destacadas</h3>
-            </div>
-            <button onclick="filtrarCategoria('TODAS')" class="text-xs font-bold text-rose-600 hover:text-rose-700 transition cursor-pointer">Ver todo el catálogo →</button>
-        </div>
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            ${htmlCards}
-        </div>
-    `;
-}
-
-function filtrarCategoria(cat) {
-    categoriaSeleccionadaActual = cat;
-    const tituloCatElem = document.getElementById("titulo-categoria");
-    const introContainer = document.getElementById("secciones-intro-container");
-    const catalogoSec = document.getElementById("catalogo");
-
-    if (cat === 'INICIO' || cat === 'HOME') {
-        irAInicio();
-        return;
-    }
-
-    if (introContainer) introContainer.style.display = 'none';
-    if (catalogoSec) catalogoSec.style.display = 'block';
-
-    const contenedorCategoriasScroll = document.getElementById('categorias-scroll');
-    if (contenedorCategoriasScroll) {
-        const barraCategorias = contenedorCategoriasScroll.closest('nav') || contenedorCategoriasScroll.parentElement.parentElement;
-        if (barraCategorias) barraCategorias.style.display = 'block';
-    }
-
-    if (cat === 'TODAS') {
-        if (tituloCatElem) tituloCatElem.innerText = "Todas las Prendas Disponibles";
-        productosFiltrados = [...productos];
-    } else {
-        if (cat === 'LIQUIDACION') {
-            if (tituloCatElem) tituloCatElem.innerText = "🔥 Productos en Liquidación";
-            productosFiltrados = productos.filter(p => p.en_liquidacion === true);
-        } else if (cat === 'OFERTAS') {
-            if (tituloCatElem) tituloCatElem.innerText = "🏷️ Productos en Oferta Especial";
-            productosFiltrados = productos.filter(p => p.en_oferta === true);
-        } else if (cat === 'NEW') {
-            if (tituloCatElem) tituloCatElem.innerText = "✨ Nuevos Modelos (New)";
-            productosFiltrados = productos.filter(p => p.es_nuevo === true);
-        } else {
-            if (tituloCatElem) tituloCatElem.innerText = `Colección: ${cat}`;
-            productosFiltrados = productos.filter(p => (p.categoria || '').toUpperCase().trim() === cat.toUpperCase().trim());
-        }
-    }
-
-    renderizarCatalogo();
-    renderizarSeccionesSecundariasCategoria(cat);
-
-    if (catalogoSec) catalogoSec.scrollIntoView({ behavior: 'smooth' });
-}
-
-function renderizarSeccionesSecundariasCategoria(catSeleccionada) {
-    let contenedor = document.getElementById("secciones-secundarias-container");
-    const catalogoSec = document.getElementById("catalogo");
-
-    if (!contenedor && catalogoSec) {
-        contenedor = document.createElement("div");
-        contenedor.id = "secciones-secundarias-container";
-        catalogoSec.appendChild(contenedor);
-    }
-    if (!contenedor) return;
-
-    let htmlSecundario = '';
-
-    if (catSeleccionada !== 'TODAS') {
-        const productosNuevos = productos.filter(p => p.es_nuevo === true);
-        const productosOfertas = productos.filter(p => p.en_oferta === true || p.en_liquidacion === true);
-
-        if (catSeleccionada !== 'NEW' && productosNuevos.length > 0) {
-            htmlSecundario += `
-                <div class="mt-6 pt-4 border-t border-slate-200">
-                    <div class="flex items-center justify-between mb-4">
-                        <div>
-                            <span class="text-blue-600 font-bold text-xs uppercase tracking-wider">✨ Recién Llegados</span>
-                            <h3 class="text-lg font-black text-slate-900">Lo Nuevo de Fajas Isabella</h3>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                        ${productosNuevos.map(p => generarHTMLTarjetaProducto(p)).join('')}
-                    </div>
-                </div>
-            `;
-        }
-
-        if (catSeleccionada !== 'OFERTAS' && catSeleccionada !== 'LIQUIDACION' && productosOfertas.length > 0) {
-            htmlSecundario += `
-                <div class="mt-6 pt-4 border-t border-slate-200">
-                    <div class="flex items-center justify-between mb-4">
-                        <div>
-                            <span class="text-amber-600 font-bold text-xs uppercase tracking-wider">🏷️ Descuentos Especiales</span>
-                            <h3 class="text-lg font-black text-slate-900">Prendas en Oferta</h3>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                        ${productosOfertas.map(p => generarHTMLTarjetaProducto(p)).join('')}
-                    </div>
-                </div>
-            `;
-        }
-    }
-
-    const secPublicidadOriginal = document.querySelector('#secciones-intro-container section:last-child');
-    if (secPublicidadOriginal) {
-        htmlSecundario += `
-            <div class="mt-6 pt-4 border-t border-slate-200">
-                ${secPublicidadOriginal.outerHTML}
-            </div>
-        `;
-    }
-
-    contenedor.innerHTML = htmlSecundario;
-}
-
-function scrollCategorias(distancia) {
-    const contenedor = document.getElementById("categorias-scroll");
-    if (contenedor) contenedor.scrollBy({ left: distancia, behavior: 'smooth' });
-}
-
-function buscarProducto() {
-    const inputBusqueda = document.getElementById("input-busqueda");
-    if (!inputBusqueda) return;
-    const query = inputBusqueda.value.toLowerCase();
-    if (query.trim() !== "") filtrarCategoria('TODAS');
-    productosFiltrados = productos.filter(p => p.nombre.toLowerCase().includes(query) || p.categoria.toLowerCase().includes(query) || (p.variantes && p.variantes.some(v => v.sku.toLowerCase().includes(query))));
-    renderizarCatalogo();
-}
-
 function abrirModal(productoId) {
     productoSeleccionado = productos.find(p => p.id === productoId);
     if (!productoSeleccionado) return;
@@ -624,11 +384,13 @@ function abrirModal(productoId) {
     cantidadSeleccionada = 1;
 
     const varianteInicial = obtenerVarianteActual();
-    const primerPrecio = varianteInicial ? varianteInicial.precio : (variantes[0] ? variantes[0].precio : 0);
-    const descuento = Number(productoSeleccionado.descuento_oferta || 0);
-    const precioFinalModal = (productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) && descuento > 0 
-        ? Math.max(0, primerPrecio - (primerPrecio * (descuento / 100))) 
-        : primerPrecio;
+    const precioOriginalModal = varianteInicial ? Number(varianteInicial.precio || 0) : (variantes[0] ? Number(variantes[0].precio || 0) : 0);
+    const descVarInicial = varianteInicial ? Number(varianteInicial.descuento_porcentaje || 0) : 0;
+    
+    let precioFinalModal = precioOriginalModal;
+    if (descVarInicial > 0) {
+        precioFinalModal = Math.max(0, precioOriginalModal - (precioOriginalModal * (descVarInicial / 100)));
+    }
 
     let listaMedia = [];
     if (productoSeleccionado.imagen_url) listaMedia.push({ tipo: 'img', url: productoSeleccionado.imagen_url });
@@ -667,6 +429,19 @@ function abrirModal(productoId) {
         `;
     }
 
+    let precioModalHtml = '';
+    if (descVarInicial > 0) {
+        precioModalHtml = `
+            <div class="flex items-center gap-2">
+                <span class="bg-rose-600 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">${descVarInicial}% OFF</span>
+                <span class="text-3xl font-black text-rose-600">$${precioFinalModal.toFixed(2)}</span>
+                <span class="text-sm text-slate-400 line-through font-semibold">$${precioOriginalModal.toFixed(2)}</span>
+            </div>
+        `;
+    } else {
+        precioModalHtml = `<span class="text-3xl font-black text-slate-900">$${precioOriginalModal.toFixed(2)}</span>`;
+    }
+
     const imagenInicialVisor = listaMedia.length > 0 ? obtenerRutaImagenProducto(listaMedia[0].url) : SVG_FALLBACK;
 
     const contenido = `
@@ -682,7 +457,7 @@ function abrirModal(productoId) {
                     <span class="text-[10px] font-bold text-rose-600 tracking-wider uppercase bg-rose-50 px-2.5 py-1 rounded-md">${productoSeleccionado.categoria}</span>
                     <h3 class="text-lg font-extrabold text-slate-900 leading-snug mt-1.5 mb-1">${productoSeleccionado.nombre}</h3>
                     <div id="modal-precio-container">
-                        <span class="text-3xl font-black text-rose-600">$${precioFinalModal.toFixed(2)}</span>
+                        ${precioModalHtml}
                     </div>
                 </div>
                 ${cartillaHTML}
@@ -812,22 +587,7 @@ function actualizarDetalleVariante() {
     const variante = obtenerVarianteActual();
     if (variante && productoSeleccionado) {
         const precioOriginal = Number(variante.precio || 0);
-        const tipoDesc = (productoSeleccionado.tipo_descuento || 'GENERAL').toUpperCase();
-        const descGeneral = Number(productoSeleccionado.descuento_oferta || 0);
-        const descIndividual = Number(variante.descuento_porcentaje || 0);
-
-        let descAplicar = 0;
-        let porcentajeTexto = 0;
-
-        if (productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) {
-            if (tipoDesc === 'GENERAL' && descGeneral > 0) {
-                descAplicar = descGeneral;
-                porcentajeTexto = descGeneral;
-            } else if (tipoDesc === 'INDIVIDUAL' && descIndividual > 0) {
-                descAplicar = descIndividual;
-                porcentajeTexto = descIndividual;
-            }
-        }
+        const descAplicar = Number(variante.descuento_porcentaje || 0);
 
         let precioFinalUnitario = precioOriginal;
         if (descAplicar > 0) {
@@ -847,7 +607,7 @@ function actualizarDetalleVariante() {
             if (descAplicar > 0) {
                 elPrecioContainer.innerHTML = `
                     <div class="flex items-center gap-2">
-                        <span class="bg-rose-600 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">${porcentajeTexto}% OFF</span>
+                        <span class="bg-rose-600 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">${descAplicar}% OFF</span>
                         <span class="text-3xl font-black text-rose-600">$${precioFinalUnitario.toFixed(2)}</span>
                         <span class="text-sm text-slate-400 line-through font-semibold">$${precioOriginal.toFixed(2)}</span>
                     </div>
@@ -995,7 +755,6 @@ function procesarPedidoWhatsApp() {
 function actualizarCarritoUI() {
     const count = carrito.reduce((acc, item) => acc + item.cantidad, 0);
     
-    // Cálculos financieros del carrito
     let subtotalReal = 0;
     let totalAhorro = 0;
     let totalAPagar = 0;
@@ -1014,7 +773,6 @@ function actualizarCarritoUI() {
 
     if (document.getElementById("cart-count")) document.getElementById("cart-count").innerText = count;
     
-    // Renderizado de totales en el Drawer del Carrito
     const contenedorTotales = document.getElementById("carrito-totales-container");
     if (contenedorTotales) {
         contenedorTotales.innerHTML = `
