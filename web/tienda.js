@@ -375,22 +375,10 @@ function actualizarDetalleVariante() {
     const variante = obtenerVarianteActual();
     if (variante && productoSeleccionado) {
         const precioOriginal = Number(variante.precio || 0);
-        const tipoDesc = (productoSeleccionado.tipo_descuento || 'GENERAL').toUpperCase();
-        const descGeneral = Number(productoSeleccionado.descuento_oferta || 0);
-        const descIndividual = Number(variante.descuento_porcentaje || 0);
-
-        let descAplicar = 0;
-        let porcentajeTexto = 0;
-
-        if (productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) {
-            if (tipoDesc === 'GENERAL' && descGeneral > 0) {
-                descAplicar = descGeneral;
-                porcentajeTexto = descGeneral;
-            } else if (tipoDesc === 'INDIVIDUAL' && descIndividual > 0) {
-                descAplicar = descIndividual;
-                porcentajeTexto = descIndividual;
-            }
-        }
+        
+        // ¡Aquí está la clave! Tomamos el descuento directamente de la variante seleccionada
+        const descAplicar = Number(variante.descuento_porcentaje || 0);
+        const porcentajeTexto = descAplicar;
 
         let precioFinalUnitario = precioOriginal;
         if (descAplicar > 0) {
@@ -888,15 +876,7 @@ function agregarAlCarrito(abrirDrawer = false) {
     const cantAgregar = cantidadSeleccionada > 0 ? cantidadSeleccionada : 1;
     
     const precioOriginal = Number(variante.precio || 0);
-    const tipoDesc = (productoSeleccionado.tipo_descuento || 'GENERAL').toUpperCase();
-    const descGeneral = Number(productoSeleccionado.descuento_oferta || 0);
-    const descIndividual = Number(variante.descuento_porcentaje || 0);
-
-    let descAplicar = 0;
-    if (productoSeleccionado.en_oferta || productoSeleccionado.en_liquidacion) {
-        if (tipoDesc === 'GENERAL' && descGeneral > 0) descAplicar = descGeneral;
-        else if (tipoDesc === 'INDIVIDUAL' && descIndividual > 0) descAplicar = descIndividual;
-    }
+    const descAplicar = Number(variante.descuento_porcentaje || 0);
 
     let precioFinalUnitario = precioOriginal;
     if (descAplicar > 0) {
