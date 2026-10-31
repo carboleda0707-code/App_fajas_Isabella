@@ -836,7 +836,7 @@ async function procesarPedidoWhatsApp(event) {
         return;
     }
 
-    // Abrimos una pestaña en blanco inmediatamente para evitar el bloqueo del navegador (Pop-up Blocker)
+    // Ventana preventiva para evitar bloqueo de popups del navegador
     const ventanaWhatsApp = window.open('about:blank', '_blank');
 
     const nombreCliente = document.getElementById('nombre-cliente')?.value || 'Cliente';
@@ -876,7 +876,6 @@ async function procesarPedidoWhatsApp(event) {
         
         const data = await res.json();
         if (res.ok && data.status === 'success' && data.whatsapp_url) {
-            // Redirigimos la pestaña en blanco directamente a la URL de WhatsApp generada por Python
             if (ventanaWhatsApp) {
                 ventanaWhatsApp.location.href = data.whatsapp_url;
             } else {
@@ -884,7 +883,9 @@ async function procesarPedidoWhatsApp(event) {
             }
         } else {
             if (ventanaWhatsApp) ventanaWhatsApp.close();
-            alert("Error al procesar el pedido: " + (data.detail || "Intente nuevamente."));
+            // Esto mostrará el detalle exacto del error de FastAPI si vuelve a ocurrir
+            const detalleError = typeof data.detail === 'object' ? JSON.stringify(data.detail) : (data.detail || "Intente nuevamente.");
+            alert("Error al procesar el pedido: " + detalleError);
         }
     } catch (e) {
         if (ventanaWhatsApp) ventanaWhatsApp.close();
