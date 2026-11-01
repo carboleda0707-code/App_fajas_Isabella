@@ -57,18 +57,35 @@ def render_reporte_ventas():
                     key="ord_ventas"
                 )
                 
-            # Selector de criterio de agrupación si está en vista consolidada
+            # Selector de criterio de agrupación y filtro por Tipo de Factura si está en vista consolidada
             criterio_agrupacion = "Cliente"
+            filtro_tipo_factura = "Todos"
             if tipo_vista == "Consolidado por Agrupación":
-                col_ag1, col_ag2 = st.columns([2, 2])
+                col_ag1, col_ag2 = st.columns(2)
                 with col_ag1:
                     criterio_agrupacion = st.selectbox("Agrupar por:", ["Cliente", "Ciudad", "Estado de Despacho", "Ítems / Producto (SKU)"])
+                with col_ag2:
+                    filtro_tipo_factura = st.selectbox(
+                        "Filtrar por Tipo de Factura:", 
+                        ["Todos", "VENTA (Local)", "VENTA WEB WHATSAPP", "VENTA WEB CORREO"]
+                    )
                 st.markdown("---")
                 
-            # Filtrar ventas por rango de fechas
+            # Filtrar ventas por rango de fechas y tipo de factura (si aplica)
             ventas_filtradas = []
             for v in ventas:
                 f_str = v.get('fecha_factura')
+                tipo_fac_actual = str(v.get('tipo_factura', ''))
+                
+                # Aplicar filtro de Tipo de Factura en vista consolidada
+                if tipo_vista == "Consolidado por Agrupación" and filtro_tipo_factura != "Todos":
+                    if filtro_tipo_factura == "VENTA (Local)" and tipo_fac_actual != "VENTA":
+                        continue
+                    elif filtro_tipo_factura == "VENTA WEB WHATSAPP" and tipo_fac_actual != "VENTA WEB WHATSAPP":
+                        continue
+                    elif filtro_tipo_factura == "VENTA WEB CORREO" and tipo_fac_actual != "VENTA WEB CORREO":
+                        continue
+
                 if f_str:
                     try:
                         f_date = datetime.strptime(str(f_str)[:10], "%Y-%m-%d").date()
@@ -78,7 +95,7 @@ def render_reporte_ventas():
                         pass
                         
             if not ventas_filtradas:
-                st.warning("⚠️ No se encontraron ventas en el rango de fechas seleccionado.")
+                st.warning("⚠️ No se encontraron ventas en el rango de fechas y filtros seleccionados.")
                 return
 
             # Preparación de estructuras para visualización y exportación
@@ -94,6 +111,7 @@ def render_reporte_ventas():
                 # Fila resumen por factura (para vista General)
                 tabla_general_resumen.append({
                     "Nº Factura": num_fac,
+                    "Tipo Factura": v.get("tipo_factura") or "VENTA",
                     "Fecha": str(v.get("fecha_factura"))[:10],
                     "Cliente": v.get("entidad_nombre"),
                     "RUC/CI": v.get("entidad_ruc"),
@@ -132,6 +150,7 @@ def render_reporte_ventas():
 
                         tabla_general.append({
                             "Nº Factura": num_fac,
+                            "Tipo Factura": v.get("tipo_factura") or "VENTA",
                             "Fecha": str(v.get("fecha_factura"))[:10],
                             "Cliente": v.get("entidad_nombre"),
                             "RUC/CI": v.get("entidad_ruc"),
@@ -148,6 +167,7 @@ def render_reporte_ventas():
                 else:
                     tabla_general.append({
                         "Nº Factura": num_fac,
+                        "Tipo Factura": v.get("tipo_factura") or "VENTA",
                         "Fecha": str(v.get("fecha_factura"))[:10],
                         "Cliente": v.get("entidad_nombre"),
                         "RUC/CI": v.get("entidad_ruc"),
@@ -248,6 +268,7 @@ def render_reporte_ventas():
                                 filas_grupos.append({
                                     f"Agrupado por {criterio_agrupacion}": grupo,
                                     "Nº Factura": v.get("numero_factura"),
+                                    "Tipo Factura": v.get("tipo_factura") or "VENTA",
                                     "Fecha": str(v.get("fecha_factura"))[:10],
                                     "Cliente": v.get("entidad_nombre"),
                                     "Ciudad": v.get("ciudad") or "N/D",
@@ -348,7 +369,7 @@ def render_reporte_ventas():
                     m2.metric("💰 Ingresos Globales Consolidados", f"${total_general_recaudado:,.2f}")
 
                 else:
-                    st.markdown(f"#### 📊 Reporte Consolidado Organizado por {criterio_agrupacion}")
+                    st.markdown(f"#### 📊 Reporte Consolidado Organizado por {criterio_agrupacion} ({filtro_tipo_factura})")
                     st.markdown("---")
 
                     total_general_global = 0.0
@@ -366,6 +387,7 @@ def render_reporte_ventas():
                             
                             tabla_grupo.append({
                                 "Nº Factura": v.get("numero_factura"),
+                                "Tipo Factura": v.get("tipo_factura") or "VENTA",
                                 "Fecha": str(v.get("fecha_factura"))[:10],
                                 "Cliente": v.get("entidad_nombre"),
                                 "Ciudad": v.get("ciudad") or "N/D",
