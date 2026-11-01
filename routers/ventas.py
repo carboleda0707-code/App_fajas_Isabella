@@ -164,7 +164,8 @@ def obtener_reporte_ventas(db: Session = Depends(get_db)):
 
 @router.get("/ventas/por-aprobar")
 def listar_ventas_por_aprobar(db: Session = Depends(get_db)):
-    """Obtiene las ventas web cuyo comprobante de pago está pendiente de aprobación financiera."""
+    """Obtiene las ventas web cuyo comprobante de pago está pendiente de aprobación financiera,
+    buscando los ítems tanto en relaciones directas como en los movimientos de inventario asociados."""
     facturas = db.query(Factura).filter(
         Factura.tipo_factura.in_(["VENTA WEB WHATSAPP", "VENTA WEB CORREO"]),
         Factura.estado_despacho == "POR APROBAR"
@@ -173,13 +174,34 @@ def listar_ventas_por_aprobar(db: Session = Depends(get_db)):
     resultado = []
     for f in facturas:
         items_orden = []
+        
+        # 1. Intentar obtener los ítems de las relaciones directas de la factura
         detalles_items = getattr(f, 'detalles', None) or getattr(f, 'items', None) or []
         for item in detalles_items:
             items_orden.append({
                 "sku": getattr(item, 'sku', ''),
-                "cantidad": getattr(item, 'cantidad', 1),
+                "cantidad": int(getattr(item, 'cantidad', 1) or 1),
                 "precio_unitario": float(getattr(item, 'precio_unitario', 0.0) or 0.0)
             })
+
+        # 2. Si no hay ítems directos, buscarlos en la tabla MovimientoInventario usando la referencia o número de factura
+        if not items_orden and f.numero_factura:
+            movimientos = db.query(MovimientoInventario).filter(
+                (MovimientoInventario.referencia_factura.like(f"%{f.numero_factura}%")) |
+                (MovimientoInventario.referencia_factura.like(f"%Fact Venta: {f.numero_factura}%"))
+            ).all()
+            
+            for m in movimientos:
+                # Tomamos la cantidad en positivo y el valor neto unitario o total calculado
+                cant = abs(int(m.cantidad or 1))
+                neto_total = float(m.valor_neto or 0.0)
+                p_unit = (neto_total / cant) if cant > 0 else neto_total
+                
+                items_orden.append({
+                    "sku": m.sku or "N/D",
+                    "cantidad": cant,
+                    "precio_unitario": round(p_unit, 2)
+                })
 
         resultado.append({
             "id": f.id,
