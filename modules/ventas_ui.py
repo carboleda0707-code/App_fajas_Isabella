@@ -8,7 +8,7 @@ def render_ventas():
 
 API_URL = st.session_state.get("API_URL", "http://localhost:8000/api")
 
-# Mantener tus 2 pestañas principales exactas como están en tu pantalla
+# Pestañas principales
 tab_nueva, tab_historial = st.tabs(["🛒 Registrar Venta / Plan Acumulativo", "📋 Historial de Ventas"])
 
 # --- PESTAÑA 1: REGISTRO MANUAL DE VENTA ---
@@ -89,116 +89,73 @@ with tab_nueva:
 
     st.markdown("---")
 
-    # 3. Selección de Productos (SKU) con Selector Desplegable Inteligente
+    # 3. Selección de Productos (SKU) con Editor Nativo Dinámico
     st.markdown("###### 3. Selección de Productos (SKU)")
-    try:
-        res_inv = requests.get(f"{API_URL}/inventario", timeout=5)
-        inventario_lista = res_inv.json() if res_inv.status_code == 200 else []
-    except Exception:
-        inventario_lista = []
+    st.caption("Ingresa el SKU exacto o cópialo. Si dejas el precio en 0.0, el sistema aplicará el descuento oficial automáticamente. Usa el botón **'+'** en la tabla para añadir más filas.")
 
-    if not inventario_lista:
-        st.warning("⚠️ No hay productos o variantes con stock disponibles en el inventario.")
-    else:
-        st.caption("💡 Haz clic en la celda de SKU para desplegar las prendas por nombre, talla y color, o escribe/escanea el código.")
-        
-        # Construir opciones amigables para el desplegable
-        lista_opciones_display = ["-- Seleccione un producto --"]
-        for prod in inventario_lista:
-            p_nombre = prod.get("nombre", "Producto")
-            for var in prod.get("variantes", []):
-                sku_v = var.get("sku", "")
-                talla_v = var.get("talla", "")
-                color_v = var.get("color", "")
-                stock_v = var.get("stock_actual", 0)
-                etiqueta = f"{p_nombre} - {talla_v} / {color_v} [Stock: {stock_v}] [SKU: {sku_v}]"
-                lista_opciones_display.append(etiqueta)
+    # Inicializar DataFrame base para los ítems en session_state si no existe
+    if "df_items_vta" not in st.session_state:
+        st.session_state.df_items_vta = pd.DataFrame([
+            {"SKU": "", "Cantidad": 1, "Precio Unitario ($)": 0.0}
+        ])
 
-        # Selector de número de líneas (inicia en 1)
-        col_num_lin1, col_num_lin2 = st.columns([2, 2])
-        with col_num_lin1:
-            num_lineas = st.number_input("🔢 Número de líneas de productos", min_value=1, max_value=20, value=1, step=1)
-        
-        if "df_items_vta" not in st.session_state or len(st.session_state.df_items_vta) != num_lineas:
-            datos_previos = st.session_state.get("df_items_vta", pd.DataFrame(columns=["SKU", "Cantidad", "Precio Unitario ($)"]))
-            filas_nuevas = []
-            for i in range(num_lineas):
-                if i < len(datos_previos):
-                    filas_nuevas.append(datos_previos.iloc[i].to_dict())
-                else:
-                    filas_nuevas.append({"SKU": "-- Seleccione un producto --", "Cantidad": 1, "Precio Unitario ($)": 0.0})
-            st.session_state.df_items_vta = pd.DataFrame(filas_nuevas)
+    df_items_editado = st.data_editor(
+        st.session_state.df_items_vta,
+        num_rows="dynamic",
+        use_container_width=True,
+        key="editor_items_venta",
+        column_config={
+            "SKU": st.column_config.TextColumn("SKU / Código de Barra", width="medium", required=True),
+            "Cantidad": st.column_config.NumberColumn("Cantidad", min_value=1, step=1, width="small"),
+            "Precio Unitario ($)": st.column_config.NumberColumn("Precio Unitario ($ - 0 para Auto)", format="$ %.2f", min_value=0.0, width="small")
+        }
+    )
+    st.session_state.df_items_vta = df_items_editado
 
-        df_items_editado = st.data_editor(
-            st.session_state.df_items_vta,
-            num_rows="dynamic",
-            use_container_width=True,
-            key="editor_items_venta",
-            column_config={
-                "SKU": st.column_config.SelectboxColumn(
-                    "Seleccionar Prenda / SKU",
-                    options=lista_opciones_display,
-                    required=True,
-                    width="large"
-                ),
-                "Cantidad": st.column_config.NumberColumn("Cantidad", min_value=1, step=1, width="small"),
-                "Precio Unitario ($)": st.column_config.NumberColumn("Precio Unitario ($ - 0 para Auto)", format="$ %.2f", min_value=0.0, width="small")
-            }
-        )
-        st.session_state.df_items_vta = df_items_editado
+    if st.button("🚀 Registrar Venta en el Sistema", type="primary", use_container_width=True):
+        if not ruc_cliente or not nombre_cliente or not num_factura:
+            st.error("⚠️ Por favor completa los campos obligatorios del cliente y el número de factura.")
+        elif df_items_editado.empty:
+            st.error("⚠️ Debes agregar al menos un producto a la venta.")
+        else:
+            items_payload = []
+            for _, row in df_items_editado.iterrows():
+                sku_val = str(row.get("SKU", "")).strip()
+                cant_val = int(row.get("Cantidad", 1))
+                precio_val = float(row.get("Precio Unitario ($)", 0.0))
+                if sku_val:
+                    items_payload.append({"sku": sku_val, "cantidad": cant_val, "precio_unitario": precio_val})
 
-        if st.button("🚀 Registrar Venta en el Sistema", type="primary", use_container_width=True):
-            if not ruc_cliente or not nombre_cliente or not num_factura:
-                st.error("⚠️ Por favor completa los campos obligatorios del cliente y el número de factura.")
-            elif df_items_editado.empty:
-                st.error("⚠️ Debes agregar al menos un producto a la venta.")
+            if not items_payload:
+                st.error("⚠️ Especifica al menos un SKU válido en la tabla de productos.")
             else:
-                items_payload = []
-                for _, row in df_items_editado.iterrows():
-                    sku_raw = str(row.get("SKU", "")).strip()
-                    
-                    sku_val = sku_raw
-                    if "[SKU:" in sku_raw:
-                        sku_val = sku_raw.split("[SKU:")[1].replace("]", "").strip()
-                    elif sku_raw == "-- Seleccione un producto --":
-                        sku_val = ""
-
-                    cant_val = int(row.get("Cantidad", 1))
-                    precio_val = float(row.get("Precio Unitario ($)", 0.0))
-                    
-                    if sku_val:
-                        items_payload.append({"sku": sku_val, "cantidad": cant_val, "precio_unitario": precio_val})
-
-                if not items_payload:
-                    st.error("⚠️ Especifica al menos un producto válido en la tabla.")
-                else:
-                    payload_venta = {
-                        "numero_factura": num_factura.strip(),
-                        "fecha_factura": str(fecha_factura),
-                        "metodo_pago": metodo_pago,
-                        "codigo_transferencia": codigo_trans,
-                        "ruc_cliente": ruc_cliente.strip(),
-                        "nombre_cliente": nombre_cliente.strip(),
-                        "direccion_cliente": direccion_cliente.strip() if direccion_cliente else "",
-                        "telefono_cliente": telefono_cliente.strip() if telefono_cliente else "",
-                        "provincia": provincia,
-                        "ciudad": ciudad,
-                        "direccion_entrega": direccion_entrega if direccion_entrega else direccion_cliente,
-                        "referencia_direccion": referencia_dir,
-                        "courier_nombre": courier,
-                        "abono_inicial": abono_inicial,
-                        "items": items_payload
-                    }
-                    try:
-                        resp = requests.post(f"{API_URL}/ventas-factura", json=payload_venta, timeout=10)
-                        if resp.status_code == 200:
-                            st.success("✅ ¡Venta registrada exitosamente!")
-                            st.balloons()
-                        else:
-                            err_det = resp.json().get("detail", "Error desconocido")
-                            st.error(f"❌ Error al procesar la venta: {err_det}")
-                    except Exception as ex:
-                        st.error(f"❌ Error de conexión con la API: {ex}")
+                payload_venta = {
+                    "numero_factura": num_factura.strip(),
+                    "fecha_factura": str(fecha_factura),
+                    "metodo_pago": metodo_pago,
+                    "codigo_transferencia": codigo_trans,
+                    "ruc_cliente": ruc_cliente.strip(),
+                    "nombre_cliente": nombre_cliente.strip(),
+                    "direccion_cliente": direccion_cliente.strip() if direccion_cliente else "",
+                    "telefono_cliente": telefono_cliente.strip() if telefono_cliente else "",
+                    "provincia": provincia,
+                    "ciudad": ciudad,
+                    "direccion_entrega": direccion_entrega if direccion_entrega else direccion_cliente,
+                    "referencia_direccion": referencia_dir,
+                    "courier_nombre": courier,
+                    "abono_inicial": abono_inicial,
+                    "items": items_payload
+                }
+                try:
+                    resp = requests.post(f"{API_URL}/ventas-factura", json=payload_venta, timeout=10)
+                    if resp.status_code == 200:
+                        st.success("✅ ¡Venta registrada exitosamente!")
+                        st.balloons()
+                    else:
+                        err_det = resp.json().get("detail", "Error desconocido")
+                        st.error(f"❌ Error al procesar la venta: {err_det}")
+                except Exception as ex:
+                    st.error(f"❌ Error de conexión con la API: {ex}")
 
 # --- PESTAÑA 2: HISTORIAL DE VENTAS ---
 with tab_historial:
@@ -335,3 +292,5 @@ with tab_historial:
                 st.warning("No se pudo obtener la información de reporte.")
         except Exception as e:
             st.error(f"Error: {e}")
+
+
