@@ -18,7 +18,6 @@ def render_ventas():
         # 1. Búsqueda y Selección Inteligente de Cliente
         st.markdown("###### 1. Información del Cliente")
         
-        # Obtener lista de clientes registrados para el buscador rápido
         try:
             res_cli = requests.get(f"{API_URL}/clientes", timeout=5)
             lista_clientes = res_cli.json() if res_cli.status_code == 200 else []
@@ -72,8 +71,12 @@ def render_ventas():
         with col_l3:
             courier = st.selectbox("Courier de Envío", ["Servientrega", "TAME", "Coop. Transporte", "Retiro en Local"])
 
-        direccion_entrega = st.text_input("Dirección de Entrega (Si difiere de la del cliente)", placeholder="Dejar en blanco si es la misma")
-        referencia_dir = st.text_input("Referencia de Ubicación", placeholder="Ej: Cerca del parque central")
+        # Dirección de Entrega y Referencia de Ubicación lado a lado en 2 columnas
+        col_dir1, col_dir2 = st.columns(2)
+        with col_dir1:
+            direccion_entrega = st.text_input("Dirección de Entrega (Si difiere)", placeholder="Dejar en blanco si es la misma")
+        with col_dir2:
+            referencia_dir = st.text_input("Referencia de Ubicación", placeholder="Ej: Cerca del parque central")
 
         codigo_trans = ""
         if metodo_pago == "Transferencia":
@@ -86,7 +89,7 @@ def render_ventas():
 
         st.markdown("---")
 
-        # 3. Selección de Productos (SKU)
+        # 3. Selección de Productos (SKU) con Selector de Líneas Inicial en 1 y opción Dinámica
         st.markdown("###### 3. Selección de Productos (SKU)")
         try:
             res_inv = requests.get(f"{API_URL}/inventario", timeout=5)
@@ -97,18 +100,35 @@ def render_ventas():
         if not inventario_lista:
             st.warning("⚠️ No hay productos o variantes con stock disponibles en el inventario.")
         else:
-            df_items_inicial = pd.DataFrame([{"SKU": "", "Cantidad": 1, "Precio Unitario ($)": 0.0}])
             st.caption("Ingresa el SKU exacto. Si dejas el precio en 0.0, el sistema aplicará el descuento oficial automáticamente.")
+            
+            # Selector de número de líneas (inicia en 1)
+            col_num_lin1, col_num_lin2 = st.columns([2, 2])
+            with col_num_lin1:
+                num_lineas = st.number_input("🔢 Número de líneas de productos", min_value=1, max_value=20, value=1, step=1)
+            
+            if "df_items_vta" not in st.session_state or len(st.session_state.df_items_vta) != num_lineas:
+                datos_previos = st.session_state.get("df_items_vta", pd.DataFrame(columns=["SKU", "Cantidad", "Precio Unitario ($)"]))
+                filas_nuevas = []
+                for i in range(num_lineas):
+                    if i < len(datos_previos):
+                        filas_nuevas.append(datos_previos.iloc[i].to_dict())
+                    else:
+                        filas_nuevas.append({"SKU": "", "Cantidad": 1, "Precio Unitario ($)": 0.0})
+                st.session_state.df_items_vta = pd.DataFrame(filas_nuevas)
+
             df_items_editado = st.data_editor(
-                df_items_inicial,
+                st.session_state.df_items_vta,
                 num_rows="dynamic",
                 use_container_width=True,
+                key="editor_items_venta",
                 column_config={
                     "SKU": st.column_config.TextColumn("SKU / Código de Barra", width="medium"),
                     "Cantidad": st.column_config.NumberColumn("Cantidad", min_value=1, step=1, width="small"),
                     "Precio Unitario ($)": st.column_config.NumberColumn("Precio Unitario ($ - 0 para Auto)", format="$ %.2f", min_value=0.0, width="small")
                 }
             )
+            st.session_state.df_items_vta = df_items_editado
 
             if st.button("🚀 Registrar Venta en el Sistema", type="primary", use_container_width=True):
                 if not ruc_cliente or not nombre_cliente or not num_factura:
@@ -155,18 +175,16 @@ def render_ventas():
                         except Exception as ex:
                             st.error(f"❌ Error de conexión con la API: {ex}")
 
-    # --- PESTAÑA 2: HISTORIAL DE VENTAS (CON LAS 3 OPCIONES SOLICITADAS) ---
+    # --- PESTAÑA 2: HISTORIAL DE VENTAS ---
     with tab_historial:
         st.markdown("##### 📋 Historial de Ventas")
         
-        # Sub-pestañas internas dentro de Historial de Ventas
         subtab_generales, subtab_aprobar, subtab_acumulativo = st.tabs([
             "📊 Ventas Generales (Filtro Fecha)", 
             "🔍 Ventas por Aprobar", 
             "💳 Ventas Plan Acumulativo"
         ])
         
-        # 1. VENTAS GENERALES (CON FILTRO DE FECHAS)
         with subtab_generales:
             st.markdown("###### 📅 Filtrar Ventas Generales por Fecha")
             col_f1, col_f2 = st.columns(2)
@@ -181,7 +199,6 @@ def render_ventas():
                     facturas_data = res_rep.json()
                     if facturas_data:
                         df_ventas = pd.DataFrame(facturas_data)
-                        
                         if "fecha" in df_ventas.columns:
                             df_ventas["fecha_dt"] = pd.to_datetime(df_ventas["fecha"]).dt.date
                             df_filtrado = df_ventas[(df_ventas["fecha_dt"] >= fecha_inicio) & (df_ventas["fecha_dt"] <= fecha_fin)]
@@ -196,7 +213,6 @@ def render_ventas():
             except Exception as e:
                 st.error(f"Error de conexión: {e}")
 
-        # 2. VENTAS POR APROBAR (APROBACIÓN FINANCIERA)
         with subtab_aprobar:
             st.markdown(
                 "###### 🔍 Auditoría y Aprobación de Órdenes Web", 
@@ -275,7 +291,6 @@ def render_ventas():
             except Exception as e:
                 st.error(f"Error de conexión con la API: {e}")
 
-        # 3. VENTAS PLAN ACUMULATIVO
         with subtab_acumulativo:
             st.markdown("###### 💳 Ventas en Modalidad Plan Acumulativo")
             try:
