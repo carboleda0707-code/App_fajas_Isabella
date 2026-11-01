@@ -93,11 +93,38 @@ def render_inventario():
             st.markdown("###### 🏷️ Variantes (Tallas, Colores, Precios, Stock y Descuento %)")
             st.caption("Agrega las variantes reales de tu producto. Si usas modalidad Individual, el % de oferta base se aplicará a las variantes.")
 
-            df_inicial = pd.DataFrame(columns=["sku", "talla", "color", "precio", "descuento_%", "stock_actual", "stock_minimo", "stock_maximo", "imagen_variante"])
+            # Selector de cantidad de líneas de variantes (+ / -)
+            num_lineas_var = st.number_input(
+                "Número de líneas de variantes a registrar:", 
+                min_value=1, 
+                max_value=30, 
+                value=1, 
+                step=1,
+                help="Usa los botones para agregar o quitar filas de variantes según necesites."
+            )
 
+            st.info("💡 **Guía:** En la primera línea define la combinación principal (Talla, Color, Precio y Stock). Agrega más filas si manejas otras tallas o colores.")
+
+            # Construir datos iniciales según el número de líneas seleccionadas
+            datos_iniciales = []
+            for i in range(num_lineas_var):
+                datos_iniciales.append({
+                    "sku": "",
+                    "talla": "S" if i == 0 else "",
+                    "color": "Único" if i == 0 else "",
+                    "precio": 0.0,
+                    "descuento_%": 0,
+                    "stock_actual": 10 if i == 0 else 0,
+                    "stock_minimo": 2,
+                    "stock_maximo": 20
+                })
+
+            df_inicial = pd.DataFrame(datos_iniciales)
+
+            # Editor de datos sin mostrar la columna de URL de imagen de variante
             df_variantes_editado = st.data_editor(
                 df_inicial,
-                num_rows="dynamic",
+                num_rows="fixed",
                 use_container_width=True,
                 column_config={
                     "sku": st.column_config.TextColumn("SKU (Opcional)", width="small"),
@@ -107,8 +134,7 @@ def render_inventario():
                     "descuento_%": st.column_config.NumberColumn("Descuento %", format="%d%%", min_value=0, max_value=100, step=1, width="small"),
                     "stock_actual": st.column_config.NumberColumn("Stock", min_value=0, step=1, width="small"),
                     "stock_minimo": st.column_config.NumberColumn("Stock Mín.", min_value=0, step=1, width="small"),
-                    "stock_maximo": st.column_config.NumberColumn("Stock Máx.", min_value=0, step=1, width="small"),
-                    "imagen_variante": st.column_config.TextColumn("Foto Variante (Opcional)", width="medium")
+                    "stock_maximo": st.column_config.NumberColumn("Stock Máx.", min_value=0, step=1, width="small")
                 }
             )
 
@@ -170,7 +196,6 @@ def render_inventario():
                         talla = str(row.get("talla", "")).strip()
                         color = str(row.get("color", "")).strip()
                         sku_val = str(row.get("sku", "")).strip() if pd.notna(row.get("sku")) else ""
-                        img_var_val = str(row.get("imagen_variante", "")).strip() if pd.notna(row.get("imagen_variante")) else ""
                         desc_var_val = float(row.get("descuento_%", 0) or 0)
                         
                         if tipo_desc_reg == "GENERAL":
@@ -190,7 +215,7 @@ def render_inventario():
                             "stock_maximo": int(row.get("stock_maximo", 20) or 20),
                             "precio": float(row.get("precio", 0.0) or 0.0),
                             "descuento_porcentaje": desc_var_val,
-                            "imagen_url": img_var_val
+                            "imagen_url": ""
                         })
 
                     data_form = {
