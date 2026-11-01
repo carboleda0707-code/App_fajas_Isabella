@@ -3,6 +3,9 @@ import os
 import requests
 from database import SessionLocal, ConfiguracionWeb
 import cloudinary.uploader
+from datetime import datetime, time
+from zoneinfo import ZoneInfo
+import pandas as pd
 
 API_URL = os.getenv("API_URL", "http://localhost:8000/api")
 
@@ -41,10 +44,17 @@ def guardar_seccion_db(seccion: str, contenido: dict):
         db.close()
 
 def render_home_admin():
-    str_lit.markdown("### 🌐 Panel de Gestión del Home Web (PostgreSQL)")
-    str_lit.markdown("Actualiza el contenido multimedia, los textos y los enlaces dinámicos de tu tienda online directamente en la base de datos.")
+    str_lit.markdown("### 🌐 Panel de Gestión del Home Web y Campañas (PostgreSQL)")
+    str_lit.markdown("Actualiza el contenido multimedia, los textos, gestiona las campañas web y analiza su rendimiento financiero.")
 
-    tab0, tab1, tab2, tab3 = str_lit.tabs(["🖼️ Sección 0.5: Banner Slider", "📌 Sección 1: Historia", "💬 Sección 2: Testimonios / En Vivo", "📢 Sección 3: Publicidad (3 Cols)"])
+    tab0, tab1, tab2, tab3, tab_campana, tab_analisis = str_lit.tabs([
+        "🖼️ Banner Slider", 
+        "📌 Historia", 
+        "💬 En Vivo", 
+        "📢 Publicidad", 
+        "🎉 Campaña Masiva Web",
+        "📊 Análisis de Campaña"
+    ])
 
     config = cargar_config_db()
 
@@ -188,3 +198,184 @@ def render_home_admin():
                 }
                 if guardar_seccion_db("sec3", payload_sec3):
                     str_lit.success("✅ ¡Sección 3 guardada con éxito en PostgreSQL!")
+
+    # --- CAMPAÑA MASIVA WEB (FESTIVO) ---
+    with tab_campana:
+        str_lit.subheader("🎉 Campaña Masiva Web (Descuento Festivo General)")
+        str_lit.info("💡 Este descuento aplica automáticamente a **todos los productos y variantes** exclusivamente para la **Tienda Web** (WhatsApp, Correo, Paymentez) durante el tiempo de validez configurado. No afecta ventas físicas manuales ni planes acumulativos.")
+
+        campana_cfg = config.get("campana_festiva", {})
+        activo_def = campana_cfg.get("activo", False)
+        porcentaje_def = float(campana_cfg.get("porcentaje", 0.0))
+        nombre_def = campana_cfg.get("nombre", "Campaña Festiva")
+        
+        try:
+            f_ini_def = datetime.fromisoformat(campana_cfg.get("fecha_inicio")).date() if campana_cfg.get("fecha_inicio") else datetime.now(ZoneInfo("America/Guayaquil")).date()
+            h_ini_def = datetime.fromisoformat(campana_cfg.get("fecha_inicio")).time() if campana_cfg.get("fecha_inicio") else time(0, 0)
+        except Exception:
+            f_ini_def = datetime.now(ZoneInfo("America/Guayaquil")).date()
+            h_ini_def = time(0, 0)
+
+        try:
+            f_fin_def = datetime.fromisoformat(campana_cfg.get("fecha_fin")).date() if campana_cfg.get("fecha_fin") else datetime.now(ZoneInfo("America/Guayaquil")).date()
+            h_fin_def = datetime.fromisoformat(campana_cfg.get("fecha_fin")).time() if campana_cfg.get("fecha_fin") else time(23, 59)
+        except Exception:
+            f_fin_def = datetime.now(ZoneInfo("America/Guayaquil")).date()
+            h_fin_def = time(23, 59)
+
+        with str_lit.form("form_campana_festiva"):
+            activar_campana = str_lit.checkbox("🟢 Activar Campaña Masiva Web", value=activo_def)
+            nombre_campana = str_lit.text_input("Nombre / Motivo de la Campaña", value=nombre_def, placeholder="Ej: San Valentín / Black Friday")
+            porcentaje_campana = str_lit.number_input("Porcentaje de Descuento (%)", min_value=0.0, max_value=100.0, value=porcentaje_def, step=1.0)
+            
+            str_lit.markdown("---")
+            str_lit.markdown("##### ⏱️ Tiempo de Validez (Zona Horaria Ecuador)")
+            
+            col_fi, col_ff = str_lit.columns(2)
+            with col_fi:
+                fecha_inicio = str_lit.date_input("Fecha de Inicio", value=f_ini_def)
+                hora_inicio = str_lit.time_input("Hora de Inicio", value=h_ini_def)
+            with col_ff:
+                fecha_fin = str_lit.date_input("Fecha de Fin", value=f_fin_def)
+                hora_fin = str_lit.time_input("Hora de Fin", value=h_fin_def)
+
+            subm_campana = str_lit.form_submit_button("💾 Guardar y Aplicar Campaña Web", use_container_width=True)
+            
+            if subm_campana:
+                dt_inicio = datetime.combine(fecha_inicio, hora_inicio).isoformat()
+                dt_fin = datetime.combine(fecha_fin, hora_fin).isoformat()
+                
+                payload_campana = {
+                    "activo": activar_campana,
+                    "nombre": nombre_campana,
+                    "porcentaje": porcentaje_campana,
+                    "fecha_inicio": dt_inicio,
+                    "fecha_fin": dt_fin
+                }
+                
+                if guardar_seccion_db("campana_festiva", payload_campana):
+                    str_lit.success("✅ ¡Campaña Masiva Web configurada y guardada exitosamente!")
+                    str_lit.rerun()
+
+    # --- ANÁLISIS Y REPORTE DE CAMPAÑA WEB ---
+    with tab_analisis:
+        str_lit.subheader("📊 Análisis de Campaña Web e Ítems Más Vendidos")
+        str_lit.markdown("Consulta el rendimiento financiero de cualquier campaña o período festivo web, desglosado por productos más vendidos y por factura.")
+
+        col_f1, col_f2 = str_lit.columns(2)
+        with col_f1:
+            filtro_f_ini = str_lit.date_input("Fecha Inicio Análisis", value=datetime.now(ZoneInfo("America/Guayaquil")).date(), key="rep_f_ini")
+        with col_f2:
+            filtro_f_fin = str_lit.date_input("Fecha Fin Análisis", value=datetime.now(ZoneInfo("America/Guayaquil")).date(), key="rep_f_fin")
+
+        if str_lit.button("🔍 Generar Reporte Completo de Campaña", type="primary", use_container_width=True):
+            try:
+                db_ses = SessionLocal()
+                from database import Factura, MovimientoInventario, VarianteProducto
+                
+                facturas_web = db_ses.query(Factura).filter(
+                    Factura.tipo_factura.like("VENTA WEB%"),
+                    Factura.fecha_factura >= filtro_f_ini,
+                    Factura.fecha_factura <= filtro_f_fin
+                ).all()
+
+                if facturas_web:
+                    numeros_facturas = [f.numero_factura for f in facturas_web]
+                    total_recaudado = sum(float(f.total_factura or 0.0) for f in facturas_web)
+                    cantidad_pedidos = len(facturas_web)
+                    ticket_promedio = total_recaudado / cantidad_pedidos if cantidad_pedidos > 0 else 0.0
+
+                    movimientos = db_ses.query(MovimientoInventario).filter(
+                        MovimientoInventario.referencia_factura.in_(numeros_facturas),
+                        MovimientoInventario.tipo_movimiento == "VENTA"
+                    ).all()
+
+                    conteo_items = {}
+                    for m in movimientos:
+                        sku_item = m.sku
+                        cant_vendida = abs(m.cantidad)
+                        monto_item = float(m.valor_neto or 0.0)
+
+                        if sku_item not in conteo_items:
+                            conteo_items[sku_item] = {
+                                "unidades": 0,
+                                "total_recaudado": 0.0
+                            }
+                        conteo_items[sku_item]["unidades"] += cant_vendida
+                        conteo_items[sku_item]["total_recaudado"] += monto_item
+
+                    data_items = []
+                    total_unidades_todas = 0
+                    for sku_k, info in conteo_items.items():
+                        total_unidades_todas += info["unidades"]
+                        var_db = db_ses.query(VarianteProducto).filter(VarianteProducto.sku == sku_k).first()
+                        if var_db and var_db.producto:
+                            prod_nombre = var_db.producto.nombre
+                            prod_cat = var_db.producto.categoria
+                            talla_col = f"{var_db.talla} / {var_db.color}"
+                        else:
+                            prod_nombre = sku_k
+                            prod_cat = "N/D"
+                            talla_col = "N/D"
+
+                        data_items.append({
+                            "SKU": sku_k,
+                            "Producto": prod_nombre,
+                            "Categoría": prod_cat,
+                            "Talla / Color": talla_col,
+                            "Unidades Vendidas": info["unidades"],
+                            "Total Ingresos ($)": round(info["total_recaudado"], 2)
+                        })
+
+                    db_ses.close()
+
+                    m1, m2, m3, m4 = str_lit.columns(4)
+                    m1.metric("💰 Total Vendido", f"${total_recaudado:,.2f}")
+                    m2.metric("📦 Total Pedidos Web", cantidad_pedidos)
+                    m3.metric("🔥 Prendas Vendidas", total_unidades_todas)
+                    m4.metric("📈 Ticket Promedio", f"${ticket_promedio:,.2f}")
+
+                    str_lit.divider()
+                    
+                    str_lit.markdown("##### 🏆 Ranking de Ítems / Prendas Más Vendidos")
+                    df_items = pd.DataFrame(data_items)
+                    if not df_items.empty:
+                        df_items = df_items.sort_values(by="Unidades Vendidas", ascending=False)
+                        str_lit.dataframe(
+                            df_items, 
+                            use_container_width=True, 
+                            hide_index=True,
+                            column_config={
+                                "Total Ingresos ($)": str_lit.column_config.NumberColumn(format="$ %.2f")
+                            }
+                        )
+
+                    str_lit.divider()
+
+                    str_lit.markdown("##### 📋 Registro Detallado por Factura")
+                    data_detalle = []
+                    for f in facturas_web:
+                        data_detalle.append({
+                            "Factura": f.numero_factura,
+                            "Fecha": str(f.fecha_factura),
+                            "Cliente": f.entidad_nombre,
+                            "RUC / Cédula": f.entidad_ruc,
+                            "Canal / Tipo": f.tipo_factura,
+                            "Total ($)": float(f.total_factura or 0.0)
+                        })
+
+                    df_reporte = pd.DataFrame(data_detalle)
+                    str_lit.dataframe(
+                        df_reporte, 
+                        use_container_width=True, 
+                        hide_index=True,
+                        column_config={
+                            "Total ($)": str_lit.column_config.NumberColumn(format="$ %.2f")
+                        }
+                    )
+                else:
+                    db_ses.close()
+                    str_lit.warning("⚠️ No se encontraron ventas web registradas en el rango de fechas seleccionado.")
+
+            except Exception as err_rep:
+                str_lit.error(f"❌ Error al generar el reporte: {err_rep}")

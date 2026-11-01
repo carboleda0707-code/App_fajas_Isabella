@@ -10,7 +10,7 @@ from email import encoders
 from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, Form, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from database import get_db, Producto, Categoria, Cliente, Factura, Pago, MovimientoInventario, AbonoPlanAcumulativo
+from database import get_db, Producto, Categoria, Cliente, Factura, Pago, VarianteProducto, MovimientoInventario, AbonoPlanAcumulativo
 from typing import Optional
 from pydantic import BaseModel
 import json
@@ -42,6 +42,38 @@ class SetPasswordSchema(BaseModel):
 class WebConfigModel(BaseModel):
     seccion: str
     contenido: dict
+
+
+# ==============================================================================
+# GESTIÓN DE CAMPAÑA FESTIVA WEB (ZONA HORARIA ECUADOR)
+# ==============================================================================
+
+def obtener_campana_festiva_activa(db: Session) -> Optional[dict]:
+    """Verifica si existe una campaña festiva web activa y dentro del rango de fecha/hora actual."""
+    try:
+        row = db.execute(text("SELECT contenido FROM configuracion_web WHERE seccion = 'campana_festiva';")).fetchone()
+        if not row:
+            return None
+        contenido = row[0]
+        if isinstance(contenido, str):
+            contenido = json.loads(contenido)
+        
+        if not contenido.get("activo", False):
+            return None
+            
+        now_ec = datetime.now(ZoneInfo("America/Guayaquil"))
+        inicio_str = contenido.get("fecha_inicio")
+        fin_str = contenido.get("fecha_fin")
+        
+        if inicio_str and fin_str:
+            inicio = datetime.fromisoformat(inicio_str).replace(tzinfo=ZoneInfo("America/Guayaquil"))
+            fin = datetime.fromisoformat(fin_str).replace(tzinfo=ZoneInfo("America/Guayaquil"))
+            
+            if inicio <= now_ec <= fin:
+                return contenido
+    except Exception as e:
+        print(f"Error al verificar campaña festiva web: {e}")
+    return None
 
 
 # ==============================================================================
@@ -226,6 +258,10 @@ def listar_inventario_publico(categoria: Optional[str] = Query(None), db: Sessio
         
     productos_db = query.all()
     
+    # Comprobar si hay campaña festiva web activa
+    campana_festiva = obtener_campana_festiva_activa(db)
+    porcentaje_festivo = float(campana_festiva.get("porcentaje", 0.0)) if campana_festiva else 0.0
+    
     resultado = []
     for prod in productos_db:
         variantes = [v for v in prod.variantes if (getattr(v, 'stock_actual', 0) or getattr(v, 'stock', 0)) > 0]
@@ -240,7 +276,12 @@ def listar_inventario_publico(categoria: Optional[str] = Query(None), db: Sessio
                 en_oferta_prod = bool(getattr(prod, 'en_oferta', False))
                 desc_oferta_prod = float(getattr(prod, 'descuento_oferta', 0.0) or 0.0)
                 
-                porcentaje_aplicado = desc_var if desc_var > 0 else (desc_oferta_prod if en_oferta_prod else 0.0)
+                # Jerarquía: 1. Campaña Festiva Web activa, 2. Descuento variante, 3. Oferta producto
+                if porcentaje_festivo > 0:
+                    porcentaje_aplicado = porcentaje_festivo
+                else:
+                    porcentaje_aplicado = desc_var if desc_var > 0 else (desc_oferta_prod if en_oferta_prod else 0.0)
+                    
                 precio_final = precio_original * (1 - (porcentaje_aplicado / 100.0)) if porcentaje_aplicado > 0 else precio_original
 
                 variantes_data.append({
@@ -269,8 +310,8 @@ def listar_inventario_publico(categoria: Optional[str] = Query(None), db: Sessio
                 "cartilla_url": getattr(prod, 'cartilla_url', '') or '',
                 "en_liquidacion": bool(getattr(prod, 'en_liquidacion', False)),
                 "es_nuevo": bool(getattr(prod, 'es_nuevo', False)),
-                "en_oferta": bool(getattr(prod, 'en_oferta', False)),
-                "descuento_oferta": float(getattr(prod, 'descuento_oferta', 0.0) or 0.0),
+                "en_oferta": bool(getattr(prod, 'en_oferta', False)) or (porcentaje_festivo > 0),
+                "descuento_oferta": porcentaje_festivo if porcentaje_festivo > 0 else float(getattr(prod, 'descuento_oferta', 0.0) or 0.0),
                 "variantes": variantes_data
             })
             
@@ -285,6 +326,9 @@ def obtener_producto_dinamico(producto_id: int, db: Session = Depends(get_db)):
 
     variantes_activas = [v for v in prod.variantes if v.stock_actual > 0]
     
+    campana_festiva = obtener_campana_festiva_activa(db)
+    porcentaje_festivo = float(campana_festiva.get("porcentaje", 0.0)) if campana_festiva else 0.0
+
     variantes_data = []
     for v in variantes_activas:
         precio_original = float(v.precio)
@@ -292,7 +336,11 @@ def obtener_producto_dinamico(producto_id: int, db: Session = Depends(get_db)):
         en_oferta_prod = bool(getattr(prod, 'en_oferta', False))
         desc_oferta_prod = float(getattr(prod, 'descuento_oferta', 0.0) or 0.0)
         
-        porcentaje_aplicado = desc_var if desc_var > 0 else (desc_oferta_prod if en_oferta_prod else 0.0)
+        if porcentaje_festivo > 0:
+            porcentaje_aplicado = porcentaje_festivo
+        else:
+            porcentaje_aplicado = desc_var if desc_var > 0 else (desc_oferta_prod if en_oferta_prod else 0.0)
+            
         precio_final = precio_original * (1 - (porcentaje_aplicado / 100.0)) if porcentaje_aplicado > 0 else precio_original
 
         variantes_data.append({
@@ -321,8 +369,8 @@ def obtener_producto_dinamico(producto_id: int, db: Session = Depends(get_db)):
         "cartilla_url": getattr(prod, 'cartilla_url', '') or '',
         "en_liquidacion": bool(getattr(prod, 'en_liquidacion', False)),
         "es_nuevo": bool(getattr(prod, 'es_nuevo', False)),
-        "en_oferta": bool(getattr(prod, 'en_oferta', False)),
-        "descuento_oferta": float(getattr(prod, 'descuento_oferta', 0.0) or 0.0),
+        "en_oferta": bool(getattr(prod, 'en_oferta', False)) or (porcentaje_festivo > 0),
+        "descuento_oferta": porcentaje_festivo if porcentaje_festivo > 0 else float(getattr(prod, 'descuento_oferta', 0.0) or 0.0),
         "variantes": variantes_data
     }
 
@@ -441,7 +489,7 @@ def registrar_cliente_web(
 
 
 # ==============================================================================
-# FUNCIÓN AUXILIAR COMÚN PARA PROCESAR PEDIDOS (EVITA CÓDIGO DUPLICADO)
+# FUNCIÓN AUXILIAR COMÚN PARA PROCESAR PEDIDOS (CON APLICACIÓN FESTIVA WEB)
 # ==============================================================================
 
 async def _procesar_checkout_comun(
@@ -510,7 +558,41 @@ async def _procesar_checkout_comun(
     if not lista_items:
         raise HTTPException(status_code=400, detail="El carrito está vacío.")
 
-    total_pedido = sum(float(item.get('precio', 0)) * int(item.get('cantidad', 1)) for item in lista_items)
+    # Verificar si hay campaña festiva web activa
+    campana_festiva = obtener_campana_festiva_activa(db)
+    porcentaje_festivo = float(campana_festiva.get("porcentaje", 0.0)) if campana_festiva else 0.0
+
+    # Validar y recalcular precios de los ítems según campaña festiva activa
+    total_pedido = 0.0
+    items_validados = []
+    for item in lista_items:
+        sku_p = item.get("sku") or item.get("codigo") or item.get("name") or "FAJA-WEB"
+        cant_p = int(item.get("cantidad", 1))
+        
+        variante_db = db.query(VarianteProducto).filter(VarianteProducto.sku == sku_p).first()
+        if variante_db:
+            precio_base = float(variante_db.precio)
+            desc_var = float(getattr(variante_db, 'descuento_porcentaje', 0.0) or 0.0)
+            prod_db = variante_db.producto
+            en_oferta_prod = bool(getattr(prod_db, 'en_oferta', False))
+            desc_oferta_prod = float(getattr(prod_db, 'descuento_oferta', 0.0) or 0.0)
+            
+            if porcentaje_festivo > 0:
+                p_aplicado = porcentaje_festivo
+            else:
+                p_aplicado = desc_var if desc_var > 0 else (desc_oferta_prod if en_oferta_prod else 0.0)
+                
+            prec_p = precio_base * (1 - (p_aplicado / 100.0)) if p_aplicado > 0 else precio_base
+        else:
+            prec_p = float(item.get('precio', 0))
+
+        subtotal_item = cant_p * prec_p
+        total_pedido += subtotal_item
+        
+        item_copia = dict(item)
+        item_copia['precio'] = round(prec_p, 2)
+        item_copia['sku'] = sku_p
+        items_validados.append(item_copia)
     
     # Procesar subida de la imagen del comprobante de pago
     file_url = ""
@@ -547,11 +629,11 @@ async def _procesar_checkout_comun(
     
     tipo_factura_str = f"VENTA WEB {tipo_venta.upper()}"
     
-    # 1. CREAR LA FACTURA ASIGNANDO url_pagofactura Y FECHA ECUADOR
+    # 1. CREAR LA FACTURA
     nueva_factura = Factura(
         tipo_factura=tipo_factura_str,
         numero_factura=num_factura_str,
-        fecha_factura=fecha_ecuador,     # <-- Fecha basada en Ecuador
+        fecha_factura=fecha_ecuador,
         entidad_ruc=ruc_cedula,
         entidad_nombre=razon_social,
         total_factura=total_pedido,
@@ -561,7 +643,7 @@ async def _procesar_checkout_comun(
         direccion_entrega=direccion,
         referencia_direccion=referencia,
         estado_despacho="POR APROBAR",
-        url_pagofactura=file_url,        # <-- URL guardada en la tabla Factura
+        url_pagofactura=file_url,
         es_plan_acumulativo=es_acumulativo,
         saldo_pendiente=saldo_pendiente,
         estado_acumulativo=estado_acumulativo
@@ -581,7 +663,7 @@ async def _procesar_checkout_comun(
         )
         db.add(pago)
 
-    # 2. SI ES PLAN ACUMULATIVO: Copiar la URL y registrar el primer abono en abonos_plan_acumulativo
+    # 2. SI ES PLAN ACUMULATIVO
     if es_acumulativo and abono_inicial > 0:
         nuevo_abono = AbonoPlanAcumulativo(
             factura_id=nueva_factura.id,
@@ -592,8 +674,8 @@ async def _procesar_checkout_comun(
         )
         db.add(nuevo_abono)
 
-    for item in lista_items:
-        sku_p = item.get("sku") or item.get("codigo") or item.get("name") or "FAJA-WEB"
+    for item in items_validados:
+        sku_p = item.get("sku")
         cant_p = int(item.get("cantidad", 1))
         prec_p = float(item.get("precio", 0))
         subtotal_p = cant_p * prec_p
@@ -605,7 +687,7 @@ async def _procesar_checkout_comun(
             referencia_factura=num_factura_str,
             valor_neto=subtotal_p,
             entidad_asociada=razon_social,
-            fecha_hora=fecha_ecuador      # <-- Movimiento registrado con fecha Ecuador
+            fecha_hora=fecha_ecuador
         )
         db.add(nuevo_mov)
         
@@ -613,7 +695,7 @@ async def _procesar_checkout_comun(
 
     return {
         "cliente_db": cliente_db,
-        "lista_items": lista_items,
+        "lista_items": items_validados,
         "total_pedido": total_pedido,
         "num_factura_str": num_factura_str,
         "password_temporal": password_temporal,
