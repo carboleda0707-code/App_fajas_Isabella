@@ -10,34 +10,11 @@ from datetime import date, datetime
 API_URL = st.session_state.get("API_URL", "http://localhost:8000/api")
 
 def render_reporte_ventas():
-    st.markdown("### 📊 Reportes de Ventas y Facturación")
-    st.markdown("---")
-    
-    # Filtros de visualización superior
-    col_f1, col_f2, col_f3, col_f4 = st.columns(4)
-    with col_f1:
-        tipo_vista = st.selectbox("Tipo de Vista", ["General (Detallado)", "Consolidado por Agrupación"])
-    with col_f2:
-        fecha_inicio = st.date_input("Desde", value=date(date.today().year, date.today().month, 1), key="ini_v")
-    with col_f3:
-        fecha_fin = st.date_input("Hasta", value=date.today(), key="fin_v")
-    with col_f4:
-        ordenar_por = st.selectbox(
-            "Ordenar por:",
-            ["Fecha", "Cliente", "Ciudad", "Nº Factura", "Total Factura ($)"],
-            key="ord_ventas"
-        )
-        
-    # Selector de criterio de agrupación si está en vista consolidada
-    criterio_agrupacion = "Cliente"
-    if tipo_vista == "Consolidado por Agrupación":
-        col_ag1, col_ag2 = st.columns([2, 2])
-        with col_ag1:
-            criterio_agrupacion = st.selectbox("Agrupar por:", ["Cliente", "Ciudad", "Estado de Despacho", "Ítems / Producto (SKU)"])
-        st.markdown("---")
-        
-    st.markdown("---")
-    
+    # Cabecera con título y botón de descarga alineados para ahorrar espacio vertical
+    col_tit, col_btn = st.columns([2.5, 1.5])
+    with col_tit:
+        st.markdown("### 📊 Reportes de Ventas y Facturación")
+
     try:
         res_fac = requests.get(f"{API_URL}/facturas", timeout=4)
         res_inv = requests.get(f"{API_URL}/inventario", timeout=4)
@@ -48,7 +25,7 @@ def render_reporte_ventas():
             inventario = res_inv.json() if res_inv.status_code == 200 else []
             movimientos = res_mov.json() if res_mov.status_code == 200 else []
             
-            # --- CORRECCIÓN: Ventas Locales y Web, excluyendo las pendientes de aprobación ---
+            # --- FILTRADO ESTRICTO DE VENTAS REALES ---
             ventas = [
                 f for f in facturas 
                 if (f.get('tipo_factura') == 'VENTA' or str(f.get('tipo_factura', '')).startswith('VENTA WEB'))
@@ -64,6 +41,30 @@ def render_reporte_ventas():
                 color = item.get("Color", "")
                 info_productos[sku] = f"{prod_nombre} (Talla: {talla} | Color: {color})"
 
+            # Filtros de visualización superior
+            st.markdown("---")
+            col_f1, col_f2, col_f3, col_f4 = st.columns(4)
+            with col_f1:
+                tipo_vista = st.selectbox("Tipo de Vista", ["General", "Detallado por items", "Consolidado por Agrupación"])
+            with col_f2:
+                fecha_inicio = st.date_input("Desde", value=date(date.today().year, date.today().month, 1), key="ini_v")
+            with col_f3:
+                fecha_fin = st.date_input("Hasta", value=date.today(), key="fin_v")
+            with col_f4:
+                ordenar_por = st.selectbox(
+                    "Ordenar por:",
+                    ["Fecha", "Cliente", "Ciudad", "Nº Factura", "Total Factura ($)"],
+                    key="ord_ventas"
+                )
+                
+            # Selector de criterio de agrupación si está en vista consolidada
+            criterio_agrupacion = "Cliente"
+            if tipo_vista == "Consolidado por Agrupación":
+                col_ag1, col_ag2 = st.columns([2, 2])
+                with col_ag1:
+                    criterio_agrupacion = st.selectbox("Agrupar por:", ["Cliente", "Ciudad", "Estado de Despacho", "Ítems / Producto (SKU)"])
+                st.markdown("---")
+                
             # Filtrar ventas por rango de fechas
             ventas_filtradas = []
             for v in ventas:
@@ -82,76 +83,95 @@ def render_reporte_ventas():
 
             # Preparación de estructuras para visualización y exportación
             tabla_general = []
+            tabla_general_resumen = []
             agrupado_sku = {}
             diccionario_grupos = {}
 
-            if tipo_vista == "General (Detallado)":
-                for v in ventas_filtradas:
-                    num_fac = str(v.get("numero_factura"))
-                    
-                    # Buscar ítems correspondientes a esta orden/factura
-                    items_v = v.get("items") or v.get("detalles") or v.get("productos") or []
-                    if not items_v:
-                        for m in movimientos:
-                            ref_f = str(m.get('referencia_factura', '')).strip()
-                            num_m = str(m.get('numero_factura', '')).strip()
-                            if num_fac in ref_f or num_fac in num_m or (ref_f and ref_f.lstrip('0') == num_fac.lstrip('0')):
-                                items_v.append(m)
+            for v in ventas_filtradas:
+                num_fac = str(v.get("numero_factura"))
+                monto_tot = float(v.get('total_factura', 0))
+                
+                # Fila resumen por factura (para vista General)
+                tabla_general_resumen.append({
+                    "Nº Factura": num_fac,
+                    "Fecha": str(v.get("fecha_factura"))[:10],
+                    "Cliente": v.get("entidad_nombre"),
+                    "RUC/CI": v.get("entidad_ruc"),
+                    "Provincia": v.get("provincia") or "N/D",
+                    "Ciudad": v.get("ciudad") or "N/D",
+                    "Courier": v.get("courier_nombre") or "Servientrega",
+                    "Estado": v.get("estado_despacho") or "PENDIENTE",
+                    "Total Factura ($)": monto_tot
+                })
+                
+                # Buscar ítems correspondientes a esta orden/factura
+                items_v = v.get("items") or v.get("detalles") or v.get("productos") or []
+                if not items_v:
+                    for m in movimientos:
+                        ref_f = str(m.get('referencia_factura', '')).strip()
+                        num_m = str(m.get('numero_factura', '')).strip()
+                        if num_fac in ref_f or num_fac in num_m or (ref_f and ref_f.lstrip('0') == num_fac.lstrip('0')):
+                            items_v.append(m)
 
-                    if items_v:
-                        for it in items_v:
-                            sku = it.get("sku") or it.get("sku_producto") or it.get("codigo_producto") or it.get("SKU") or "N/A"
-                            cant = abs(int(it.get("cantidad", it.get("cant", 1))))
-                            if cant == 0:
-                                cant = 1
-                            
-                            val_neto_reg = float(it.get("valor_neto", 0.0))
-                            if val_neto_reg > 0:
-                                subtotal = val_neto_reg
-                                prec = subtotal / cant
-                            else:
-                                prec = float(it.get("precio_unitario") or it.get("precio") or it.get("precio_venta") or 0.0)
-                                subtotal = cant * prec
+                if items_v:
+                    for it in items_v:
+                        sku = it.get("sku") or it.get("sku_producto") or it.get("codigo_producto") or it.get("SKU") or "N/A"
+                        cant = abs(int(it.get("cantidad", it.get("cant", 1))))
+                        if cant == 0:
+                            cant = 1
+                        
+                        val_neto_reg = float(it.get("valor_neto", 0.0))
+                        if val_neto_reg > 0:
+                            subtotal = val_neto_reg
+                            prec = subtotal / cant
+                        else:
+                            prec = float(it.get("precio_unitario") or it.get("precio") or it.get("precio_venta") or 0.0)
+                            subtotal = cant * prec
 
-                            prod_desc = info_productos.get(sku, f"SKU: {sku}")
+                        prod_desc = info_productos.get(sku, f"SKU: {sku}")
 
-                            tabla_general.append({
-                                "Nº Factura": num_fac,
-                                "Fecha": str(v.get("fecha_factura"))[:10],
-                                "Cliente": v.get("entidad_nombre"),
-                                "RUC/CI": v.get("entidad_ruc"),
-                                "SKU / Producto": prod_desc,
-                                "Cantidad": cant,
-                                "Precio Unit. ($)": prec,
-                                "Subtotal ($)": subtotal,
-                                "Provincia": v.get("provincia") or "N/D",
-                                "Ciudad": v.get("ciudad") or "N/D",
-                                "Courier": v.get("courier_nombre") or "Servientrega",
-                                "Estado": v.get("estado_despacho") or "PENDIENTE",
-                                "Total Factura ($)": float(v.get('total_factura', 0))
-                            })
-                    else:
-                        monto_tot = float(v.get('total_factura', 0))
                         tabla_general.append({
                             "Nº Factura": num_fac,
                             "Fecha": str(v.get("fecha_factura"))[:10],
                             "Cliente": v.get("entidad_nombre"),
                             "RUC/CI": v.get("entidad_ruc"),
-                            "SKU / Producto": "Sin detalle de ítems",
-                            "Cantidad": 1,
-                            "Precio Unit. ($)": monto_tot,
-                            "Subtotal ($)": monto_tot,
+                            "SKU / Producto": prod_desc,
+                            "Cantidad": cant,
+                            "Precio Unit. ($)": prec,
+                            "Subtotal ($)": subtotal,
                             "Provincia": v.get("provincia") or "N/D",
                             "Ciudad": v.get("ciudad") or "N/D",
                             "Courier": v.get("courier_nombre") or "Servientrega",
                             "Estado": v.get("estado_despacho") or "PENDIENTE",
                             "Total Factura ($)": monto_tot
                         })
+                else:
+                    tabla_general.append({
+                        "Nº Factura": num_fac,
+                        "Fecha": str(v.get("fecha_factura"))[:10],
+                        "Cliente": v.get("entidad_nombre"),
+                        "RUC/CI": v.get("entidad_ruc"),
+                        "SKU / Producto": "Sin detalle de ítems",
+                        "Cantidad": 1,
+                        "Precio Unit. ($)": monto_tot,
+                        "Subtotal ($)": monto_tot,
+                        "Provincia": v.get("provincia") or "N/D",
+                        "Ciudad": v.get("ciudad") or "N/D",
+                        "Courier": v.get("courier_nombre") or "Servientrega",
+                        "Estado": v.get("estado_despacho") or "PENDIENTE",
+                        "Total Factura ($)": monto_tot
+                    })
 
-                df_general = pd.DataFrame(tabla_general)
-                if not df_general.empty and ordenar_por in df_general.columns:
-                    df_general = df_general.sort_values(by=ordenar_por, ascending=True).reset_index(drop=True)
-            else:
+            df_general = pd.DataFrame(tabla_general)
+            df_resumen = pd.DataFrame(tabla_general_resumen)
+
+            if not df_resumen.empty and ordenar_por in df_resumen.columns:
+                df_resumen = df_resumen.sort_values(by=ordenar_por, ascending=True).reset_index(drop=True)
+            if not df_general.empty and ordenar_por in df_general.columns:
+                df_general = df_general.sort_values(by=ordenar_por, ascending=True).reset_index(drop=True)
+
+            # Lógica para Consolidado por Agrupación (SKU u otros)
+            if tipo_vista == "Consolidado por Agrupación":
                 if criterio_agrupacion == "Ítems / Producto (SKU)":
                     facturas_con_sku = set()
                     for m in movimientos:
@@ -203,7 +223,9 @@ def render_reporte_ventas():
             # --- GENERACIÓN DEL ARCHIVO EXCEL EN MEMORIA CON AUTO-FIT ---
             buffer = io.BytesIO()
             with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-                if tipo_vista == "General (Detallado)":
+                if tipo_vista == "General":
+                    df_resumen.to_excel(writer, index=False, sheet_name="Ventas General")
+                elif tipo_vista == "Detallado por items":
                     df_general.to_excel(writer, index=False, sheet_name="Ventas Detalladas")
                 else:
                     if criterio_agrupacion == "Ítems / Producto (SKU)":
@@ -248,24 +270,33 @@ def render_reporte_ventas():
 
             buffer.seek(0)
 
-            # Botón de Descarga Nativo
-            st.download_button(
-                label="📥 Descargar Excel de Ventas (Tal cual ordenado)",
-                data=buffer,
-                file_name=f"Reporte_Ventas_orden_{ordenar_por.replace(' ', '_')}_{fecha_inicio}_al_{fecha_fin}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
-            )
+            # Botón de Descarga Nativo ubicado junto al título
+            with col_btn:
+                st.download_button(
+                    label="📥 Descargar Excel de Ventas",
+                    data=buffer,
+                    file_name=f"Reporte_Ventas_{tipo_vista.replace(' ', '_')}_{fecha_inicio}_al_{fecha_fin}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
             st.markdown("---")
 
             # --- RENDERIZADO VISUAL EN PANTALLA ---
-            if tipo_vista == "General (Detallado)":
+            if tipo_vista == "General":
+                st.markdown("#### 📋 Listado General de Facturas")
+                df_v_res = df_resumen.copy()
+                if "Total Factura ($)" in df_v_res.columns:
+                    df_v_res["Total Factura ($)"] = df_v_res["Total Factura ($)"].apply(lambda x: f"${x:,.2f}")
+                st.dataframe(df_v_res, use_container_width=True, hide_index=True)
+
+            elif tipo_vista == "Detallado por items":
                 st.markdown("#### 📋 Listado Detallado de Facturas e Ítems de Venta")
                 df_view = df_general.copy()
                 for col_moneda in ["Precio Unit. ($)", "Subtotal ($)", "Total Factura ($)"]:
                     if col_moneda in df_view.columns:
                         df_view[col_moneda] = df_view[col_moneda].apply(lambda x: f"${x:,.2f}")
                 st.dataframe(df_view, use_container_width=True, hide_index=True)
+
             else:
                 if criterio_agrupacion == "Ítems / Producto (SKU)":
                     st.markdown("#### 📦 Reporte Consolidado Organizado por Ítems / Productos")
