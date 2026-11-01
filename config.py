@@ -1,4 +1,5 @@
-import configparser
+# Actualicemos el archivo config.py con la versión más reciente proporcionada por Carlos.
+codigo_config = '''import configparser
 import os
 
 config = configparser.ConfigParser()
@@ -24,3 +25,9 @@ SMTP_SERVER = os.getenv("SMTP_SERVER") or config.get("EMAIL_NOTIFICACIONES", "sm
 SMTP_PORT = int(os.getenv("SMTP_PORT") or config.getint("EMAIL_NOTIFICACIONES", "smtp_port", fallback=587))
 EMAIL_EMISOR = os.getenv("EMAIL_EMISOR") or config.get("EMAIL_NOTIFICACIONES", "email_emisor", fallback="")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD") or config.get("EMAIL_NOTIFICACIONES", "email_password", fallback="")
+'''
+
+with open("config.py", "w", encoding="utf-8") as f:
+    f.write(codigo_config)
+
+print("config.py actualizado exitosamente.")
