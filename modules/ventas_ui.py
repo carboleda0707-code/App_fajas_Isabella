@@ -8,16 +8,12 @@ def render_ventas():
     
     API_URL = st.session_state.get("API_URL", "http://localhost:8000/api")
     
-    # Pestañas principales
     tab_nueva, tab_historial = st.tabs(["🛒 Registrar Venta / Plan Acumulativo", "📋 Historial de Ventas"])
     
-    # --- PESTAÑA 1: REGISTRO MANUAL DE VENTA ---
     with tab_nueva:
         st.markdown("##### 📝 Registro Manual de Venta o Abono Inicial")
         
-        # 1. Búsqueda y Selección Inteligente de Cliente
         st.markdown("###### 1. Información del Cliente")
-        
         try:
             res_cli = requests.get(f"{API_URL}/clientes", timeout=5)
             lista_clientes = res_cli.json() if res_cli.status_code == 200 else []
@@ -53,7 +49,6 @@ def render_ventas():
 
         st.markdown("---")
         
-        # 2. Datos de Facturación y Logística
         st.markdown("###### 2. Datos de Facturación y Logística")
         col_f1, col_f2, col_f3 = st.columns(3)
         with col_f1:
@@ -71,7 +66,6 @@ def render_ventas():
         with col_l3:
             courier = st.selectbox("Courier de Envío", ["Servientrega", "TAME", "Coop. Transporte", "Retiro en Local"])
 
-        # Dirección de Entrega y Referencia de Ubicación lado a lado
         col_dir1, col_dir2 = st.columns(2)
         with col_dir1:
             direccion_entrega = st.text_input("Dirección de Entrega (Si difiere)", placeholder="Dejar en blanco si es la misma")
@@ -89,40 +83,57 @@ def render_ventas():
 
         st.markdown("---")
 
-        # 3. Selección de Productos (SKU) con Desplegable Inteligente (SelectboxColumn)
         st.markdown("###### 3. Selección de Productos (SKU)")
+        
+        # Obtener inventario de forma robusta
+        inventario_lista = []
         try:
             res_inv = requests.get(f"{API_URL}/inventario", timeout=5)
-            inventario_lista = res_inv.json() if res_inv.status_code == 200 else []
+            if res_inv.status_code == 200:
+                inventario_lista = res_inv.json()
         except Exception:
-            inventario_lista = []
+            pass
 
-        # Construir opciones amigables para el desplegable a partir del inventario y sus variantes
+        if not inventario_lista:
+            try:
+                res_prod = requests.get(f"{API_URL}/productos", timeout=5)
+                if res_prod.status_code == 200:
+                    inventario_lista = res_prod.json()
+            except Exception:
+                pass
+
         lista_opciones_display = ["-- Seleccione un producto --"]
         
         for prod in inventario_lista:
-            p_nombre = prod.get("nombre", "Producto")
-            for var in prod.get("variantes", []):
-                sku_v = var.get("sku", "")
-                talla_v = var.get("talla", "")
-                color_v = var.get("color", "")
-                stock_v = var.get("stock_actual", 0)
+            p_nombre = prod.get("nombre", prod.get("titulo", "Producto"))
+            variantes = prod.get("variantes", [])
+            if not variantes and ("sku" in prod or "talla" in prod or "color" in prod):
+                variantes = [prod]
+                
+            for var in variantes:
+                sku_v = var.get("sku", var.get("codigo_sku", ""))
+                talla_v = var.get("talla", "Única")
+                color_v = var.get("color", "Único")
+                stock_v = var.get("stock_actual", var.get("stock", 0))
                 
                 etiqueta = f"{p_nombre} - Talla: {talla_v} / Color: {color_v} [Stock: {stock_v}] [SKU: {sku_v}]"
-                lista_opciones_display.append(etiqueta)
+                if etiqueta not in lista_opciones_display:
+                    lista_opciones_display.append(etiqueta)
 
-        st.caption("💡 Haz clic en la celda de SKU para desplegar el listado de prendas por nombre, talla y color (sin necesidad de memorizar códigos).")
+        st.caption("💡 Haz clic en la celda de SKU para desplegar el listado de prendas. Usa el botón `+` para añadir más filas conforme necesites[cite: 10].")
 
-        df_items_inicial = pd.DataFrame([{
-            "SKU": "-- Seleccione un producto --", 
-            "Cantidad": 1, 
-            "Precio Unitario ($)": 0.0
-        }])
+        if "df_items_vta" not in st.session_state:
+            st.session_state.df_items_vta = pd.DataFrame([{
+                "SKU": "-- Seleccione un producto --", 
+                "Cantidad": 1, 
+                "Precio Unitario ($)": 0.0
+            }])
 
         df_items_editado = st.data_editor(
-            df_items_inicial,
+            st.session_state.df_items_vta,
             num_rows="dynamic",
             use_container_width=True,
+            key="editor_items_venta",
             column_config={
                 "SKU": st.column_config.SelectboxColumn(
                     "Seleccionar Producto / Variante",
@@ -134,6 +145,7 @@ def render_ventas():
                 "Precio Unitario ($)": st.column_config.NumberColumn("Precio Unitario ($ - 0 para Auto)", format="$ %.2f", min_value=0.0, width="small")
             }
         )
+        st.session_state.df_items_vta = df_items_editado
 
         if st.button("🚀 Registrar Venta en el Sistema", type="primary", use_container_width=True):
             if not ruc_cliente or not nombre_cliente or not num_factura:
@@ -144,7 +156,6 @@ def render_ventas():
                 items_payload = []
                 for _, row in df_items_editado.iterrows():
                     sku_raw = str(row.get("SKU", "")).strip()
-                    
                     sku_val = sku_raw
                     if "[SKU:" in sku_raw:
                         sku_val = sku_raw.split("[SKU:")[1].replace("]", "").strip()
@@ -188,10 +199,8 @@ def render_ventas():
                     except Exception as ex:
                         st.error(f"❌ Error de conexión con la API: {ex}")
 
-    # --- PESTAÑA 2: HISTORIAL DE VENTAS ---
     with tab_historial:
         st.markdown("##### 📋 Historial de Ventas")
-        
         subtab_generales, subtab_aprobar, subtab_acumulativo = st.tabs([
             "📊 Ventas Generales (Filtro Fecha)", 
             "🔍 Ventas por Aprobar", 
@@ -227,11 +236,7 @@ def render_ventas():
                 st.error(f"Error de conexión: {e}")
 
         with subtab_aprobar:
-            st.markdown(
-                "###### 🔍 Auditoría y Aprobación de Órdenes Web", 
-                help="Revisa la orden, los ítems y el comprobante de pago. Al hacer clic en 'Aprobar Pago', la orden cambiará a PENDIENTE y se enviará automáticamente al módulo de Logística."
-            )
-            
+            st.markdown("###### 🔍 Auditoría y Aprobación de Órdenes Web")
             try:
                 res_aprob = requests.get(f"{API_URL}/ventas/por-aprobar", timeout=5)
                 if res_aprob.status_code == 200:
@@ -242,7 +247,6 @@ def render_ventas():
                         for orden in ordenes_pendientes:
                             with st.expander(f"Orden #{orden['numero_factura']} - {orden['cliente']} (${orden['total_factura']:.2f}) [POR APROBAR]"):
                                 col_info1, col_info2 = st.columns([1, 1])
-                                
                                 with col_info1:
                                     st.markdown("**👤 Datos del Cliente y Envío**")
                                     st.write(f"**Cédula/RUC:** {orden['ruc_cedula']}")
@@ -264,10 +268,8 @@ def render_ventas():
                                             "Valor U.": f"${p_unit:.2f}",
                                             "Subtotal": f"${subtotal_item:.2f}"
                                         })
-                                    
                                     if items_data:
-                                        df_ord_items = pd.DataFrame(items_data)
-                                        st.dataframe(df_ord_items, use_container_width=True, hide_index=True)
+                                        st.dataframe(pd.DataFrame(items_data), use_container_width=True, hide_index=True)
                                     else:
                                         st.info("Sin ítems registrados en esta orden.")
 
@@ -275,12 +277,7 @@ def render_ventas():
                                     st.markdown("**🧾 Comprobante de Pago (Transferencia)**")
                                     comp_url = orden.get('comprobante_url')
                                     if comp_url:
-                                        if comp_url.startswith("http"):
-                                            img_src = comp_url
-                                        else:
-                                            base_server = API_URL.replace("/api", "")
-                                            img_src = f"{base_server}/{comp_url.lstrip('/')}"
-                                        
+                                        img_src = comp_url if comp_url.startswith("http") else f"{API_URL.replace('/api', '')}/{comp_url.lstrip('/')}"
                                         col_img1, col_img_centro, col_img2 = st.columns([1, 3, 1])
                                         with col_img_centro:
                                             st.image(img_src, caption="Comprobante de Transferencia", width=260)
