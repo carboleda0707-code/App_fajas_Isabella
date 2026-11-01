@@ -205,15 +205,24 @@ def render_ventas():
                                         st.text(f"• SKU: {it['sku']} | Cant: {it['cantidad']} | P.Unit: ${it['precio_unitario']:.2f}")
 
                                 with col_info2:
-                                    st.markdown("**🧾 Comprobante de Pago (Transferencia)**")
+                                    st.markdown("###### 🧾 Comprobante de Pago")
                                     comp_url = orden.get('comprobante_url')
                                     if comp_url:
-                                        st.image(comp_url, caption="Foto de Transferencia", use_column_width=True)
+                                        if comp_url.startswith("http"):
+                                            img_src = comp_url
+                                        else:
+                                            base_server = API_URL.replace("/api", "")
+                                            img_src = f"{base_server}/{comp_url.lstrip('/')}"
+                                        
+                                        # Usamos un contenedor centrado o ancho limitado para que no ocupe toda la pantalla
+                                        col_img1, col_img_centro, col_img2 = st.columns([1, 3, 1])
+                                        with col_img_centro:
+                                            st.image(img_src, caption="Comprobante de Transferencia", width=260)
                                     else:
                                         st.warning("⚠️ Sin imagen adjunta o la ruta no está disponible.")
                                     
                                     st.markdown("---")
-                                    if st.button(f"✅ Aprobar Pago y Enviar a Bodega", key=f"btn_aprob_{orden['id']}", type="primary"):
+                                    if st.button(f"✅ Aprobar Pago y Enviar a Bodega", key=f"btn_aprob_{orden['id']}", type="primary", use_container_width=True):
                                         try:
                                             res_post = requests.post(f"{API_URL}/ventas/{orden['id']}/aprobar-pago", timeout=5)
                                             if res_post.status_code == 200:
