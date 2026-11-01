@@ -50,7 +50,7 @@ def render_ventas():
 
         st.markdown("---")
         
-        # 2. Datos de Facturación y Logística (Factura Automática AAMM + Consecutivo)
+        # 2. Datos de Facturación y Logística (Factura Automática AAMM + Consecutivo 3 dígitos)
         st.markdown("###### 2. Datos de Facturación y Logística")
         
         hoy = date.today()
@@ -108,16 +108,14 @@ def render_ventas():
 
         st.markdown("---")
 
-        # 3. Selección de Productos (SKU) con Chivato de Diagnóstico
+        # 3. Selección de Productos (SKU)
         st.markdown("###### 3. Selección de Productos (SKU)")
         
         inventario_lista = []
-        origen_datos = "Ninguno"
         try:
             res_inv = requests.get(f"{API_URL}/inventario", timeout=5)
             if res_inv.status_code == 200:
                 inventario_lista = res_inv.json()
-                origen_datos = "/inventario"
         except Exception:
             pass
 
@@ -126,33 +124,31 @@ def render_ventas():
                 res_prod = requests.get(f"{API_URL}/productos", timeout=5)
                 if res_prod.status_code == 200:
                     inventario_lista = res_prod.json()
-                    origen_datos = "/productos"
             except Exception:
                 pass
 
-        # 🔍 CHIVATO DE DIAGNÓSTICO: Muestra exactamente qué devuelve la API
-        with st.expander("🛠️ [CHIVATO] Ver respuesta cruda de la API de Inventario/Productos", expanded=False):
-            st.write(f"**Origen detectado:** {origen_datos}")
-            st.write(f"**Total elementos devueltos:** {len(inventario_lista)}")
-            st.json(inventario_lista[:3] if inventario_lista else {"mensaje": "No se recibieron datos o lista vacía"})
-
+        # Mapeo exacto según las claves observadas en el chivato:
+        # "nombre", "SKU", "Talla", "Color", "Stock", "Precio ($)"
         lista_opciones_display = ["-- Seleccione un producto --"]
         
         for prod in inventario_lista:
-            p_nombre = prod.get("nombre", prod.get("titulo", prod.get("descripcion", "Producto")))
+            p_nombre = prod.get("nombre") or prod.get("titulo") or prod.get("descripcion") or "Producto"
+            
+            # Revisar si los datos están planos en el objeto o dentro de variantes
             variantes = prod.get("variantes", [])
-            if not variantes and ("sku" in prod or "talla" in prod or "color" in prod or "codigo_sku" in prod):
+            if not variantes:
                 variantes = [prod]
                 
             for var in variantes:
-                sku_v = var.get("sku", var.get("codigo_sku", ""))
-                talla_v = var.get("talla", var.get("talla_variante", "Única"))
-                color_v = var.get("color", var.get("color_variante", "Único"))
-                stock_v = var.get("stock_actual", var.get("stock", 0))
+                sku_v = var.get("SKU") or var.get("sku") or var.get("codigo_sku") or ""
+                talla_v = var.get("Talla") or var.get("talla") or "Única"
+                color_v = var.get("Color") or var.get("color") or "Único"
+                stock_v = var.get("Stock") or var.get("stock_actual") or var.get("stock") or 0
                 
-                etiqueta = f"{p_nombre} - Talla: {talla_v} / Color: {color_v} [Stock: {stock_v}] [SKU: {sku_v}]"
-                if etiqueta not in lista_opciones_display:
-                    lista_opciones_display.append(etiqueta)
+                if sku_v:
+                    etiqueta = f"{p_nombre} - Talla: {talla_v} / Color: {color_v} [Stock: {stock_v}] [SKU: {sku_v}]"
+                    if etiqueta not in lista_opciones_display:
+                        lista_opciones_display.append(etiqueta)
 
         st.caption("💡 Haz clic en la celda de SKU para desplegar el listado de prendas. Usa el botón `+` para añadir más filas conforme necesites.")
 
@@ -233,6 +229,7 @@ def render_ventas():
                     except Exception as ex:
                         st.error(f"❌ Error de conexión con la API: {ex}")
 
+    # --- PESTAÑA 2: HISTORIAL DE VENTAS ---
     with tab_historial:
         st.markdown("##### 📋 Historial de Ventas")
         subtab_generales, subtab_aprobar, subtab_acumulativo = st.tabs([
