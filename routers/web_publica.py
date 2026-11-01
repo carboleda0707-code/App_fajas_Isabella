@@ -719,26 +719,21 @@ def enviar_correo_background(
     server = None
     try:
         print("==========================================")
-        print("🔍 [CHIVATO SMTP BACKGROUND] Iniciando envío...")
+        print("🔍 [CHIVATO SMTP BACKGROUND - PLAN B] Enviando sin adjunto...")
         print(f"📌 Servidor: {smtp_server}:{smtp_port} | Emisor: {emisor}")
         print(f"📌 Destinatarios: {destinatarios}")
         
-        # CAMBIO CLAVE: Usar "mixed" para permitir HTML y archivos adjuntos correctamente
-        msg = MIMEMultipart("mixed")
+        # Usamos "alternative" ya que solo enviaremos el cuerpo HTML limpio
+        msg = MIMEMultipart("alternative")
         msg['From'] = f"{empresa} <{emisor}>"
         msg['To'] = ", ".join(destinatarios)
         msg['Subject'] = f"🛍️ Confirmación de Pedido #{num_factura} - {empresa}"
         
-        # Adjuntar la parte de texto HTML con codificación UTF-8
+        # Adjuntar la parte de texto HTML con codificación UTF-8 estricta
         msg.attach(MIMEText(cuerpo_html, 'html', 'utf-8'))
 
-        # Adjuntar el archivo de comprobante si existe
-        if comprobante_bytes and comprobante_nombre:
-            part = MIMEBase('application', 'octet-stream')
-            part.set_payload(comprobante_bytes)
-            encoders.encode_base64(part)
-            part.add_header('Content-Disposition', f'attachment; filename="{comprobante_nombre}"')
-            msg.attach(part)
+        # NOTA PLAN B: Omitimos deliberadamente el bloque de adjuntos MIMEBase 
+        # para garantizar que el correo salga de inmediato sin depender del archivo.
 
         server = smtplib.SMTP(str(smtp_server), int(smtp_port), timeout=15)
         server.ehlo()
@@ -748,7 +743,7 @@ def enviar_correo_background(
         server.login(emisor, password)
         server.sendmail(emisor, destinatarios, msg.as_string().encode('utf-8'))
         server.quit()
-        print("✅ [CHIVATO SMTP BACKGROUND]: ¡Correo enviado exitosamente con adjunto!")
+        print("✅ [CHIVATO SMTP BACKGROUND]: ¡Correo enviado exitosamente (Plan B)!")
         
     except Exception as smtp_err:
         print(f"❌ [CHIVATO SMTP BACKGROUND ERROR]: {type(smtp_err).__name__}: {str(smtp_err)}")
