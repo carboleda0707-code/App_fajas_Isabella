@@ -64,6 +64,14 @@ def render_home_admin():
         with str_lit.form("form_sec05"):
             sec05_cfg = config.get("sec05", {})
             slides_data = []
+            
+            # Opciones de destino disponibles para los botones de los slides
+            opciones_destino = {
+                "Catálogo General": "index.html#catalogo",
+                "Nuevos Modelos": "index.html#nuevo",
+                "Ofertas / Liquidación": "index.html#ofertas"
+            }
+            
             for i in range(1, 5):
                 str_lit.markdown(f"---")
                 str_lit.markdown(f"#### 🖼️ Diapositiva (Slide) {i}")
@@ -73,15 +81,43 @@ def render_home_admin():
                 s_tag = str_lit.text_input(f"Etiqueta / Badge {i}", value=s_cfg.get("tag", f"Colección {i}"))
                 s_titulo = str_lit.text_input(f"Título Principal {i}", value=s_cfg.get("titulo", f"Título de Ejemplo {i}"))
                 s_desc = str_lit.text_area(f"Descripción {i}", value=s_cfg.get("descripcion", f"Descripción de la diapositiva {i}..."))
-                s_btn = str_lit.text_input(f"Texto del Botón {i}", value=s_cfg.get("btn_texto", "Ver Colección →"))
+                
+                # Fila dividida para el Botón y su Destino
+                col_b1, col_b2 = str_lit.columns(2)
+                with col_b1:
+                    s_btn_texto = str_lit.text_input(f"Texto del Botón {i}", value=s_cfg.get("btn_texto", "Ver Colección"))
+                with col_b2:
+                    # Intentar recuperar la opción seleccionada previamente si existe
+                    destino_actual_guardado = s_cfg.get("btn_destino", "index.html#catalogo")
+                    indice_default = 0
+                    for idx_opt, (k_opt, v_opt) in enumerate(opciones_destino.items()):
+                        if v_opt == destino_actual_guardado:
+                            indice_default = idx_opt
+                            break
+                            
+                    s_btn_nombre_destino = str_lit.selectbox(f"¿A dónde se dirige? ({i})", list(opciones_destino.keys()), index=indice_default, key=f"sel_dest_{i}")
+                    s_btn_destino = opciones_destino[s_btn_nombre_destino]
+
+                # Control deslizante para el tiempo de transición del banner
+                s_tiempo = str_lit.slider(
+                    f"⏱️ Tiempo de Transición (segundos) - Slide {i}", 
+                    min_value=2, 
+                    max_value=10, 
+                    value=int(s_cfg.get("tiempo", 5)), 
+                    step=1,
+                    key=f"slider_tiempo_{i}"
+                )
                 
                 slides_data.append({
                     "file_uploader": archivo_slide,
                     "tag": s_tag,
                     "titulo": s_titulo,
                     "descripcion": s_desc,
-                    "btn_texto": s_btn,
-                    "imagen_actual": s_cfg.get("imagen", "")
+                    "btn_texto": s_btn_texto,
+                    "btn_destino": s_btn_destino,
+                    "tiempo": s_tiempo,
+                    "imagen_actual": s_cfg.get("imagen", ""),
+                    "btn_completo": f"{s_btn_texto} → {s_btn_destino}"
                 })
 
             subm_sec05 = str_lit.form_submit_button("💾 Guardar Cambios de Sección 0.5 en BD", use_container_width=True)
@@ -100,8 +136,14 @@ def render_home_admin():
                             str_lit.warning(f"No se pudo subir a Cloudinary (Slide {idx}): {e}")
                     
                     payload_sec05[f"slide{idx}"] = {
-                        "tag": data["tag"], "titulo": data["titulo"], "descripcion": data["descripcion"],
-                        "btn_texto": data["btn_texto"], "imagen": img_url
+                        "tag": data["tag"], 
+                        "titulo": data["titulo"], 
+                        "descripcion": data["descripcion"],
+                        "btn_texto": data["btn_texto"], 
+                        "btn_destino": data["btn_destino"],
+                        "tiempo": data["tiempo"],
+                        "btn_completo": data["btn_completo"],
+                        "imagen": img_url
                     }
                 
                 if guardar_seccion_db("sec05", payload_sec05):
