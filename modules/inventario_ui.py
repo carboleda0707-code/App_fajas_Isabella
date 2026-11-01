@@ -91,19 +91,16 @@ def render_inventario():
             categoria = st.selectbox("Categoría del Producto", options=categorias_disponibles)
 
             st.markdown("###### 🏷️ Variantes (Tallas, Colores, Precios, Stock y Descuento %)")
-            st.caption("Agrega las variantes reales de tu producto. Si usas modalidad Individual, el % de oferta base se aplicará a las variantes.")
 
-            # Selector de cantidad de líneas de variantes (+ / -)
+            # Selector con icono de ayuda (?) para ahorrar líneas
             num_lineas_var = st.number_input(
                 "Número de líneas de variantes a registrar:", 
                 min_value=1, 
                 max_value=30, 
                 value=1, 
                 step=1,
-                help="Usa los botones para agregar o quitar filas de variantes según necesites."
+                help="💡 Guía: En la primera línea define la combinación principal (Talla, Color, Precio y Stock). Agrega más filas si manejas otras tallas o colores.\n\n⚠️ Si usas modalidad Individual, el % de oferta base se aplicará a las variantes."
             )
-
-            st.info("💡 **Guía:** En la primera línea define la combinación principal (Talla, Color, Precio y Stock). Agrega más filas si manejas otras tallas o colores.")
 
             # Construir datos iniciales según el número de líneas seleccionadas
             datos_iniciales = []
@@ -121,11 +118,12 @@ def render_inventario():
 
             df_inicial = pd.DataFrame(datos_iniciales)
 
-            # Editor de datos sin mostrar la columna de URL de imagen de variante
+            # Editor de datos con hide_index=True para ocultar la primera columna de índices
             df_variantes_editado = st.data_editor(
                 df_inicial,
                 num_rows="fixed",
                 use_container_width=True,
+                hide_index=True,  # <--- Oculta la columna de la izquierda (índices 0, 1, 2...)
                 column_config={
                     "sku": st.column_config.TextColumn("SKU (Opcional)", width="small"),
                     "talla": st.column_config.TextColumn("Talla *", width="small"),
@@ -137,6 +135,7 @@ def render_inventario():
                     "stock_maximo": st.column_config.NumberColumn("Stock Máx.", min_value=0, step=1, width="small")
                 }
             )
+
 
         with col_der:
             st.markdown("##### 📸 Imagen Principal del Ítem")
