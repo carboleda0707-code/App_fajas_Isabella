@@ -108,7 +108,7 @@ def render_ventas():
 
         st.markdown("---")
 
-        # 3. Selección de Productos (SKU)
+        # 3. Selección de Productos (SKU) con Precios y Descuentos Automatizados desde la BD
         st.markdown("###### 3. Selección de Productos (SKU)")
         
         inventario_lista = []
@@ -127,14 +127,13 @@ def render_ventas():
             except Exception:
                 pass
 
-        # Mapeo exacto según las claves observadas en el chivato:
-        # "nombre", "SKU", "Talla", "Color", "Stock", "Precio ($)"
+        # Diccionario para buscar rápidamente los datos oficiales por SKU
+        diccionario_productos_bd = {}
         lista_opciones_display = ["-- Seleccione un producto --"]
         
         for prod in inventario_lista:
             p_nombre = prod.get("nombre") or prod.get("titulo") or prod.get("descripcion") or "Producto"
             
-            # Revisar si los datos están planos en el objeto o dentro de variantes
             variantes = prod.get("variantes", [])
             if not variantes:
                 variantes = [prod]
@@ -144,19 +143,27 @@ def render_ventas():
                 talla_v = var.get("Talla") or var.get("talla") or "Única"
                 color_v = var.get("Color") or var.get("color") or "Único"
                 stock_v = var.get("Stock") or var.get("stock_actual") or var.get("stock") or 0
+                precio_v = float(var.get("Precio ($)") or var.get("precio") or 0.0)
+                descuento_v = float(var.get("descuento_porcentaje") or var.get("oferta") or 0.0)
                 
                 if sku_v:
+                    diccionario_productos_bd[sku_v] = {
+                        "precio": precio_v,
+                        "descuento": descuento_v,
+                        "nombre": p_nombre
+                    }
                     etiqueta = f"{p_nombre} - Talla: {talla_v} / Color: {color_v} [Stock: {stock_v}] [SKU: {sku_v}]"
                     if etiqueta not in lista_opciones_display:
                         lista_opciones_display.append(etiqueta)
 
-        st.caption("💡 Haz clic en la celda de SKU para desplegar el listado de prendas. Usa el botón `+` para añadir más filas conforme necesites.")
+        st.caption("💡 Selecciona el producto. El **Precio Unitario** y el **% de Oferta** se cargan automáticamente desde la base de datos[cite: 14].")
 
         if "df_items_vta" not in st.session_state:
             st.session_state.df_items_vta = pd.DataFrame([{
                 "SKU": "-- Seleccione un producto --", 
                 "Cantidad": 1, 
-                "Precio Unitario ($)": 0.0
+                "Precio Unitario ($)": 0.0,
+                "Oferta (%)": 0.0
             }])
 
         df_items_editado = st.data_editor(
@@ -171,10 +178,27 @@ def render_ventas():
                     required=True,
                     width="large"
                 ),
-                "Cantidad": st.column_config.NumberColumn("Cantidad", min_value=1, step=1, width="small"),
-                "Precio Unitario ($)": st.column_config.NumberColumn("Precio Unitario ($ - 0 para Auto)", format="$ %.2f", min_value=0.0, width="small")
+                "Cantidad": st.column_config.NumberColumn("Cantidad", min_value=1, step=1, width="small", required=True),
+                "Precio Unitario ($)": st.column_config.NumberColumn("Precio Unitario ($ - BD)", format="$ %.2f", disabled=True, width="small"),
+                "Oferta (%)": st.column_config.NumberColumn("Oferta (%) - BD", format="%.1f %%", disabled=True, width="small")
             }
         )
+
+        # Actualizar automáticamente precio y descuento en base al SKU seleccionado en cada fila
+        for i, row in df_items_editado.iterrows():
+            sku_raw = str(row.get("SKU", "")).strip()
+            sku_val = sku_raw
+            if "[SKU:" in sku_raw:
+                sku_val = sku_raw.split("[SKU:")[1].replace("]", "").strip()
+            
+            if sku_val in diccionario_productos_bd:
+                info_db = diccionario_productos_bd[sku_val]
+                df_items_editado.at[i, "Precio Unitario ($)"] = info_db["precio"]
+                df_items_editado.at[i, "Oferta (%)"] = info_db["descuento"]
+            else:
+                df_items_editado.at[i, "Precio Unitario ($)"] = 0.0
+                df_items_editado.at[i, "Oferta (%)"] = 0.0
+
         st.session_state.df_items_vta = df_items_editado
 
         if st.button("🚀 Registrar Venta en el Sistema", type="primary", use_container_width=True):
@@ -184,6 +208,8 @@ def render_ventas():
                 st.error("⚠️ Debes agregar al menos un producto a la venta.")
             else:
                 items_payload = []
+                error_validacion = False
+                
                 for _, row in df_items_editado.iterrows():
                     sku_raw = str(row.get("SKU", "")).strip()
                     sku_val = sku_raw
@@ -192,13 +218,24 @@ def render_ventas():
                     elif sku_raw == "-- Seleccione un producto --" or not sku_raw:
                         sku_val = ""
 
-                    cant_val = int(row.get("Cantidad", 1))
+                    cant_val = row.get("Cantidad", 0)
+                    if not cant_val or pd.isna(cant_val) or int(cant_val) < 1:
+                        error_validacion = True
+                        break
+                    
+                    cant_val = int(cant_val)
                     precio_val = float(row.get("Precio Unitario ($)", 0.0))
                     
                     if sku_val:
-                        items_payload.append({"sku": sku_val, "cantidad": cant_val, "precio_unitario": precio_val})
+                        items_payload.append({
+                            "sku": sku_val, 
+                            "cantidad": cant_val, 
+                            "precio_unitario": precio_val
+                        })
 
-                if not items_payload:
+                if error_validacion:
+                    st.error("⚠️ Todas las filas de productos deben tener una cantidad válida mayor o igual a 1.")
+                elif not items_payload:
                     st.error("⚠️ Especifica al menos un producto válido seleccionándolo de la lista.")
                 else:
                     payload_venta = {
