@@ -719,14 +719,16 @@ def enviar_correo_background(
         print(f"📌 Servidor: {smtp_server}:{smtp_port} | Emisor: {emisor}")
         print(f"📌 Destinatarios: {destinatarios}")
         
-        msg = MIMEMultipart("alternative")
+        # CAMBIO CLAVE: Usar "mixed" para permitir HTML y archivos adjuntos correctamente
+        msg = MIMEMultipart("mixed")
         msg['From'] = f"{empresa} <{emisor}>"
         msg['To'] = ", ".join(destinatarios)
         msg['Subject'] = f"🛍️ Confirmación de Pedido #{num_factura} - {empresa}"
         
-        # Forzar codificación utf-8 explícita para evitar errores con tildes o eñes
+        # Adjuntar la parte de texto HTML con codificación UTF-8
         msg.attach(MIMEText(cuerpo_html, 'html', 'utf-8'))
 
+        # Adjuntar el archivo de comprobante si existe
         if comprobante_bytes and comprobante_nombre:
             part = MIMEBase('application', 'octet-stream')
             part.set_payload(comprobante_bytes)
@@ -742,7 +744,7 @@ def enviar_correo_background(
         server.login(emisor, password)
         server.sendmail(emisor, destinatarios, msg.as_string().encode('utf-8'))
         server.quit()
-        print("✅ [CHIVATO SMTP BACKGROUND]: ¡Correo enviado exitosamente!")
+        print("✅ [CHIVATO SMTP BACKGROUND]: ¡Correo enviado exitosamente con adjunto!")
         
     except Exception as smtp_err:
         print(f"❌ [CHIVATO SMTP BACKGROUND ERROR]: {type(smtp_err).__name__}: {str(smtp_err)}")
