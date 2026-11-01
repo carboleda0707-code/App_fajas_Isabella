@@ -31,6 +31,7 @@ class VentaFacturaSchema(BaseModel):
     fecha_factura: str
     metodo_pago: str  # Incluye "Plan Acumulativo"
     codigo_transferencia: Optional[str] = ""
+    url_pagofactura: Optional[str] = ""  # <-- URL o ruta del comprobante de pago
     
     # Datos de facturación (Cliente)
     ruc_cliente: str
@@ -171,13 +172,13 @@ def listar_ventas_por_aprobar(db: Session = Depends(get_db)):
     resultado = []
     for f in facturas:
         items_orden = []
-        if hasattr(f, 'detalles') and f.detalles:
-            for item in f.detalles:
-                items_orden.append({
-                    "sku": getattr(item, 'sku', ''),
-                    "cantidad": getattr(item, 'cantidad', 1),
-                    "precio_unitario": float(getattr(item, 'precio_unitario', 0.0) or 0.0)
-                })
+        detalles_items = getattr(f, 'detalles', None) or getattr(f, 'items', None) or []
+        for item in detalles_items:
+            items_orden.append({
+                "sku": getattr(item, 'sku', ''),
+                "cantidad": getattr(item, 'cantidad', 1),
+                "precio_unitario": float(getattr(item, 'precio_unitario', 0.0) or 0.0)
+            })
 
         resultado.append({
             "id": f.id,
@@ -191,7 +192,7 @@ def listar_ventas_por_aprobar(db: Session = Depends(get_db)):
             "direccion_entrega": f.direccion_entrega or "",
             "referencia_direccion": f.referencia_direccion or "",
             "telefono": getattr(f, 'telefono_cliente', '') or "",
-            "comprobante_url": getattr(f, 'comprobante_pago_url', '') or getattr(f, 'url_comprobante', '') or "",
+            "comprobante_url": f.url_pagofactura or "",  # <-- Tomado directo del campo url_pagofactura de Factura
             "items": items_orden
         })
     return resultado
@@ -302,6 +303,8 @@ def registrar_venta(venta: VentaFacturaSchema, db: Session = Depends(get_db)):
                 raise HTTPException(status_code=400, detail="El abono inicial no puede superar el total de la orden.")
             estado_acumulativo = "EN_PROCESO" if saldo_pendiente > 0 else "COMPLETADO"
 
+        url_comprobante_recibida = venta.url_pagofactura.strip() if venta.url_pagofactura else ""
+
         nueva_factura = Factura(
             tipo_factura="VENTA", 
             numero_factura=venta.numero_factura,
@@ -316,11 +319,13 @@ def registrar_venta(venta: VentaFacturaSchema, db: Session = Depends(get_db)):
             referencia_direccion=venta.referencia_direccion.strip() if venta.referencia_direccion else "",
             courier_nombre=venta.courier_nombre.strip() if venta.courier_nombre else "Servientrega",
             estado_despacho="PENDIENTE",
+            url_pagofactura=url_comprobante_recibida if url_comprobante_recibida else "", # <-- Corregido limpio
             es_plan_acumulativo=es_acumulativo,
             saldo_pendiente=saldo_pendiente,
             estado_acumulativo=estado_acumulativo,
             cliente_id=cliente.id
         )
+        
         db.add(nueva_factura)
         db.commit()
         db.refresh(nueva_factura)
@@ -336,12 +341,14 @@ def registrar_venta(venta: VentaFacturaSchema, db: Session = Depends(get_db)):
             )
             db.add(nuevo_pago)
 
-        # Si es plan acumulativo, registrar el abono inicial en su respectiva tabla
+        # Si es plan acumulativo, registrar el abono inicial replicando el comprobante y monto en su tabla oficial
         if es_acumulativo and float(venta.abono_inicial or 0.0) > 0:
             nuevo_abono = AbonoPlanAcumulativo(
                 factura_id=nueva_factura.id,
                 monto=float(venta.abono_inicial),
-                observacion="Abono inicial registrado en venta manual por administración"
+                comprobante_url=url_comprobante_recibida, # <-- Replicado automáticamente como primer abono
+                referencia_bancaria=venta.codigo_transferencia or "",
+                observacion="Abono inicial registrado con comprobante de pago"
             )
             db.add(nuevo_abono)
 

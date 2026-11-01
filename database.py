@@ -72,7 +72,7 @@ class Producto(Base):
     es_nuevo = Column(Boolean, default=False)
     en_oferta = Column(Boolean, default=False)
     descuento_oferta = Column(Float, default=0.0)
-    tipo_descuento = Column(String(20), default='GENERAL')  # <-- NUEVO: 'GENERAL' o 'INDIVIDUAL'
+    tipo_descuento = Column(String(20), default='GENERAL')
     
     variantes = relationship("VarianteProducto", back_populates="producto", cascade="all, delete-orphan")
 
@@ -85,7 +85,7 @@ class VarianteProducto(Base):
     color = Column(String, nullable=False)
     stock_actual = Column(Integer, default=0)
     precio = Column(Float, nullable=False)
-    descuento_porcentaje = Column(Float, default=0.0)  # <-- DESCUENTO INDIVIDUAL POR VARIANTE
+    descuento_porcentaje = Column(Float, default=0.0)
     imagen_url = Column(String(255), nullable=True)
     stock_minimo = Column(Integer, default=2)
     stock_maximo = Column(Integer, default=20)
@@ -115,6 +115,9 @@ class Factura(Base):
     numero_guia = Column(String(100), nullable=True)
     numero_control = Column(String(100), nullable=True)
     estado_despacho = Column(String(30), default='PENDIENTE')
+
+    # --- NUEVO CAMPO PARA EL COMPROBANTE DE PAGO ---
+    url_pagofactura = Column(Text, nullable=True)
 
     es_plan_acumulativo = Column(Boolean, default=False)
     saldo_pendiente = Column(Float, default=0.0)
@@ -193,21 +196,18 @@ Base.metadata.create_all(bind=engine)
 
 def asegurar_columnas_logistica():
     with engine.begin() as conn:
-        # Migración automática en caliente para columnas multimedia en productos
         conn.execute(text("ALTER TABLE productos ADD COLUMN IF NOT EXISTS imagen_1 TEXT;"))
         conn.execute(text("ALTER TABLE productos ADD COLUMN IF NOT EXISTS imagen_2 TEXT;"))
         conn.execute(text("ALTER TABLE productos ADD COLUMN IF NOT EXISTS imagen_3 TEXT;"))
         conn.execute(text("ALTER TABLE productos ADD COLUMN IF NOT EXISTS imagen_4 TEXT;"))
         conn.execute(text("ALTER TABLE productos ADD COLUMN IF NOT EXISTS video_url TEXT;"))
         conn.execute(text("ALTER TABLE productos ADD COLUMN IF NOT EXISTS cartilla_url TEXT;"))
-
-        # Migración automática en caliente para tipo de descuento en productos
         conn.execute(text("ALTER TABLE productos ADD COLUMN IF NOT EXISTS tipo_descuento VARCHAR(20) DEFAULT 'GENERAL';"))
-
-        # Migración automática en caliente para descuento individual en variantes
         conn.execute(text("ALTER TABLE variantes_producto ADD COLUMN IF NOT EXISTS descuento_porcentaje FLOAT DEFAULT 0.0;"))
-
-        # Migración automática en caliente para columnas de Plan Acumulativo en facturas
+        
+        # Migración para la nueva columna en facturas
+        conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS url_pagofactura TEXT;"))
+        
         conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS es_plan_acumulativo BOOLEAN DEFAULT FALSE;"))
         conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS saldo_pendiente FLOAT DEFAULT 0.0;"))
         conn.execute(text("ALTER TABLE facturas ADD COLUMN IF NOT EXISTS estado_acumulativo VARCHAR(30) DEFAULT 'PENDIENTE';"))

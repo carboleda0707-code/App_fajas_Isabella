@@ -8,7 +8,7 @@ from email import encoders
 from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, Form, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from database import get_db, Producto, Categoria, Cliente, Factura, Pago, MovimientoInventario
+from database import get_db, Producto, Categoria, Cliente, Factura, Pago, MovimientoInventario, AbonoPlanAcumulativo
 from typing import Optional
 from pydantic import BaseModel
 import json
@@ -234,7 +234,6 @@ def listar_inventario_publico(categoria: Optional[str] = Query(None), db: Sessio
             for v in variantes:
                 stock_val = getattr(v, 'stock_actual', 0) or getattr(v, 'stock', 0)
                 
-                # Jerarquía de Descuentos (Variante o Descuento General / Global de Oferta)
                 precio_original = float(v.precio)
                 desc_var = float(getattr(v, 'descuento_porcentaje', 0.0) or 0.0)
                 en_oferta_prod = bool(getattr(prod, 'en_oferta', False))
@@ -292,7 +291,6 @@ def obtener_producto_dinamico(producto_id: int, db: Session = Depends(get_db)):
         en_oferta_prod = bool(getattr(prod, 'en_oferta', False))
         desc_oferta_prod = float(getattr(prod, 'descuento_oferta', 0.0) or 0.0)
         
-        # Jerarquía de Descuentos (Variante o Descuento Global / Oferta estacional)
         porcentaje_aplicado = desc_var if desc_var > 0 else (desc_oferta_prod if en_oferta_prod else 0.0)
         precio_final = precio_original * (1 - (porcentaje_aplicado / 100.0)) if porcentaje_aplicado > 0 else precio_original
 
@@ -458,6 +456,8 @@ async def _procesar_checkout_comun(
     items: str,
     comprobante: Optional[UploadFile],
     tipo_venta: str,
+    metodo_pago: str,
+    abono_inicial: float,
     db: Session
 ):
     correo_limpio = correo.lower().strip() if (correo and correo.strip() != "") else None
@@ -511,12 +511,39 @@ async def _procesar_checkout_comun(
 
     total_pedido = sum(float(item.get('precio', 0)) * int(item.get('cantidad', 1)) for item in lista_items)
     
+    # Procesar subida de la imagen del comprobante de pago
+    file_url = ""
+    comprobante_bytes = None
+    comprobante_nombre = None
+
+    if comprobante:
+        comprobante_bytes = await comprobante.read()
+        comprobante_nombre = comprobante.filename
+        try:
+            upload_result = cloudinary.uploader.upload(comprobante_bytes)
+            file_url = upload_result.get("secure_url", comprobante_nombre)
+        except Exception:
+            file_url = comprobante_nombre
+
+    # Lógica de Plan Acumulativo
+    es_acumulativo = (metodo_pago == "Plan Acumulativo")
+    saldo_pendiente = 0.0
+    estado_acumulativo = "COMPLETADO"
+
+    if es_acumulativo:
+        saldo_pendiente = total_pedido - abono_inicial
+        if saldo_pendiente < 0:
+            raise HTTPException(status_code=400, detail="El abono inicial no puede superar el total de la orden.")
+        estado_acumulativo = "EN_PROCESO" if saldo_pendiente > 0 else "COMPLETADO"
+
     prefijo_ym = date.today().strftime('%y%m')
     facturas_mes_count = db.query(Factura).filter(Factura.numero_factura.like(f"{prefijo_ym}%")).count()
     siguiente_consecutivo = facturas_mes_count + 1
     num_factura_str = f"{prefijo_ym}{siguiente_consecutivo:03d}"
     
     tipo_factura_str = f"VENTA WEB {tipo_venta.upper()}"
+    
+    # 1. CREAR LA FACTURA ASIGNANDO url_pagofactura DIRECTAMENTE
     nueva_factura = Factura(
         tipo_factura=tipo_factura_str,
         numero_factura=num_factura_str,
@@ -529,10 +556,36 @@ async def _procesar_checkout_comun(
         direccion_entrega=direccion,
         referencia_direccion=referencia,
         estado_despacho="POR APROBAR",
+        url_pagofactura=file_url,        # <-- URL guardada en la tabla Factura
+        es_plan_acumulativo=es_acumulativo,
+        saldo_pendiente=saldo_pendiente,
+        estado_acumulativo=estado_acumulativo
     )
     db.add(nueva_factura)
     db.commit()
     db.refresh(nueva_factura)
+
+    # Registrar el pago general
+    monto_pago = abono_inicial if es_acumulativo else total_pedido
+    if monto_pago > 0:
+        pago = Pago(
+            factura_id=nueva_factura.id,
+            metodo_pago=metodo_pago,
+            codigo_transferencia=file_url if metodo_pago == "Transferencia" else None,
+            monto=monto_pago
+        )
+        db.add(pago)
+
+    # 2. SI ES PLAN ACUMULATIVO: Copiar la URL y registrar el primer abono en abonos_plan_acumulativo
+    if es_acumulativo and abono_inicial > 0:
+        nuevo_abono = AbonoPlanAcumulativo(
+            factura_id=nueva_factura.id,
+            monto=abono_inicial,
+            comprobante_url=file_url,  # <-- Copia exacta de la URL en la tabla de abonos
+            referencia_bancaria="",
+            observacion="Abono inicial registrado desde la Tienda Web"
+        )
+        db.add(nuevo_abono)
 
     for item in lista_items:
         sku_p = item.get("sku") or item.get("codigo") or item.get("name") or "FAJA-WEB"
@@ -550,29 +603,8 @@ async def _procesar_checkout_comun(
             fecha_hora=date.today()
         )
         db.add(nuevo_mov)
+        
     db.commit()
-
-    file_url = None
-    comprobante_bytes = None
-    comprobante_nombre = None
-
-    if comprobante:
-        comprobante_bytes = await comprobante.read()
-        comprobante_nombre = comprobante.filename
-        try:
-            upload_result = cloudinary.uploader.upload(comprobante_bytes)
-            file_url = upload_result.get("secure_url", comprobante_nombre)
-        except Exception:
-            file_url = comprobante_nombre
-
-        pago = Pago(
-            factura_id=nueva_factura.id,
-            metodo_pago="TRANSFERENCIA",
-            codigo_transferencia=file_url,
-            monto=total_pedido
-        )
-        db.add(pago)
-        db.commit()
 
     return {
         "cliente_db": cliente_db,
@@ -612,7 +644,6 @@ def enviar_correo_background(
             part.add_header('Content-Disposition', f'attachment; filename="{comprobante_nombre}"')
             msg.attach(part)
 
-        # Timeout de 15 segundos para evitar bloqueos
         server = smtplib.SMTP(smtp_server, smtp_port, timeout=15)
         server.starttls()
         server.login(emisor, password)
@@ -640,13 +671,16 @@ async def checkout_whatsapp(
     direccion: str = Form(...),
     referencia: Optional[str] = Form(None),
     items: str = Form(...),
+    metodo_pago: Optional[str] = Form("Transferencia"),
+    abono_inicial: Optional[float] = Form(0.0),
     comprobante: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
     try:
         res = await _procesar_checkout_comun(
             nombre, telefono, correo, ruc_cedula, razon_social,
-            provincia, ciudad, direccion, referencia, items, comprobante, "WHATSAPP", db
+            provincia, ciudad, direccion, referencia, items, comprobante, "WHATSAPP",
+            metodo_pago, abono_inicial, db
         )
         
         detalle_texto = ""
@@ -692,18 +726,20 @@ async def checkout_correo(
     direccion: str = Form(...),
     referencia: Optional[str] = Form(None),
     items: str = Form(...),
+    metodo_pago: Optional[str] = Form("Transferencia"),
+    abono_inicial: Optional[float] = Form(0.0),
     comprobante: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
     try:
         res = await _procesar_checkout_comun(
             nombre, telefono, correo, ruc_cedula, razon_social,
-            provincia, ciudad, direccion, referencia, items, comprobante, "CORREO", db
+            provincia, ciudad, direccion, referencia, items, comprobante, "CORREO",
+            metodo_pago, abono_inicial, db
         )
         
         correo_limpio = correo.lower().strip() if (correo and correo.strip() != "") else None
 
-        # --- ENVÍO DE NOTIFICACIÓN SMTP EN SEGUNDO PLANO ---
         if EMAIL_EMISOR and EMAIL_PASSWORD:
             destinatarios = [CORREO_EMPRESA]
             if correo_limpio and correo_limpio not in destinatarios:
@@ -774,7 +810,6 @@ async def checkout_correo(
             </div>
             """
 
-            # Encolar la tarea para que responda al instante en la tienda
             background_tasks.add_task(
                 enviar_correo_background,
                 SMTP_SERVER, SMTP_PORT, EMAIL_EMISOR, EMAIL_PASSWORD,

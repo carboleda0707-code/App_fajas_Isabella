@@ -65,17 +65,18 @@ def render_logistica():
     # --- BOTÓN 1: EMBALAJE ---
     if accion == "📦 1. Embalaje":
         st.markdown("##### 📦 1. Embalaje de Pedidos")
-        st.caption("Filtra órdenes pendientes o por aprobar, revisa el detalle exacto de ítems e ingresa el Número de Control para pasar a EMPACADO.")
+        st.caption("Filtra órdenes pendientes aprobadas por finanzas, revisa el detalle exacto de ítems e ingresa el Número de Control para pasar a EMPACADO.")
 
         if df_raw.empty:
             st.info("No hay órdenes registradas en la base de datos.")
             return
 
         col_est = "estado_despacho" if "estado_despacho" in df_raw.columns else "estado"
-        df_pendientes = df_raw[df_raw[col_est].astype(str).str.upper().isin(["PENDIENTE", "POR APROBAR"])].copy()
+        # FILTRO ESTRICTO: Solo PENDIENTE (las POR APROBAR se quedan en auditoría financiera)
+        df_pendientes = df_raw[df_raw[col_est].astype(str).str.upper() == "PENDIENTE"].copy()
 
         if df_pendientes.empty:
-            st.success("🎉 No hay órdenes pendientes ni por aprobar de embalaje.")
+            st.success("🎉 No hay órdenes pendientes de embalaje en este momento.")
             return
 
         col_f1, col_f2, col_f3 = st.columns(3)

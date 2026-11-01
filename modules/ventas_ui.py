@@ -161,7 +161,6 @@ def render_ventas():
                     if facturas_data:
                         df_ventas = pd.DataFrame(facturas_data)
                         
-                        # Convertir columna fecha para filtrar
                         if "fecha" in df_ventas.columns:
                             df_ventas["fecha_dt"] = pd.to_datetime(df_ventas["fecha"]).dt.date
                             df_filtrado = df_ventas[(df_ventas["fecha_dt"] >= fecha_inicio) & (df_ventas["fecha_dt"] <= fecha_fin)]
