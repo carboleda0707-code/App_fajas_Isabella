@@ -48,7 +48,12 @@ def render_reporte_ventas():
             inventario = res_inv.json() if res_inv.status_code == 200 else []
             movimientos = res_mov.json() if res_mov.status_code == 200 else []
             
-            ventas = [f for f in facturas if f.get('tipo_factura') == 'VENTA']
+            # --- CORRECCIÓN: Ventas Locales y Web, excluyendo las pendientes de aprobación ---
+            ventas = [
+                f for f in facturas 
+                if (f.get('tipo_factura') == 'VENTA' or str(f.get('tipo_factura', '')).startswith('VENTA WEB'))
+                and str(f.get('estado_despacho', '')).upper() != 'POR APROBAR'
+            ]
             
             # Mapear información del inventario (Nombre, Talla, Color) por SKU
             info_productos = {}
@@ -126,7 +131,6 @@ def render_reporte_ventas():
                                 "Total Factura ($)": float(v.get('total_factura', 0))
                             })
                     else:
-                        # Si no hay ítems detallados registrados, se muestra la fila general de la factura
                         monto_tot = float(v.get('total_factura', 0))
                         tabla_general.append({
                             "Nº Factura": num_fac,
@@ -151,13 +155,13 @@ def render_reporte_ventas():
                 if criterio_agrupacion == "Ítems / Producto (SKU)":
                     facturas_con_sku = set()
                     for m in movimientos:
-                        if m.get('tipo_movimiento') == 'VENTA_LOCAL':
+                        if m.get('tipo_movimiento') in ['VENTA', 'VENTA_LOCAL']:
                             ref = m.get('referencia_factura', '')
                             sku = m.get('sku', 'N/D')
                             cant = abs(int(m.get('cantidad', 0)))
                             precio = float(m.get('valor_neto', 0.0))
                             fecha_dia = str(m.get('fecha_hora', ''))[:10]
-                            num_fact = ref.replace("Fact Venta:", "").strip() if "Fact Venta:" in ref else "N/D"
+                            num_fact = ref.replace("Fact Venta:", "").strip() if "Fact Venta:" in ref else ref
                             
                             factura_valida = any(str(v.get('numero_factura')) == num_fact for v in ventas_filtradas)
                             if factura_valida:
