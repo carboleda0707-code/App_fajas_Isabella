@@ -15,21 +15,42 @@ def render_ventas():
     with tab_nueva:
         st.markdown("##### 📝 Registro Manual de Venta o Abono Inicial")
         
-        # 1. Información del Cliente
+        # 1. Búsqueda y Selección Inteligente de Cliente
         st.markdown("###### 1. Información del Cliente")
+        
+        # Obtener lista de clientes registrados para el buscador rápido
+        try:
+            res_cli = requests.get(f"{API_URL}/clientes", timeout=5)
+            lista_clientes = res_cli.json() if res_cli.status_code == 200 else []
+        except Exception:
+            lista_clientes = []
+
+        opciones_cli = {"-- NUEVO CLIENTE (Ingreso Manual) --": None}
+        for c in lista_clientes:
+            etiqueta = f"{c.get('ruc_cedula', '')} - {c.get('nombre', '')}"
+            opciones_cli[etiqueta] = c
+
+        cliente_seleccionado_str = st.selectbox(
+            "🔍 Buscar Cliente Registrado (por Cédula o Nombre)", 
+            options=list(opciones_cli.keys()),
+            help="Escribe o selecciona un cliente para autocompletar sus datos automáticamente."
+        )
+
+        sel_data = opciones_cli.get(cliente_seleccionado_str)
+
         col_c1, col_c2, col_c3 = st.columns(3)
         with col_c1:
-            ruc_cliente = st.text_input("RUC o Cédula *", placeholder="Ej: 0912345678")
+            ruc_cliente = st.text_input("RUC o Cédula *", value=sel_data.get('ruc_cedula', '') if sel_data else "", placeholder="Ej: 0912345678")
         with col_c2:
-            nombre_cliente = st.text_input("Nombre / Razón Social *", placeholder="Ej: María Pérez")
+            nombre_cliente = st.text_input("Nombre / Razón Social *", value=sel_data.get('nombre', '') if sel_data else "", placeholder="Ej: María Pérez")
         with col_c3:
-            telefono_cliente = st.text_input("Teléfono / WhatsApp", placeholder="Ej: 0991234567")
+            telefono_cliente = st.text_input("Teléfono / WhatsApp", value=sel_data.get('telefono', '') if sel_data else "", placeholder="Ej: 0991234567")
 
         col_c4, col_c5 = st.columns(2)
         with col_c4:
-            correo_cliente = st.text_input("Correo Electrónico", placeholder="cliente@email.com")
+            correo_cliente = st.text_input("Correo Electrónico", value=sel_data.get('correo', '') if sel_data else "", placeholder="cliente@email.com")
         with col_c5:
-            direccion_cliente = st.text_input("Dirección del Cliente", placeholder="Calle Principal y Secundaria")
+            direccion_cliente = st.text_input("Dirección del Cliente", value=sel_data.get('direccion', '') if sel_data else "", placeholder="Calle Principal y Secundaria")
 
         st.markdown("---")
         
@@ -177,7 +198,6 @@ def render_ventas():
 
         # 2. VENTAS POR APROBAR (APROBACIÓN FINANCIERA)
         with subtab_aprobar:
-            # Mensaje informativo movido limpiamente al icono de ayuda (?)
             st.markdown(
                 "###### 🔍 Auditoría y Aprobación de Órdenes Web", 
                 help="Revisa la orden, los ítems y el comprobante de pago. Al hacer clic en 'Aprobar Pago', la orden cambiará a PENDIENTE y se enviará automáticamente al módulo de Logística."
@@ -204,7 +224,6 @@ def render_ventas():
                                     st.write(f"**Referencia:** {orden['referencia_direccion']}")
                                     
                                     st.markdown("**🛍️ Detalle de Variantes Compradas**")
-                                    # Despliegue estructurado de las variantes compradas (SKU, Cantidad, Valor)
                                     items_data = []
                                     for it in orden.get('items', []):
                                         p_unit = float(it.get('precio_unitario', 0.0))
