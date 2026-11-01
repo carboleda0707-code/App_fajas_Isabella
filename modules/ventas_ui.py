@@ -50,7 +50,7 @@ def render_ventas():
 
         st.markdown("---")
         
-        # 2. Datos de Facturación y Logística (Factura Automática AAMM + Consecutivo 3 dígitos)
+        # 2. Datos de Facturación y Logística (Factura Automática de Solo Lectura AAMM+001)
         st.markdown("###### 2. Datos de Facturación y Logística")
         
         hoy = date.today()
@@ -73,11 +73,11 @@ def render_ventas():
         except Exception:
             pass
         
-        num_factura_sugerido = f"{prefijo_aamm}{siguiente_consecutivo:03d}" # Ej: 2611001
+        num_factura_auto = f"{prefijo_aamm}{siguiente_consecutivo:03d}"
 
         col_f1, col_f2, col_f3 = st.columns(3)
         with col_f1:
-            num_factura = st.text_input("Número de Factura / Orden *", value=num_factura_sugerido, help="Formato automático AAMM + Consecutivo (se reinicia cada mes)")
+            num_factura = st.text_input("Número de Factura / Orden (Automático) *", value=num_factura_auto, disabled=True, help="Generado automáticamente por el sistema (AAMM + Secuencial). Nadie lo digita.")
         with col_f2:
             fecha_factura = st.date_input("Fecha de Factura", value=hoy)
         with col_f3:
@@ -108,8 +108,8 @@ def render_ventas():
 
         st.markdown("---")
 
-        # 3. Selección de Productos (SKU) con Precios y Descuentos Automatizados desde la BD
-        st.markdown("###### 3. Selección de Productos (SKU)")
+        # 3. Selección de Productos AFUERA del Recuadro (Ingreso Dinámico)
+        st.markdown("###### 3. Selección e Ingreso de Productos")
         
         inventario_lista = []
         try:
@@ -127,13 +127,11 @@ def render_ventas():
             except Exception:
                 pass
 
-        # Diccionario para buscar rápidamente los datos oficiales por SKU
         diccionario_productos_bd = {}
-        lista_opciones_display = ["-- Seleccione un producto --"]
+        opciones_desplegable = ["-- Seleccione un producto / variante --"]
         
         for prod in inventario_lista:
             p_nombre = prod.get("nombre") or prod.get("titulo") or prod.get("descripcion") or "Producto"
-            
             variantes = prod.get("variantes", [])
             if not variantes:
                 variantes = [prod]
@@ -147,124 +145,152 @@ def render_ventas():
                 descuento_v = float(var.get("descuento_porcentaje") or var.get("oferta") or 0.0)
                 
                 if sku_v:
-                    diccionario_productos_bd[sku_v] = {
+                    etiqueta = f"{p_nombre} - Talla: {talla_v} / Color: {color_v} [Stock: {stock_v}] [SKU: {sku_v}]"
+                    diccionario_productos_bd[etiqueta] = {
+                        "sku": sku_v,
+                        "nombre": p_nombre,
+                        "talla": talla_v,
+                        "color": color_v,
                         "precio": precio_v,
                         "descuento": descuento_v,
-                        "nombre": p_nombre
+                        "stock": stock_v
                     }
-                    etiqueta = f"{p_nombre} - Talla: {talla_v} / Color: {color_v} [Stock: {stock_v}] [SKU: {sku_v}]"
-                    if etiqueta not in lista_opciones_display:
-                        lista_opciones_display.append(etiqueta)
+                    if etiqueta not in opciones_desplegable:
+                        opciones_desplegable.append(etiqueta)
 
-        st.caption("💡 Selecciona el producto. El **Precio Unitario** y el **% de Oferta** se cargan automáticamente desde la base de datos[cite: 14].")
+        # Controles externos a la tabla
+        col_sel1, col_sel2, col_sel3 = st.columns([3, 1, 1])
+        with col_sel1:
+            prod_seleccionado_etiqueta = st.selectbox(
+                "🏷️ Seleccionar Producto para la Venta", 
+                options=opciones_desplegable,
+                key="select_producto_externo"
+            )
+        with col_sel2:
+            cant_ingresar = st.number_input("Cantidad", min_value=1, value=1, step=1, key="input_cant_externo")
+        with col_sel3:
+            st.write("&nbsp;") # Espaciador para alinear el botón
+            btn_agregar = st.button("➕ Añadir Item", type="secondary", use_container_width=True)
 
-        if "df_items_vta" not in st.session_state:
-            st.session_state.df_items_vta = pd.DataFrame([{
-                "SKU": "-- Seleccione un producto --", 
-                "Cantidad": 1, 
-                "Precio Unitario ($)": 0.0,
-                "Oferta (%)": 0.0
-            }])
+        # Inicializar lista de ítems agregados a la venta en session_state
+        if "lista_items_venta" not in st.session_state:
+            st.session_state.lista_items_venta = []
 
-        df_items_editado = st.data_editor(
-            st.session_state.df_items_vta,
-            num_rows="dynamic",
-            use_container_width=True,
-            key="editor_items_venta",
-            column_config={
-                "SKU": st.column_config.SelectboxColumn(
-                    "Seleccionar Producto / Variante",
-                    options=lista_opciones_display,
-                    required=True,
-                    width="large"
-                ),
-                "Cantidad": st.column_config.NumberColumn("Cantidad", min_value=1, step=1, width="small", required=True),
-                "Precio Unitario ($)": st.column_config.NumberColumn("Precio Unitario ($ - BD)", format="$ %.2f", disabled=True, width="small"),
-                "Oferta (%)": st.column_config.NumberColumn("Oferta (%) - BD", format="%.1f %%", disabled=True, width="small")
-            }
-        )
-
-        # Actualizar automáticamente precio y descuento en base al SKU seleccionado en cada fila
-        for i, row in df_items_editado.iterrows():
-            sku_raw = str(row.get("SKU", "")).strip()
-            sku_val = sku_raw
-            if "[SKU:" in sku_raw:
-                sku_val = sku_raw.split("[SKU:")[1].replace("]", "").strip()
-            
-            if sku_val in diccionario_productos_bd:
-                info_db = diccionario_productos_bd[sku_val]
-                df_items_editado.at[i, "Precio Unitario ($)"] = info_db["precio"]
-                df_items_editado.at[i, "Oferta (%)"] = info_db["descuento"]
+        if btn_agregar:
+            if prod_seleccionado_etiqueta == "-- Seleccione un producto / variante --":
+                st.warning("⚠️ Selecciona un producto válido de la lista antes de añadir.")
             else:
-                df_items_editado.at[i, "Precio Unitario ($)"] = 0.0
-                df_items_editado.at[i, "Oferta (%)"] = 0.0
+                info_p = diccionario_productos_bd.get(prod_seleccionado_etiqueta)
+                if info_p:
+                    # Verificar si el producto ya está añadido para sumar cantidad
+                    existe = False
+                    for item in st.session_state.lista_items_venta:
+                        if item["SKU"] == info_p["sku"]:
+                            item["Cantidad"] += cant_ingresar
+                            item["Subtotal ($)"] = round(item["Cantidad"] * info_p["precio"], 2)
+                            existe = True
+                            break
+                    
+                    if not existe:
+                        st.session_state.lista_items_venta.append({
+                            "SKU": info_p["sku"],
+                            "Producto": info_p["nombre"],
+                            "Talla": info_p["talla"],
+                            "Color": info_p["color"],
+                            "Cantidad": cant_ingresar,
+                            "Precio Unit. ($)": info_p["precio"],
+                            "Oferta (%)": info_p["descuento"],
+                            "Subtotal ($)": round(cant_ingresar * info_p["precio"], 2)
+                        })
+                    st.toast(f"✅ ¡{info_p['nombre']} añadido a la lista!", icon="🛍️")
 
-        st.session_state.df_items_vta = df_items_editado
+        # Visualizar la lista de productos agregados de forma limpia
+        st.markdown("###### 📋 Lista de Productos Añadidos a la Factura")
+        
+        if st.session_state.lista_items_venta:
+            df_tabla_items = pd.DataFrame(st.session_state.lista_items_venta)
+            
+            df_editado = st.data_editor(
+                df_tabla_items,
+                use_container_width=True,
+                num_rows="dynamic",
+                key="tabla_items_agregados",
+                column_config={
+                    "SKU": st.column_config.TextColumn("SKU", disabled=True),
+                    "Producto": st.column_config.TextColumn("Producto", disabled=True),
+                    "Talla": st.column_config.TextColumn("Talla", disabled=True),
+                    "Color": st.column_config.TextColumn("Color", disabled=True),
+                    "Cantidad": st.column_config.NumberColumn("Cantidad", min_value=1, step=1),
+                    "Precio Unit. ($)": st.column_config.NumberColumn("Precio Unit. ($)", format="$ %.2f", disabled=True),
+                    "Oferta (%)": st.column_config.NumberColumn("Oferta (%)", format="%.1f %%", disabled=True),
+                    "Subtotal ($)": st.column_config.NumberColumn("Subtotal ($)", format="$ %.2f", disabled=True)
+                }
+            )
+            
+            # Recalcular subtotales si el usuario modifica la cantidad en la tabla
+            nueva_lista = []
+            for _, row in df_editado.iterrows():
+                cant_f = int(row.get("Cantidad", 1))
+                p_f = float(row.get("Precio Unit. ($)", 0.0))
+                row["Subtotal ($)"] = round(cant_f * p_f, 2)
+                nueva_lista.append(row.to_dict())
+            st.session_state.lista_items_venta = nueva_lista
+            
+            total_factura = sum(item["Subtotal ($)"] for item in st.session_state.lista_items_venta)
+            st.markdown(f"#### 💰 Total Factura: `${total_factura:.2f}`")
+
+            col_limpiar, col_esp = st.columns([2, 8])
+            with col_limpiar:
+                if st.button("🗑️ Vaciar Lista de Productos", type="secondary"):
+                    st.session_state.lista_items_venta = []
+                    st.rerun()
+        else:
+            st.info("👈 Selecciona una prenda en el desplegable superior y haz clic en **'➕ Añadir Item'** para agregar productos a esta factura.")
+
+        st.markdown("---")
 
         if st.button("🚀 Registrar Venta en el Sistema", type="primary", use_container_width=True):
-            if not ruc_cliente or not nombre_cliente or not num_factura:
-                st.error("⚠️ Por favor completa los campos obligatorios del cliente y el número de factura.")
-            elif df_items_editado.empty:
-                st.error("⚠️ Debes agregar al menos un producto a la venta.")
+            if not ruc_cliente or not nombre_cliente:
+                st.error("⚠️ Por favor completa los campos obligatorios del cliente (RUC/Cédula y Nombre).")
+            elif not st.session_state.lista_items_venta:
+                st.error("⚠️ Debes añadir al menos un producto a la lista antes de registrar la venta.")
             else:
                 items_payload = []
-                error_validacion = False
-                
-                for _, row in df_items_editado.iterrows():
-                    sku_raw = str(row.get("SKU", "")).strip()
-                    sku_val = sku_raw
-                    if "[SKU:" in sku_raw:
-                        sku_val = sku_raw.split("[SKU:")[1].replace("]", "").strip()
-                    elif sku_raw == "-- Seleccione un producto --" or not sku_raw:
-                        sku_val = ""
+                for item in st.session_state.lista_items_venta:
+                    items_payload.append({
+                        "sku": item["SKU"],
+                        "cantidad": int(item["Cantidad"]),
+                        "precio_unitario": float(item["Precio Unit. ($)"])
+                    })
 
-                    cant_val = row.get("Cantidad", 0)
-                    if not cant_val or pd.isna(cant_val) or int(cant_val) < 1:
-                        error_validacion = True
-                        break
-                    
-                    cant_val = int(cant_val)
-                    precio_val = float(row.get("Precio Unitario ($)", 0.0))
-                    
-                    if sku_val:
-                        items_payload.append({
-                            "sku": sku_val, 
-                            "cantidad": cant_val, 
-                            "precio_unitario": precio_val
-                        })
-
-                if error_validacion:
-                    st.error("⚠️ Todas las filas de productos deben tener una cantidad válida mayor o igual a 1.")
-                elif not items_payload:
-                    st.error("⚠️ Especifica al menos un producto válido seleccionándolo de la lista.")
-                else:
-                    payload_venta = {
-                        "numero_factura": num_factura.strip(),
-                        "fecha_factura": str(fecha_factura),
-                        "metodo_pago": metodo_pago,
-                        "codigo_transferencia": codigo_trans,
-                        "ruc_cliente": ruc_cliente.strip(),
-                        "nombre_cliente": nombre_cliente.strip(),
-                        "direccion_cliente": direccion_cliente.strip() if direccion_cliente else "",
-                        "telefono_cliente": telefono_cliente.strip() if telefono_cliente else "",
-                        "provincia": provincia,
-                        "ciudad": ciudad,
-                        "direccion_entrega": direccion_entrega if direccion_entrega else direccion_cliente,
-                        "referencia_direccion": referencia_dir,
-                        "courier_nombre": courier,
-                        "abono_inicial": abono_inicial,
-                        "items": items_payload
-                    }
-                    try:
-                        resp = requests.post(f"{API_URL}/ventas-factura", json=payload_venta, timeout=10)
-                        if resp.status_code == 200:
-                            st.success("✅ ¡Venta registrada exitosamente!")
-                            st.balloons()
-                        else:
-                            err_det = resp.json().get("detail", "Error desconocido")
-                            st.error(f"❌ Error al procesar la venta: {err_det}")
-                    except Exception as ex:
-                        st.error(f"❌ Error de conexión con la API: {ex}")
+                payload_venta = {
+                    "numero_factura": num_factura_auto, # Siempre el número automático generado
+                    "fecha_factura": str(fecha_factura),
+                    "metodo_pago": metodo_pago,
+                    "codigo_transferencia": codigo_trans,
+                    "ruc_cliente": ruc_cliente.strip(),
+                    "nombre_cliente": nombre_cliente.strip(),
+                    "direccion_cliente": direccion_cliente.strip() if direccion_cliente else "",
+                    "telefono_cliente": telefono_cliente.strip() if telefono_cliente else "",
+                    "provincia": provincia,
+                    "ciudad": ciudad,
+                    "direccion_entrega": direccion_entrega if direccion_entrega else direccion_cliente,
+                    "referencia_direccion": referencia_dir,
+                    "courier_nombre": courier,
+                    "abono_inicial": abono_inicial,
+                    "items": items_payload
+                }
+                try:
+                    resp = requests.post(f"{API_URL}/ventas-factura", json=payload_venta, timeout=10)
+                    if resp.status_code == 200:
+                        st.success("✅ ¡Venta registrada exitosamente!")
+                        st.session_state.lista_items_venta = [] # Limpiar tabla
+                        st.balloons()
+                    else:
+                        err_det = resp.json().get("detail", "Error desconocido")
+                        st.error(f"❌ Error al procesar la venta: {err_det}")
+                except Exception as ex:
+                    st.error(f"❌ Error de conexión con la API: {ex}")
 
     # --- PESTAÑA 2: HISTORIAL DE VENTAS ---
     with tab_historial:
