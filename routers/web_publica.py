@@ -712,6 +712,8 @@ async def _procesar_checkout_comun(
 # FUNCIÓN DE ENVÍO DE CORREO EN SEGUNDO PLANO (BACKGROUND TASKS)
 # ==============================================================================
 
+import socket
+
 def enviar_correo_background(
     smtp_server, smtp_port, emisor, password, destinatarios, 
     empresa, num_factura, cuerpo_html, comprobante_bytes, comprobante_nombre
@@ -719,23 +721,23 @@ def enviar_correo_background(
     server = None
     try:
         print("==========================================")
-        print("🔍 [CHIVATO SMTP BACKGROUND - PLAN B] Enviando sin adjunto...")
+        print("🔍 [CHIVATO SMTP BACKGROUND] Iniciando envío (Forzando IPv4)...")
         print(f"📌 Servidor: {smtp_server}:{smtp_port} | Emisor: {emisor}")
         print(f"📌 Destinatarios: {destinatarios}")
         
-        # Usamos "alternative" ya que solo enviaremos el cuerpo HTML limpio
+        # Resolver la IP por IPv4 estrictamente para evitar el error [Errno 101] Network is unreachable
+        ip_servidor = socket.gethostbyname(str(smtp_server))
+        print(f"🌐 IP resuelta para {smtp_server}: {ip_servidor}")
+
         msg = MIMEMultipart("alternative")
         msg['From'] = f"{empresa} <{emisor}>"
         msg['To'] = ", ".join(destinatarios)
         msg['Subject'] = f"🛍️ Confirmación de Pedido #{num_factura} - {empresa}"
         
-        # Adjuntar la parte de texto HTML con codificación UTF-8 estricta
         msg.attach(MIMEText(cuerpo_html, 'html', 'utf-8'))
 
-        # NOTA PLAN B: Omitimos deliberadamente el bloque de adjuntos MIMEBase 
-        # para garantizar que el correo salga de inmediato sin depender del archivo.
-
-        server = smtplib.SMTP(str(smtp_server), int(smtp_port), timeout=15)
+        # Conectar usando la IP directa por IPv4
+        server = smtplib.SMTP(ip_servidor, int(smtp_port), timeout=15)
         server.ehlo()
         server.starttls()
         server.ehlo()
@@ -743,7 +745,7 @@ def enviar_correo_background(
         server.login(emisor, password)
         server.sendmail(emisor, destinatarios, msg.as_string().encode('utf-8'))
         server.quit()
-        print("✅ [CHIVATO SMTP BACKGROUND]: ¡Correo enviado exitosamente (Plan B)!")
+        print("✅ [CHIVATO SMTP BACKGROUND]: ¡Correo enviado exitosamente!")
         
     except Exception as smtp_err:
         print(f"❌ [CHIVATO SMTP BACKGROUND ERROR]: {type(smtp_err).__name__}: {str(smtp_err)}")
