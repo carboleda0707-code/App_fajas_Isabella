@@ -1,6 +1,8 @@
 import hashlib
 import urllib.parse
 import smtplib
+from datetime import datetime, date
+from zoneinfo import ZoneInfo
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
@@ -16,7 +18,6 @@ import os
 import secrets
 import string
 import cloudinary.uploader
-from datetime import date
 from config import (
     NOMBRE_EMPRESA, TELEFONO_WHATSAPP, CORREO_EMPRESA, DIRECCION_EMPRESA,
     INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL, WHATSAPP_LINK,
@@ -536,17 +537,21 @@ async def _procesar_checkout_comun(
             raise HTTPException(status_code=400, detail="El abono inicial no puede superar el total de la orden.")
         estado_acumulativo = "EN_PROCESO" if saldo_pendiente > 0 else "COMPLETADO"
 
-    prefijo_ym = date.today().strftime('%y%m')
+    # --- ZONA HORARIA DE ECUADOR ---
+    fecha_ecuador = datetime.now(ZoneInfo("America/Guayaquil")).date()
+    prefijo_ym = fecha_ecuador.strftime('%y%m')
+    
     facturas_mes_count = db.query(Factura).filter(Factura.numero_factura.like(f"{prefijo_ym}%")).count()
     siguiente_consecutivo = facturas_mes_count + 1
     num_factura_str = f"{prefijo_ym}{siguiente_consecutivo:03d}"
     
     tipo_factura_str = f"VENTA WEB {tipo_venta.upper()}"
     
-    # 1. CREAR LA FACTURA ASIGNANDO url_pagofactura DIRECTAMENTE
+    # 1. CREAR LA FACTURA ASIGNANDO url_pagofactura Y FECHA ECUADOR
     nueva_factura = Factura(
         tipo_factura=tipo_factura_str,
         numero_factura=num_factura_str,
+        fecha_factura=fecha_ecuador,     # <-- Fecha basada en Ecuador
         entidad_ruc=ruc_cedula,
         entidad_nombre=razon_social,
         total_factura=total_pedido,
@@ -581,7 +586,7 @@ async def _procesar_checkout_comun(
         nuevo_abono = AbonoPlanAcumulativo(
             factura_id=nueva_factura.id,
             monto=abono_inicial,
-            comprobante_url=file_url,  # <-- Copia exacta de la URL en la tabla de abonos
+            comprobante_url=file_url,
             referencia_bancaria="",
             observacion="Abono inicial registrado desde la Tienda Web"
         )
@@ -600,7 +605,7 @@ async def _procesar_checkout_comun(
             referencia_factura=num_factura_str,
             valor_neto=subtotal_p,
             entidad_asociada=razon_social,
-            fecha_hora=date.today()
+            fecha_hora=fecha_ecuador      # <-- Movimiento registrado con fecha Ecuador
         )
         db.add(nuevo_mov)
         

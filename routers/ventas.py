@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, date
+from zoneinfo import ZoneInfo
 import os
 from database import get_db, Cliente, Factura, Pago, VarianteProducto, MovimientoInventario, AbonoPlanAcumulativo
 
@@ -192,7 +193,7 @@ def listar_ventas_por_aprobar(db: Session = Depends(get_db)):
             "direccion_entrega": f.direccion_entrega or "",
             "referencia_direccion": f.referencia_direccion or "",
             "telefono": getattr(f, 'telefono_cliente', '') or "",
-            "comprobante_url": f.url_pagofactura or "",  # <-- Tomado directo del campo url_pagofactura de Factura
+            "comprobante_url": f.url_pagofactura or "",
             "items": items_orden
         })
     return resultado
@@ -305,11 +306,18 @@ def registrar_venta(venta: VentaFacturaSchema, db: Session = Depends(get_db)):
 
         url_comprobante_recibida = venta.url_pagofactura.strip() if venta.url_pagofactura else ""
 
+        # Fecha estricta con zona horaria de Ecuador
+        fecha_factura_dt = (
+            datetime.strptime(venta.fecha_factura, "%Y-%m-%d").date() 
+            if venta.fecha_factura 
+            else datetime.now(ZoneInfo("America/Guayaquil")).date()
+        )
+
         nueva_factura = Factura(
             tipo_factura="VENTA", 
             numero_factura=venta.numero_factura,
             numero_autorizacion=venta.numero_autorizacion or "",
-            fecha_factura=datetime.strptime(venta.fecha_factura, "%Y-%m-%d").date(),
+            fecha_factura=fecha_factura_dt,
             entidad_ruc=venta.ruc_cliente, 
             entidad_nombre=venta.nombre_cliente,
             total_factura=total_calculado,
@@ -319,7 +327,7 @@ def registrar_venta(venta: VentaFacturaSchema, db: Session = Depends(get_db)):
             referencia_direccion=venta.referencia_direccion.strip() if venta.referencia_direccion else "",
             courier_nombre=venta.courier_nombre.strip() if venta.courier_nombre else "Servientrega",
             estado_despacho="PENDIENTE",
-            url_pagofactura=url_comprobante_recibida if url_comprobante_recibida else "", # <-- Corregido limpio
+            url_pagofactura=url_comprobante_recibida if url_comprobante_recibida else "",
             es_plan_acumulativo=es_acumulativo,
             saldo_pendiente=saldo_pendiente,
             estado_acumulativo=estado_acumulativo,
@@ -346,12 +354,13 @@ def registrar_venta(venta: VentaFacturaSchema, db: Session = Depends(get_db)):
             nuevo_abono = AbonoPlanAcumulativo(
                 factura_id=nueva_factura.id,
                 monto=float(venta.abono_inicial),
-                comprobante_url=url_comprobante_recibida, # <-- Replicado automáticamente como primer abono
+                comprobante_url=url_comprobante_recibida,
                 referencia_bancaria=venta.codigo_transferencia or "",
                 observacion="Abono inicial registrado con comprobante de pago"
             )
             db.add(nuevo_abono)
 
+        fecha_ecuador = datetime.now(ZoneInfo("America/Guayaquil")).date()
         for it in items_procesados:
             variante = it["variante"]
             variante.stock_actual -= it["cantidad"]
@@ -363,7 +372,8 @@ def registrar_venta(venta: VentaFacturaSchema, db: Session = Depends(get_db)):
                 cantidad=-it["cantidad"], 
                 referencia_factura=f"Fact Venta: {venta.numero_factura}",
                 valor_neto=subtotal_renglon,
-                entidad_asociada=venta.nombre_cliente
+                entidad_asociada=venta.nombre_cliente,
+                fecha_hora=fecha_ecuador
             )
             db.add(movimiento)
             

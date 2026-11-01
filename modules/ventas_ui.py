@@ -205,7 +205,7 @@ def render_ventas():
                                         st.text(f"• SKU: {it['sku']} | Cant: {it['cantidad']} | P.Unit: ${it['precio_unitario']:.2f}")
 
                                 with col_info2:
-                                    st.markdown("###### 🧾 Comprobante de Pago")
+                                    st.markdown("**🧾 Comprobante de Pago (Transferencia)**")
                                     comp_url = orden.get('comprobante_url')
                                     if comp_url:
                                         if comp_url.startswith("http"):
@@ -214,7 +214,7 @@ def render_ventas():
                                             base_server = API_URL.replace("/api", "")
                                             img_src = f"{base_server}/{comp_url.lstrip('/')}"
                                         
-                                        # Usamos un contenedor centrado o ancho limitado para que no ocupe toda la pantalla
+                                        # Imagen compacta y centrada estéticamente
                                         col_img1, col_img_centro, col_img2 = st.columns([1, 3, 1])
                                         with col_img_centro:
                                             st.image(img_src, caption="Comprobante de Transferencia", width=260)
