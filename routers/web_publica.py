@@ -600,13 +600,17 @@ async def _procesar_checkout_comun(
     comprobante_nombre = None
 
     if comprobante:
-        comprobante_bytes = await comprobante.read()
-        comprobante_nombre = comprobante.filename
         try:
+            # Leer los bytes crudos primero para el correo
+            comprobante_bytes = await comprobante.read()
+            comprobante_nombre = comprobante.filename or "comprobante_pago.jpg"
+            
+            # Subir una copia a Cloudinary para el panel administrativo
             upload_result = cloudinary.uploader.upload(comprobante_bytes)
             file_url = upload_result.get("secure_url", comprobante_nombre)
-        except Exception:
-            file_url = comprobante_nombre
+        except Exception as e:
+            print(f"⚠️ Advertencia al procesar comprobante: {e}")
+            file_url = comprobante_nombre if comprobante_nombre else "comprobante_adjunto"
 
     # Lógica de Plan Acumulativo
     es_acumulativo = (metodo_pago == "Plan Acumulativo")
