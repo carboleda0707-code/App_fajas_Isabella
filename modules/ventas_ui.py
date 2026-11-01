@@ -13,6 +13,7 @@ def render_ventas():
     with tab_nueva:
         st.markdown("##### 📝 Registro Manual de Venta o Abono Inicial")
         
+        # 1. Búsqueda y Selección Inteligente de Cliente
         st.markdown("###### 1. Información del Cliente")
         try:
             res_cli = requests.get(f"{API_URL}/clientes", timeout=5)
@@ -49,12 +50,36 @@ def render_ventas():
 
         st.markdown("---")
         
+        # 2. Datos de Facturación y Logística (Factura Automática AAMM + Consecutivo)
         st.markdown("###### 2. Datos de Facturación y Logística")
+        
+        hoy = date.today()
+        prefijo_aamm = hoy.strftime("%y%m") # Ej: "2611" para noviembre 2026
+        
+        siguiente_consecutivo = 1
+        try:
+            res_rep = requests.get(f"{API_URL}/ventas/reporte", timeout=5)
+            if res_rep.status_code == 200:
+                facturas_existentes = res_rep.json()
+                consecutivos_mes = []
+                for f in facturas_existentes:
+                    num_fac = str(f.get("numero_factura", ""))
+                    if num_fac.startswith(prefijo_aamm):
+                        sufijo = num_fac[len(prefijo_aamm):]
+                        if sufijo.isdigit():
+                            consecutivos_mes.append(int(sufijo))
+                if consecutivos_mes:
+                    siguiente_consecutivo = max(consecutivos_mes) + 1
+        except Exception:
+            pass
+        
+        num_factura_sugerido = f"{prefijo_aamm}{siguiente_consecutivo:03d}" # Ej: 2611001
+
         col_f1, col_f2, col_f3 = st.columns(3)
         with col_f1:
-            num_factura = st.text_input("Número de Factura / Orden *", value=f"FAC-{date.today().strftime('%Y%m%d')}-01")
+            num_factura = st.text_input("Número de Factura / Orden *", value=num_factura_sugerido, help="Formato automático AAMM + Consecutivo (se reinicia cada mes)")
         with col_f2:
-            fecha_factura = st.date_input("Fecha de Factura", value=date.today())
+            fecha_factura = st.date_input("Fecha de Factura", value=hoy)
         with col_f3:
             metodo_pago = st.selectbox("Método de Pago", ["Efectivo", "Transferencia", "Tarjeta de Crédito", "Plan Acumulativo"])
 
@@ -83,14 +108,16 @@ def render_ventas():
 
         st.markdown("---")
 
+        # 3. Selección de Productos (SKU) con Chivato de Diagnóstico
         st.markdown("###### 3. Selección de Productos (SKU)")
         
-        # Obtener inventario de forma robusta
         inventario_lista = []
+        origen_datos = "Ninguno"
         try:
             res_inv = requests.get(f"{API_URL}/inventario", timeout=5)
             if res_inv.status_code == 200:
                 inventario_lista = res_inv.json()
+                origen_datos = "/inventario"
         except Exception:
             pass
 
@@ -99,28 +126,35 @@ def render_ventas():
                 res_prod = requests.get(f"{API_URL}/productos", timeout=5)
                 if res_prod.status_code == 200:
                     inventario_lista = res_prod.json()
+                    origen_datos = "/productos"
             except Exception:
                 pass
+
+        # 🔍 CHIVATO DE DIAGNÓSTICO: Muestra exactamente qué devuelve la API
+        with st.expander("🛠️ [CHIVATO] Ver respuesta cruda de la API de Inventario/Productos", expanded=False):
+            st.write(f"**Origen detectado:** {origen_datos}")
+            st.write(f"**Total elementos devueltos:** {len(inventario_lista)}")
+            st.json(inventario_lista[:3] if inventario_lista else {"mensaje": "No se recibieron datos o lista vacía"})
 
         lista_opciones_display = ["-- Seleccione un producto --"]
         
         for prod in inventario_lista:
-            p_nombre = prod.get("nombre", prod.get("titulo", "Producto"))
+            p_nombre = prod.get("nombre", prod.get("titulo", prod.get("descripcion", "Producto")))
             variantes = prod.get("variantes", [])
-            if not variantes and ("sku" in prod or "talla" in prod or "color" in prod):
+            if not variantes and ("sku" in prod or "talla" in prod or "color" in prod or "codigo_sku" in prod):
                 variantes = [prod]
                 
             for var in variantes:
                 sku_v = var.get("sku", var.get("codigo_sku", ""))
-                talla_v = var.get("talla", "Única")
-                color_v = var.get("color", "Único")
+                talla_v = var.get("talla", var.get("talla_variante", "Única"))
+                color_v = var.get("color", var.get("color_variante", "Único"))
                 stock_v = var.get("stock_actual", var.get("stock", 0))
                 
                 etiqueta = f"{p_nombre} - Talla: {talla_v} / Color: {color_v} [Stock: {stock_v}] [SKU: {sku_v}]"
                 if etiqueta not in lista_opciones_display:
                     lista_opciones_display.append(etiqueta)
 
-        st.caption("💡 Haz clic en la celda de SKU para desplegar el listado de prendas. Usa el botón `+` para añadir más filas conforme necesites[cite: 10].")
+        st.caption("💡 Haz clic en la celda de SKU para desplegar el listado de prendas. Usa el botón `+` para añadir más filas conforme necesites.")
 
         if "df_items_vta" not in st.session_state:
             st.session_state.df_items_vta = pd.DataFrame([{
