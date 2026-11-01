@@ -712,17 +712,20 @@ def enviar_correo_background(
     smtp_server, smtp_port, emisor, password, destinatarios, 
     empresa, num_factura, cuerpo_html, comprobante_bytes, comprobante_nombre
 ):
+    server = None
     try:
         print("==========================================")
         print("🔍 [CHIVATO SMTP BACKGROUND] Iniciando envío...")
         print(f"📌 Servidor: {smtp_server}:{smtp_port} | Emisor: {emisor}")
         print(f"📌 Destinatarios: {destinatarios}")
         
-        msg = MIMEMultipart()
+        msg = MIMEMultipart("alternative")
         msg['From'] = f"{empresa} <{emisor}>"
         msg['To'] = ", ".join(destinatarios)
         msg['Subject'] = f"🛍️ Confirmación de Pedido #{num_factura} - {empresa}"
-        msg.attach(MIMEText(cuerpo_html, 'html'))
+        
+        # Forzar codificación utf-8 explícita para evitar errores con tildes o eñes
+        msg.attach(MIMEText(cuerpo_html, 'html', 'utf-8'))
 
         if comprobante_bytes and comprobante_nombre:
             part = MIMEBase('application', 'octet-stream')
@@ -731,15 +734,24 @@ def enviar_correo_background(
             part.add_header('Content-Disposition', f'attachment; filename="{comprobante_nombre}"')
             msg.attach(part)
 
-        server = smtplib.SMTP(smtp_server, smtp_port, timeout=15)
+        server = smtplib.SMTP(str(smtp_server), int(smtp_port), timeout=15)
+        server.ehlo()
         server.starttls()
+        server.ehlo()
+        
         server.login(emisor, password)
-        server.sendmail(emisor, destinatarios, msg.as_string())
+        server.sendmail(emisor, destinatarios, msg.as_string().encode('utf-8'))
         server.quit()
         print("✅ [CHIVATO SMTP BACKGROUND]: ¡Correo enviado exitosamente!")
         
     except Exception as smtp_err:
         print(f"❌ [CHIVATO SMTP BACKGROUND ERROR]: {type(smtp_err).__name__}: {str(smtp_err)}")
+    finally:
+        if server:
+            try:
+                server.quit()
+            except:
+                pass
 
 
 # ==============================================================================
