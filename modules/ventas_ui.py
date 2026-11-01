@@ -177,8 +177,11 @@ def render_ventas():
 
         # 2. VENTAS POR APROBAR (APROBACIÓN FINANCIERA)
         with subtab_aprobar:
-            st.markdown("###### 🔍 Auditoría y Aprobación de Órdenes Web (WhatsApp / Correo)")
-            st.info("Revisa la orden, los ítems y el comprobante de pago. Al hacer clic en 'Aprobar Pago', la orden cambiará a PENDIENTE y se enviará automáticamente al módulo de Logística.")
+            # Mensaje informativo movido limpiamente al icono de ayuda (?)
+            st.markdown(
+                "###### 🔍 Auditoría y Aprobación de Órdenes Web", 
+                help="Revisa la orden, los ítems y el comprobante de pago. Al hacer clic en 'Aprobar Pago', la orden cambiará a PENDIENTE y se enviará automáticamente al módulo de Logística."
+            )
             
             try:
                 res_aprob = requests.get(f"{API_URL}/ventas/por-aprobar", timeout=5)
@@ -200,9 +203,25 @@ def render_ventas():
                                     st.write(f"**Dirección:** {orden['direccion_entrega']}")
                                     st.write(f"**Referencia:** {orden['referencia_direccion']}")
                                     
-                                    st.markdown("**🛍️ Detalle de Ítems Comprados**")
-                                    for it in orden['items']:
-                                        st.text(f"• SKU: {it['sku']} | Cant: {it['cantidad']} | P.Unit: ${it['precio_unitario']:.2f}")
+                                    st.markdown("**🛍️ Detalle de Variantes Compradas**")
+                                    # Despliegue estructurado de las variantes compradas (SKU, Cantidad, Valor)
+                                    items_data = []
+                                    for it in orden.get('items', []):
+                                        p_unit = float(it.get('precio_unitario', 0.0))
+                                        cant = int(it.get('cantidad', 1))
+                                        subtotal_item = p_unit * cant
+                                        items_data.append({
+                                            "SKU": it.get('sku', 'N/D'),
+                                            "Cantidad": cant,
+                                            "Valor U.": f"${p_unit:.2f}",
+                                            "Subtotal": f"${subtotal_item:.2f}"
+                                        })
+                                    
+                                    if items_data:
+                                        df_ord_items = pd.DataFrame(items_data)
+                                        st.dataframe(df_ord_items, use_container_width=True, hide_index=True)
+                                    else:
+                                        st.info("Sin ítems registrados en esta orden.")
 
                                 with col_info2:
                                     st.markdown("**🧾 Comprobante de Pago (Transferencia)**")
@@ -214,7 +233,6 @@ def render_ventas():
                                             base_server = API_URL.replace("/api", "")
                                             img_src = f"{base_server}/{comp_url.lstrip('/')}"
                                         
-                                        # Imagen compacta y centrada estéticamente
                                         col_img1, col_img_centro, col_img2 = st.columns([1, 3, 1])
                                         with col_img_centro:
                                             st.image(img_src, caption="Comprobante de Transferencia", width=260)
