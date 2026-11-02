@@ -484,7 +484,7 @@ def registrar_cliente_web(
 
 
 # ==============================================================================
-# FUNCIÓN AUXILIAR COMÚN PARA PROCESAR PEDIDOS (CON APLICACIÓN FESTIVA WEB)
+# FUNCIÓN AUXILIAR COMÚN PARA PROCESAR PEDIDOS (CON VALIDACIÓN ESTRICTA)
 # ==============================================================================
 
 async def _procesar_checkout_comun(
@@ -504,11 +504,21 @@ async def _procesar_checkout_comun(
     abono_inicial: float,
     db: Session
 ):
-    correo_limpio = correo.lower().strip() if (correo and correo.strip() != "") else None
+    # --- VALIDACIÓN ESTRICTA DE CAMPOS OBLIGATORIOS ---
+    if not ruc_cedula or not ruc_cedula.strip():
+        raise HTTPException(status_code=400, detail="El RUC o Cédula es obligatorio.")
+    if not razon_social or not razon_social.strip():
+        raise HTTPException(status_code=400, detail="El Nombre o Razón Social es obligatorio.")
+    if not telefono or not telefono.strip():
+        raise HTTPException(status_code=400, detail="El número de teléfono es obligatorio.")
+    if not direccion or not direccion.strip():
+        raise HTTPException(status_code=400, detail="La dirección de entrega es obligatoria.")
+    if not correo or not correo.strip() or "@" not in correo:
+        raise HTTPException(status_code=400, detail="Debe ingresar un correo electrónico válido.")
+
+    correo_limpio = correo.lower().strip()
     
-    cliente_db = None
-    if correo_limpio:
-        cliente_db = db.query(Cliente).filter(Cliente.correo == correo_limpio).first()
+    cliente_db = db.query(Cliente).filter(Cliente.correo == correo_limpio).first()
     if not cliente_db and ruc_cedula:
         cliente_db = db.query(Cliente).filter(Cliente.ruc_cedula == ruc_cedula).first()
 
@@ -519,8 +529,7 @@ async def _procesar_checkout_comun(
         cliente_db.direccion = direccion
         cliente_db.ciudad = ciudad
         cliente_db.cliente_web = True
-        if correo_limpio and not cliente_db.correo:
-            cliente_db.correo = correo_limpio
+        cliente_db.correo = correo_limpio
             
         if not cliente_db.password:
             password_temporal = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
@@ -529,12 +538,11 @@ async def _procesar_checkout_comun(
     else:
         password_temporal = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
         password_hash_temp = generar_hash_sha256(password_temporal)
-        reg_correo = correo_limpio if correo_limpio else f"{ruc_cedula.strip()}@fajasisabella.com"
         
         cliente_db = Cliente(
             ruc_cedula=ruc_cedula,
             nombre=razon_social,
-            correo=reg_correo,
+            correo=correo_limpio,
             password=password_hash_temp,
             telefono=telefono,
             direccion=direccion,
@@ -701,7 +709,7 @@ async def _procesar_checkout_comun(
 async def checkout_whatsapp(
     nombre: str = Form(...),
     telefono: str = Form(...),
-    correo: Optional[str] = Form(None),
+    correo: str = Form(...),
     ruc_cedula: str = Form(...),
     razon_social: str = Form(...),
     provincia: str = Form(...),
@@ -746,6 +754,8 @@ async def checkout_whatsapp(
         }
 
     except Exception as db_err:
+        if isinstance(db_err, HTTPException):
+            raise db_err
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error en servidor/BD: {str(db_err)}")
 
@@ -755,7 +765,7 @@ async def checkout_correo(
     background_tasks: BackgroundTasks,
     nombre: str = Form(...),
     telefono: str = Form(...),
-    correo: Optional[str] = Form(None),
+    correo: str = Form(...),
     ruc_cedula: str = Form(...),
     razon_social: str = Form(...),
     provincia: str = Form(...),
@@ -805,6 +815,8 @@ async def checkout_correo(
         }
 
     except Exception as db_err:
+        if isinstance(db_err, HTTPException):
+            raise db_err
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error en servidor/BD: {str(db_err)}")
 

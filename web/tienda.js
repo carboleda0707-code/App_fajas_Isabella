@@ -912,19 +912,30 @@ async function procesarPedidoWhatsApp(event) {
         return;
     }
 
-    const ventanaWhatsApp = window.open('about:blank', '_blank');
+    // Validación frontal rápida en JavaScript antes de enviar
+    const nombreCliente = getVal(['wapp_nombre', 'nombre-cliente', 'nombre'], '').trim();
+    const telefonoCliente = getVal(['wapp_telefono', 'telefono-cliente', 'telefono'], '').trim();
+    const correoCliente = getVal(['wapp_correo', 'correo-cliente', 'correo'], '').trim();
+    const rucCedula = getVal(['wapp_ruc', 'ruccedula-cliente', 'ruccedula'], '').trim();
+    const razonSocial = getVal(['wapp_razon', 'razon-social-cliente', 'razons'], nombreCliente).trim();
+    const provincia = getVal(['wapp_provincia', 'provincia-cliente', 'provincia'], 'Guayas').trim();
+    const ciudad = getVal(['wapp_ciudad', 'ciudad-cliente', 'ciudad'], 'Guayaquil').trim();
+    const direccion = getVal(['wapp_direccion', 'direccion-cliente', 'direccion'], '').trim();
+    const referencia = getVal(['wapp_referencia', 'referencia-cliente', 'referencia'], '').trim();
 
-    const nombreCliente = getVal(['nombre-cliente', 'nombre', 'wapp_nombre', 'txt-nombre'], 'Cliente');
-    const telefonoCliente = getVal(['telefono-cliente', 'telefono', 'wapp_telefono', 'txt-telefono'], '0999999999');
-    const correoCliente = getVal(['correo-cliente', 'correo', 'wapp_correo', 'txt-correo'], '');
-    const rucCedula = getVal(['ruccedula-cliente', 'ruc_cedula', 'ruccedula', 'wapp_ruc'], '9999999999');
-    const razonSocial = getVal(['razon-social-cliente', 'razon_social', 'razonsocial', 'wapp_razon'], nombreCliente);
-    const provincia = getVal(['provincia-cliente', 'provincia', 'wapp_provincia'], 'Guayas');
-    const ciudad = getVal(['ciudad-cliente', 'ciudad', 'wapp_ciudad'], 'Guayaquil');
-    const direccion = getVal(['direccion-cliente', 'direccion', 'wapp_direccion', 'direccion_entrega'], 'Principal');
-    const referencia = getVal(['referencia-cliente', 'referencia', 'wapp_referencia'], '');
+    if (!nombreCliente || !telefonoCliente || !correoCliente || !rucCedula || !razonSocial || !provincia || !ciudad || !direccion) {
+        alert("⚠️ Por favor completa todos los campos obligatorios del formulario (Nombre, Teléfono, Correo, RUC/Cédula, Dirección).");
+        return;
+    }
+
+    if (!correoCliente.includes('@')) {
+        alert("⚠️ Ingresa un correo electrónico válido para recibir la confirmación de tu pedido.");
+        return;
+    }
+
+    const ventanaWhatsApp = window.open('about:blank', '_blank');
     
-    const inputComprobante = document.getElementById('input-comprobante-pago') || document.getElementById('wapp_comprobante') || document.getElementById('comprobante');
+    const inputComprobante = document.getElementById('wapp_comprobante') || document.getElementById('input-comprobante-pago');
     const archivoComprobante = inputComprobante && inputComprobante.files[0] ? inputComprobante.files[0] : null;
 
     const formData = new FormData();
@@ -978,17 +989,27 @@ async function procesarPedidoCorreo(event) {
         return;
     }
 
-    const nombreCliente = getVal(['nombre-cliente', 'nombre', 'wapp_nombre', 'txt-nombre'], 'Cliente');
-    const telefonoCliente = getVal(['telefono-cliente', 'telefono', 'wapp_telefono', 'txt-telefono'], '0999999999');
-    const correoCliente = getVal(['correo-cliente', 'correo', 'wapp_correo', 'txt-correo'], '');
-    const rucCedula = getVal(['ruccedula-cliente', 'ruc_cedula', 'ruccedula', 'wapp_ruc'], '9999999999');
-    const razonSocial = getVal(['razon-social-cliente', 'razon_social', 'razonsocial', 'wapp_razon'], nombreCliente);
-    const provincia = getVal(['provincia-cliente', 'provincia', 'wapp_provincia'], 'Guayas');
-    const ciudad = getVal(['ciudad-cliente', 'ciudad', 'wapp_ciudad'], 'Guayaquil');
-    const direccion = getVal(['direccion-cliente', 'direccion', 'wapp_direccion', 'direccion_entrega'], 'Principal');
-    const referencia = getVal(['referencia-cliente', 'referencia', 'wapp_referencia'], '');
-    
-    const inputComprobante = document.getElementById('input-comprobante-pago') || document.getElementById('wapp_comprobante') || document.getElementById('comprobante');
+    const nombreCliente = getVal(['wapp_nombre', 'nombre-cliente', 'nombre'], '').trim();
+    const telefonoCliente = getVal(['wapp_telefono', 'telefono-cliente', 'telefono'], '').trim();
+    const correoCliente = getVal(['wapp_correo', 'correo-cliente', 'correo'], '').trim();
+    const rucCedula = getVal(['wapp_ruc', 'ruccedula-cliente', 'ruccedula'], '').trim();
+    const razonSocial = getVal(['wapp_razon', 'razon-social-cliente', 'razons'], nombreCliente).trim();
+    const provincia = getVal(['wapp_provincia', 'provincia-cliente', 'provincia'], 'Guayas').trim();
+    const ciudad = getVal(['wapp_ciudad', 'ciudad-cliente', 'ciudad'], 'Guayaquil').trim();
+    const direccion = getVal(['wapp_direccion', 'direccion-cliente', 'direccion'], '').trim();
+    const referencia = getVal(['wapp_referencia', 'referencia-cliente', 'referencia'], '').trim();
+
+    if (!nombreCliente || !telefonoCliente || !correoCliente || !rucCedula || !razonSocial || !provincia || !ciudad || !direccion) {
+        alert("⚠️ Por favor completa todos los campos obligatorios del formulario (Nombre, Teléfono, Correo, RUC/Cédula, Dirección).");
+        return;
+    }
+
+    if (!correoCliente.includes('@')) {
+        alert("⚠️ Ingresa un correo electrónico válido para recibir la confirmación de tu pedido.");
+        return;
+    }
+
+    const inputComprobante = document.getElementById('wapp_comprobante') || document.getElementById('input-comprobante-pago');
     const archivoComprobante = inputComprobante && inputComprobante.files[0] ? inputComprobante.files[0] : null;
 
     const formData = new FormData();
@@ -1016,6 +1037,7 @@ async function procesarPedidoCorreo(event) {
         const data = await res.json();
         if (res.ok && data.status === 'success') {
             limpiarEstadoYFormularioPostCompra();
+            alert("¡Pedido registrado exitosamente! Se ha enviado la notificación de compra.");
         } else {
             const detalleError = typeof data.detail === 'object' ? JSON.stringify(data.detail) : (data.detail || "Intente nuevamente.");
             alert("Error al procesar el pedido por correo: " + detalleError);
