@@ -701,12 +701,8 @@ def enviar_correo_background(
     emisor, destinatarios, empresa, num_factura, cuerpo_html, comprobante_bytes, comprobante_nombre
 ):
     try:
-        print("==================================================")
-        print("🔍 [CHIVATO BREVO API HTTP] Iniciando envío por HTTPS (Puerto 443)...")
-        
         api_key = os.getenv("MAIL_API_KEY", "")
         if not api_key:
-            print("❌ [BREVO ERROR]: La variable de entorno MAIL_API_KEY no está configurada en Railway.")
             return
 
         url = "https://api.brevo.com/v3/smtp/email"
@@ -717,14 +713,12 @@ def enviar_correo_background(
             "content-type": "application/json"
         }
 
-        # 📧 Destinatario principal (El cliente que compra)
-        # tomamos el primer elemento de la lista destinatarios
         correo_cliente = destinatarios[0] if destinatarios else CORREO_EMPRESA
 
         payload = {
-            "sender": {"name": empresa, "email": emisor},  # 👈 Usa directamente el emisor válido
+            "sender": {"name": empresa, "email": emisor},
             "to": [{"email": correo_cliente}],
-            "bcc": [{"email": CORREO_EMPRESA}],             # 🕵️ Copia oculta para Fajas Isabella (No duplica consumo)
+            "bcc": [{"email": CORREO_EMPRESA}],
             "subject": f"🛍️ Confirmación de Pedido #{num_factura} - {empresa}",
             "htmlContent": cuerpo_html
         }
@@ -736,15 +730,10 @@ def enviar_correo_background(
                 "name": comprobante_nombre
             }]
 
-        response = requests.post(url, json=payload, headers=headers, timeout=15)
-        
-        if response.status_code in [200, 201]:
-            print("✅ [CHIVATO BREVO API HTTP]: ¡Correo enviado exitosamente a través de la API de Brevo!")
-        else:
-            print(f"❌ [CHIVATO BREVO API ERROR]: Código {response.status_code} - {response.text}")
+        requests.post(url, json=payload, headers=headers, timeout=15)
             
     except Exception as api_err:
-        print(f"❌ [CHIVATO BREVO EXCEPTION]: {type(api_err).__name__}: {str(api_err)}")
+        print(f"Error en envío de correo: {str(api_err)}")
 
 
 # ==============================================================================
@@ -801,7 +790,6 @@ async def checkout_whatsapp(
 
     except Exception as db_err:
         db.rollback()
-        print(f"❌ [CHIVATO CHECKOUT WHATSAPP ERROR]: {str(db_err)}")
         raise HTTPException(status_code=500, detail=f"Error en servidor/BD: {str(db_err)}")
 
 
@@ -832,75 +820,78 @@ async def checkout_correo(
         
         correo_limpio = correo.lower().strip() if (correo and correo.strip() != "") else None
 
-        if os.getenv("MAIL_API_KEY"):
-            destinatarios = [CORREO_EMPRESA]
-            if correo_limpio and correo_limpio not in destinatarios:
-                destinatarios.append(correo_limpio)
-
-            filas_items = ""
-            for item in res["lista_items"]:
-                cant = int(item.get('cantidad', 1))
-                prec = float(item.get('precio', 0))
-                filas_items += f"""
-                <tr>
-                    <td style="padding: 8px; border-bottom: 1px solid #ddd;">{item.get('nombre')} ({item.get('talla', 'N/D')} / {item.get('color', 'N/D')})</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">{cant}</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">${prec:.2f}</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">${(cant * prec):.2f}</td>
-                </tr>
-                """
-
-            cuerpo_html = f"""
-            <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 10px; padding: 20px;">
-                <h2 style="color: #e11d48; text-align: center;">¡Nuevo Pedido Generado en {NOMBRE_EMPRESA}!</h2>
-                <p>Se ha registrado el pedido <strong>#{res['num_factura_str']}</strong> exitosamente.</p>
-                
-                <hr style="border: 0; border-top: 1px solid #eee;">
-                
-                <h3>📋 Datos del Cliente y Envío</h3>
-                <p>
-                    <strong>Cliente / Razón Social:</strong> {razon_social}<br>
-                    <strong>RUC / Cédula:</strong> {ruc_cedula}<br>
-                    <strong>Teléfono:</strong> {telefono}<br>
-                    <strong>Correo:</strong> {correo_limpio or 'No registrado'}<br>
-                    <strong>Dirección de Entrega:</strong> {direccion}, {ciudad}, {provincia}<br>
-                    <strong>Referencia:</strong> {referencia or 'N/A'}
-                </p>
-
-                <h3>🛍️ Detalle del Pedido</h3>
-                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-                    <thead>
-                        <tr style="background-color: #f8fafc;">
-                            <th style="padding: 8px; text-align: left;">Producto</th>
-                            <th style="padding: 8px; text-align: center;">Cant.</th>
-                            <th style="padding: 8px; text-align: right;">Precio</th>
-                            <th style="padding: 8px; text-align: right;">Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filas_items}
-                    </tbody>
-                </table>
-
-                <h3 style="text-align: right; color: #e11d48; margin-top: 15px;">Total Pedido: ${res['total_pedido']:.2f}</h3>
+        filas_items = ""
+        for item in res["lista_items"]:
+            cant = int(item.get('cantidad', 1))
+            prec = float(item.get('precio', 0))
+            filas_items += f"""
+            <tr>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd;">{item.get('nombre')} ({item.get('talla', 'N/D')} / {item.get('color', 'N/D')})</td>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">{cant}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">${prec:.2f}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">${(cant * prec):.2f}</td>
+            </tr>
             """
 
-            if res["password_temporal"]:
-                cuerpo_html += f"""
-                <div style="background-color: #fff1f2; padding: 12px; border-radius: 8px; margin-top: 15px;">
-                    <p style="margin: 0; font-size: 13px; color: #9f1239;">
-                        🔑 <strong>Acceso a Cuenta Cliente:</strong><br>
-                        <strong>Usuario:</strong> {res['cliente_db'].correo}<br>
-                        <strong>Clave Temporal:</strong> {res['password_temporal']}
-                    </p>
-                </div>
-                """
+        cuerpo_html = f"""
+        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 10px; padding: 20px;">
+            <h2 style="color: #e11d48; text-align: center;">¡Nuevo Pedido Generado en {NOMBRE_EMPRESA}!</h2>
+            <p>Se ha registrado el pedido <strong>#{res['num_factura_str']}</strong> exitosamente.</p>
+            
+            <hr style="border: 0; border-top: 1px solid #eee;">
+            
+            <h3>📋 Datos del Cliente y Envío</h3>
+            <p>
+                <strong>Cliente / Razón Social:</strong> {razon_social}<br>
+                <strong>RUC / Cédula:</strong> {ruc_cedula}<br>
+                <strong>Teléfono:</strong> {telefono}<br>
+                <strong>Correo:</strong> {correo_limpio or 'No registrado'}<br>
+                <strong>Dirección de Entrega:</strong> {direccion}, {ciudad}, {provincia}<br>
+                <strong>Referencia:</strong> {referencia or 'N/A'}
+            </p>
 
+            <h3>🛍️ Detalle del Pedido</h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                <thead>
+                    <tr style="background-color: #f8fafc;">
+                        <th style="padding: 8px; text-align: left;">Producto</th>
+                        <th style="padding: 8px; text-align: center;">Cant.</th>
+                        <th style="padding: 8px; text-align: right;">Precio</th>
+                        <th style="padding: 8px; text-align: right;">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {filas_items}
+                </tbody>
+            </table>
+
+            <h3 style="text-align: right; color: #e11d48; margin-top: 15px;">Total Pedido: ${res['total_pedido']:.2f}</h3>
+        """
+
+        if res["password_temporal"]:
             cuerpo_html += f"""
-                <hr style="border: 0; border-top: 1px solid #eee; margin-top: 20px;">
-                <p style="font-size: 11px; color: #888; text-align: center;">Mensaje automático enviado desde la plataforma de {NOMBRE_EMPRESA}.</p>
+            <div style="background-color: #fff1f2; padding: 12px; border-radius: 8px; margin-top: 15px;">
+                <p style="margin: 0; font-size: 13px; color: #9f1239;">
+                    🔑 <strong>Acceso a Cuenta Cliente:</strong><br>
+                    <strong>Usuario:</strong> {res['cliente_db'].correo}<br>
+                    <strong>Clave Temporal:</strong> {res['password_temporal']}
+                </p>
             </div>
             """
+
+        cuerpo_html += f"""
+            <hr style="border: 0; border-top: 1px solid #eee; margin-top: 20px;">
+            <p style="font-size: 11px; color: #888; text-align: center;">Mensaje automático enviado desde la plataforma de {NOMBRE_EMPRESA}.</p>
+        </div>
+        """
+
+        if os.getenv("MAIL_API_KEY"):
+            destinatarios = []
+            if correo_limpio:
+                destinatarios.append(correo_limpio)
+            
+            if not destinatarios:
+                destinatarios.append(CORREO_EMPRESA)
 
             background_tasks.add_task(
                 enviar_correo_background,
@@ -912,8 +903,6 @@ async def checkout_correo(
                 res["comprobante_bytes"],
                 res["comprobante_nombre"]
             )
-        else:
-            print("⚠️ [CHIVATO BREVO WARNING]: No se intentó el envío porque la variable MAIL_API_KEY no está configurada en Railway.")
 
         return {
             "status": "success",
@@ -922,7 +911,6 @@ async def checkout_correo(
 
     except Exception as db_err:
         db.rollback()
-        print(f"❌ [CHIVATO CHECKOUT CORREO ERROR]: {str(db_err)}")
         raise HTTPException(status_code=500, detail=f"Error en servidor/BD: {str(db_err)}")
 
 
