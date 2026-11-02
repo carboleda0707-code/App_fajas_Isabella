@@ -50,7 +50,7 @@ def render_ventas():
 
         st.markdown("---")
         
-        # 2. Datos de Facturación y Logística (Factura Automática de Solo Lectura AAMM+001)
+        # 2. Datos de Facturación y Logística
         st.markdown("###### 2. Datos de Facturación y Logística")
         
         hoy = date.today()
@@ -77,7 +77,7 @@ def render_ventas():
 
         col_f1, col_f2, col_f3 = st.columns(3)
         with col_f1:
-            num_factura = st.text_input("Número de Factura / Orden (Automático) *", value=num_factura_auto, disabled=True, help="Generado automáticamente por el sistema (AAMM + Secuencial). Nadie lo digita.")
+            num_factura = st.text_input("Número de Factura / Orden (Automático) *", value=num_factura_auto, disabled=True, help="Generado automáticamente por el sistema (AAMM + Secuencial).")
         with col_f2:
             fecha_factura = st.date_input("Fecha de Factura", value=hoy)
         with col_f3:
@@ -108,7 +108,7 @@ def render_ventas():
 
         st.markdown("---")
 
-        # 3. Selección de Productos AFUERA del Recuadro (Ingreso Dinámico)
+        # 3. Selección de Productos
         st.markdown("###### 3. Selección e Ingreso de Productos")
         
         inventario_lista = []
@@ -158,7 +158,6 @@ def render_ventas():
                     if etiqueta not in opciones_desplegable:
                         opciones_desplegable.append(etiqueta)
 
-        # Controles externos a la tabla
         col_sel1, col_sel2, col_sel3 = st.columns([3, 1, 1])
         with col_sel1:
             prod_seleccionado_etiqueta = st.selectbox(
@@ -169,10 +168,9 @@ def render_ventas():
         with col_sel2:
             cant_ingresar = st.number_input("Cantidad", min_value=1, value=1, step=1, key="input_cant_externo")
         with col_sel3:
-            st.write("&nbsp;") # Espaciador para alinear el botón
+            st.write("&nbsp;")
             btn_agregar = st.button("➕ Añadir Item", type="secondary", use_container_width=True)
 
-        # Inicializar lista de ítems agregados a la venta en session_state
         if "lista_items_venta" not in st.session_state:
             st.session_state.lista_items_venta = []
 
@@ -182,7 +180,6 @@ def render_ventas():
             else:
                 info_p = diccionario_productos_bd.get(prod_seleccionado_etiqueta)
                 if info_p:
-                    # Verificar si el producto ya está añadido para sumar cantidad
                     existe = False
                     for item in st.session_state.lista_items_venta:
                         if item["SKU"] == info_p["sku"]:
@@ -204,7 +201,6 @@ def render_ventas():
                         })
                     st.toast(f"✅ ¡{info_p['nombre']} añadido a la lista!", icon="🛍️")
 
-        # Visualizar la lista de productos agregados de forma limpia
         st.markdown("###### 📋 Lista de Productos Añadidos a la Factura")
         
         if st.session_state.lista_items_venta:
@@ -227,14 +223,16 @@ def render_ventas():
                 }
             )
             
-            # Recalcular subtotales si el usuario modifica la cantidad en la tabla
-            nueva_lista = []
-            for _, row in df_editado.iterrows():
-                cant_f = int(row.get("Cantidad", 1))
-                p_f = float(row.get("Precio Unit. ($)", 0.0))
-                row["Subtotal ($)"] = round(cant_f * p_f, 2)
-                nueva_lista.append(row.to_dict())
-            st.session_state.lista_items_venta = nueva_lista
+            # Sincronización robusta del editor de datos con el estado de la sesión
+            if df_editado is not None and not df_editado.empty:
+                nueva_lista = []
+                for _, row in df_editado.iterrows():
+                    cant_f = int(row.get("Cantidad", 1))
+                    p_f = float(row.get("Precio Unit. ($)", 0.0))
+                    row_dict = row.to_dict()
+                    row_dict["Subtotal ($)"] = round(cant_f * p_f, 2)
+                    nueva_lista.append(row_dict)
+                st.session_state.lista_items_venta = nueva_lista
             
             total_factura = sum(item["Subtotal ($)"] for item in st.session_state.lista_items_venta)
             st.markdown(f"#### 💰 Total Factura: `${total_factura:.2f}`")
@@ -264,7 +262,7 @@ def render_ventas():
                     })
 
                 payload_venta = {
-                    "numero_factura": num_factura_auto, # Siempre el número automático generado
+                    "numero_factura": num_factura_auto,
                     "fecha_factura": str(fecha_factura),
                     "metodo_pago": metodo_pago,
                     "codigo_transferencia": codigo_trans,
@@ -284,8 +282,8 @@ def render_ventas():
                     resp = requests.post(f"{API_URL}/ventas-factura", json=payload_venta, timeout=10)
                     if resp.status_code == 200:
                         st.success("✅ ¡Venta registrada exitosamente!")
-                        st.session_state.lista_items_venta = [] # Limpiar tabla
-                        st.balloons()
+                        st.session_state.lista_items_venta = []
+                        st.rerun()  # Refrescar para limpiar estado y actualizar consecutivos
                     else:
                         err_det = resp.json().get("detail", "Error desconocido")
                         st.error(f"❌ Error al procesar la venta: {err_det}")
@@ -305,9 +303,9 @@ def render_ventas():
             st.markdown("###### 📅 Filtrar Ventas Generales por Fecha")
             col_f1, col_f2 = st.columns(2)
             with col_f1:
-                fecha_inicio = st.date_input("Fecha Inicio", value=date(2026, 1, 1))
+                fecha_inicio = st.date_input("Fecha Inicio", value=date(2026, 1, 1), key="f_ini_gen")
             with col_f2:
-                fecha_fin = st.date_input("Fecha Fin", value=date.today())
+                fecha_fin = st.date_input("Fecha Fin", value=date.today(), key="f_fin_gen")
 
             try:
                 res_rep = requests.get(f"{API_URL}/ventas/reporte", timeout=5)
@@ -339,6 +337,7 @@ def render_ventas():
                         st.success("🎉 ¡Excelente! No hay órdenes web pendientes de aprobación.")
                     else:
                         for orden in ordenes_pendientes:
+                            # Protección de ID única para el expander y elementos internos
                             with st.expander(f"Orden #{orden['numero_factura']} - {orden['cliente']} (${orden['total_factura']:.2f}) [POR APROBAR]"):
                                 col_info1, col_info2 = st.columns([1, 1])
                                 with col_info1:
@@ -379,11 +378,12 @@ def render_ventas():
                                         st.warning("⚠️ Sin imagen adjunta o la ruta no está disponible.")
                                     
                                     st.markdown("---")
-                                    if st.button(f"✅ Aprobar Pago y Enviar a Bodega", key=f"btn_aprob_{orden['id']}", type="primary", use_container_width=True):
+                                    # Botón con key segura basada en el ID único de la factura/orden
+                                    if st.button(f"✅ Aprobar Pago y Enviar a Bodega", key=f"btn_aprobar_pago_{orden['id']}", type="primary", use_container_width=True):
                                         try:
                                             res_post = requests.post(f"{API_URL}/ventas/{orden['id']}/aprobar-pago", timeout=5)
                                             if res_post.status_code == 200:
-                                                st.success(f"¡Orden Nº {orden['numero_factura']} aprobada y enviada a Bodega!")
+                                                st.success(f"¡Orden Nº {orden['numero_factura']} aprobada, enviada a Bodega y correo enviado al cliente!")
                                                 st.rerun()
                                             else:
                                                 err_msg = res_post.json().get("detail", "Error al aprobar")
