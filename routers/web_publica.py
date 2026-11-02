@@ -708,10 +708,27 @@ def enviar_correo_background(
     server = None
     try:
         puerto_ssl = int(smtp_port) if smtp_port else 465
-        print("==========================================")
-        print(f"🔍 [CHIVATO SMTP SSL BACKGROUND] Iniciando envío por Puerto {puerto_ssl}...")
-        print(f"📌 Servidor: {smtp_server}:{puerto_ssl} | Emisor: {emisor}")
-        print(f"📌 Destinatarios: {destinatarios}")
+        
+        # --- 🔍 CHIVATO MAESTRO DE VARIABLES ---
+        print("==================================================")
+        print("🔍 [CHIVATO DETALLADO DE VARIABLES SMTP]")
+        print(f"  - SMTP_SERVER: {repr(smtp_server)}")
+        print(f"  - SMTP_PORT: {repr(smtp_port)} (Convertido a int: {puerto_ssl})")
+        print(f"  - EMAIL_EMISOR (Remitente): {repr(emisor)}")
+        
+        if password:
+            pwd_long = len(password)
+            pwd_muestra = f"{password[:2]}...{password[-2:]}" if pwd_long > 4 else "***"
+            print(f"  - EMAIL_PASSWORD: [PRESENTE] - Longitud: {pwd_long} caracteres - Muestra: {pwd_muestra}")
+        else:
+            print("  - EMAIL_PASSWORD: ❌ [VACÍO O NULO]")
+            
+        print(f"  - DESTINATARIOS: {repr(destinatarios)}")
+        print(f"  - NOMBRE_EMPRESA: {repr(empresa)}")
+        print(f"  - NUM_FACTURA: {repr(num_factura)}")
+        print(f"  - COMPROBANTE BYTES: {'Sí (' + str(len(comprobante_bytes)) + ' bytes)' if comprobante_bytes else 'No (None)'}")
+        print(f"  - COMPROBANTE NOMBRE: {repr(comprobante_nombre)}")
+        print("==================================================")
 
         msg = MIMEMultipart("alternative")
         msg['From'] = f"{empresa} <{emisor}>"
