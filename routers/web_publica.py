@@ -1,13 +1,9 @@
 import hashlib
 import urllib.parse
-import smtplib
-import socket
+import base64
+import requests
 from datetime import datetime, date
 from zoneinfo import ZoneInfo
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.base import MIMEBase
-from email import encoders
 from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, Form, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -22,7 +18,7 @@ import cloudinary.uploader
 from config import (
     NOMBRE_EMPRESA, TELEFONO_WHATSAPP, CORREO_EMPRESA, DIRECCION_EMPRESA,
     INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL, WHATSAPP_LINK,
-    SMTP_SERVER, SMTP_PORT, EMAIL_EMISOR, EMAIL_PASSWORD
+    EMAIL_EMISOR
 )
 
 router = APIRouter()
@@ -698,67 +694,54 @@ async def _procesar_checkout_comun(
 
 
 # ==============================================================================
-# FUNCIÓN DE ENVÍO DE CORREO EN SEGUNDO PLANO (PUERTO 465 SSL IMPLÍCITO)
+# FUNCIÓN DE ENVÍO DE CORREO EN SEGUNDO PLANO (BREVO API HTTP - PUERTO 443)
 # ==============================================================================
 
 def enviar_correo_background(
-    smtp_server, smtp_port, emisor, password, destinatarios, 
-    empresa, num_factura, cuerpo_html, comprobante_bytes, comprobante_nombre
+    emisor, destinatarios, empresa, num_factura, cuerpo_html, comprobante_bytes, comprobante_nombre
 ):
-    server = None
     try:
-        puerto_ssl = int(smtp_port) if smtp_port else 465
-        
-        # --- 🔍 CHIVATO MAESTRO DE VARIABLES ---
         print("==================================================")
-        print("🔍 [CHIVATO DETALLADO DE VARIABLES SMTP]")
-        print(f"  - SMTP_SERVER: {repr(smtp_server)}")
-        print(f"  - SMTP_PORT: {repr(smtp_port)} (Convertido a int: {puerto_ssl})")
-        print(f"  - EMAIL_EMISOR (Remitente): {repr(emisor)}")
+        print("🔍 [CHIVATO BREVO API HTTP] Iniciando envío por HTTPS (Puerto 443)...")
         
-        if password:
-            pwd_long = len(password)
-            pwd_muestra = f"{password[:2]}...{password[-2:]}" if pwd_long > 4 else "***"
-            print(f"  - EMAIL_PASSWORD: [PRESENTE] - Longitud: {pwd_long} caracteres - Muestra: {pwd_muestra}")
-        else:
-            print("  - EMAIL_PASSWORD: ❌ [VACÍO O NULO]")
-            
-        print(f"  - DESTINATARIOS: {repr(destinatarios)}")
-        print(f"  - NOMBRE_EMPRESA: {repr(empresa)}")
-        print(f"  - NUM_FACTURA: {repr(num_factura)}")
-        print(f"  - COMPROBANTE BYTES: {'Sí (' + str(len(comprobante_bytes)) + ' bytes)' if comprobante_bytes else 'No (None)'}")
-        print(f"  - COMPROBANTE NOMBRE: {repr(comprobante_nombre)}")
-        print("==================================================")
+        api_key = os.getenv("MAIL_API_KEY", "")
+        if not api_key:
+            print("❌ [BREVO ERROR]: La variable de entorno MAIL_API_KEY no está configurada en Railway.")
+            return
 
-        msg = MIMEMultipart("alternative")
-        msg['From'] = f"{empresa} <{emisor}>"
-        msg['To'] = ", ".join(destinatarios)
-        msg['Subject'] = f"🛍️ Confirmación de Pedido #{num_factura} - {empresa}"
+        url = "https://api.brevo.com/v3/smtp/email"
         
-        msg.attach(MIMEText(cuerpo_html, 'html', 'utf-8'))
+        headers = {
+            "accept": "application/json",
+            "api-key": api_key,
+            "content-type": "application/json"
+        }
+
+        to_list = [{"email": dest} for dest in destinatarios]
+
+        payload = {
+            "sender": {"name": empresa, "email": emisor or "ventas@fajasisabella.com"},
+            "to": to_list,
+            "subject": f"🛍️ Confirmación de Pedido #{num_factura} - {empresa}",
+            "htmlContent": cuerpo_html
+        }
 
         if comprobante_bytes and comprobante_nombre:
-            part = MIMEBase('application', 'octet-stream')
-            part.set_payload(comprobante_bytes)
-            encoders.encode_base64(part)
-            part.add_header('Content-Disposition', f'attachment; filename="{comprobante_nombre}"')
-            msg.attach(part)
+            encoded_file = base64.b64encode(comprobante_bytes).decode('utf-8')
+            payload["attachment"] = [{
+                "content": encoded_file,
+                "name": comprobante_nombre
+            }]
 
-        print(f"🔌 Conectando directamente a {smtp_server}:{puerto_ssl} vía SMTP_SSL...")
-        server = smtplib.SMTP_SSL(str(smtp_server), puerto_ssl, timeout=15)
-        server.login(emisor, password)
-        server.sendmail(emisor, destinatarios, msg.as_string().encode('utf-8'))
-        server.quit()
-        print("✅ [CHIVATO SMTP SSL BACKGROUND]: ¡Correo enviado exitosamente!")
+        response = requests.post(url, json=payload, headers=headers, timeout=15)
         
-    except Exception as smtp_err:
-        print(f"❌ [CHIVATO SMTP SSL BACKGROUND ERROR]: {type(smtp_err).__name__}: {str(smtp_err)}")
-    finally:
-        if server:
-            try:
-                server.quit()
-            except:
-                pass
+        if response.status_code in [200, 201]:
+            print("✅ [CHIVATO BREVO API HTTP]: ¡Correo enviado exitosamente a través de la API de Brevo!")
+        else:
+            print(f"❌ [CHIVATO BREVO API ERROR]: Código {response.status_code} - {response.text}")
+            
+    except Exception as api_err:
+        print(f"❌ [CHIVATO BREVO EXCEPTION]: {type(api_err).__name__}: {str(api_err)}")
 
 
 # ==============================================================================
@@ -846,7 +829,7 @@ async def checkout_correo(
         
         correo_limpio = correo.lower().strip() if (correo and correo.strip() != "") else None
 
-        if EMAIL_EMISOR and EMAIL_PASSWORD:
+        if os.getenv("MAIL_API_KEY"):
             destinatarios = [CORREO_EMPRESA]
             if correo_limpio and correo_limpio not in destinatarios:
                 destinatarios.append(correo_limpio)
@@ -918,12 +901,16 @@ async def checkout_correo(
 
             background_tasks.add_task(
                 enviar_correo_background,
-                SMTP_SERVER, SMTP_PORT, EMAIL_EMISOR, EMAIL_PASSWORD,
-                destinatarios, NOMBRE_EMPRESA, res['num_factura_str'],
-                cuerpo_html, res["comprobante_bytes"], res["comprobante_nombre"]
+                EMAIL_EMISOR or CORREO_EMPRESA,
+                destinatarios,
+                NOMBRE_EMPRESA,
+                res['num_factura_str'],
+                cuerpo_html,
+                res["comprobante_bytes"],
+                res["comprobante_nombre"]
             )
         else:
-            print("⚠️ [CHIVATO SMTP WARNING]: No se intentó el envío porque EMAIL_EMISOR o EMAIL_PASSWORD están vacíos.")
+            print("⚠️ [CHIVATO BREVO WARNING]: No se intentó el envío porque la variable MAIL_API_KEY no está configurada en Railway.")
 
         return {
             "status": "success",
