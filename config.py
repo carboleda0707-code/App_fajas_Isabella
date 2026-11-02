@@ -24,3 +24,12 @@ SMTP_SERVER = os.getenv("SMTP_SERVER") or config.get("EMAIL_NOTIFICACIONES", "sm
 SMTP_PORT = int(os.getenv("SMTP_PORT") or config.getint("EMAIL_NOTIFICACIONES", "smtp_port", fallback=465))
 EMAIL_EMISOR = os.getenv("EMAIL_EMISOR") or config.get("EMAIL_NOTIFICACIONES", "email_emisor", fallback="carboleda0707@gmail.com")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD") or config.get("EMAIL_NOTIFICACIONES", "email_password", fallback="nrlzjjxinvvekyoy")
+
+# Cuenta A: Notificaciones internas de nuevos pedidos (Ventas)
+BREVO_VENTAS_API_KEY = os.getenv("BREVO_VENTAS_API_KEY", "")
+EMAIL_VENTAS_ORIGEN = os.getenv("EMAIL_VENTAS_ORIGEN", "ventas@fajasisabella.com")
+EMAIL_DESTINO_VENTAS = os.getenv("EMAIL_DESTINO_VENTAS", CORREO_EMPRESA)
+
+# Cuenta B: Notificaciones directas al cliente (Aprobación de pagos / Bodega)
+BREVO_CLIENTES_API_KEY = os.getenv("BREVO_CLIENTES_API_KEY", "")
+EMAIL_CLIENTES_ORIGEN = os.getenv("EMAIL_CLIENTES_ORIGEN", "despachos@fajasisabella.com")
