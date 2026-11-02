@@ -6,6 +6,7 @@ from datetime import datetime, date
 from zoneinfo import ZoneInfo
 import os
 from database import get_db, Cliente, Factura, Pago, VarianteProducto, MovimientoInventario, AbonoPlanAcumulativo
+from utils.email_sender import enviar_correo_pago_aprobado
 
 router = APIRouter(tags=["Ventas y Clientes"])
 
@@ -192,7 +193,6 @@ def listar_ventas_por_aprobar(db: Session = Depends(get_db)):
             ).all()
             
             for m in movimientos:
-                # Tomamos la cantidad en positivo y el valor neto unitario o total calculado
                 cant = abs(int(m.cantidad or 1))
                 neto_total = float(m.valor_neto or 0.0)
                 p_unit = (neto_total / cant) if cant > 0 else neto_total
@@ -223,7 +223,7 @@ def listar_ventas_por_aprobar(db: Session = Depends(get_db)):
 
 @router.post("/ventas/{factura_id}/aprobar-pago")
 def aprobar_pago_venta_web(factura_id: int, db: Session = Depends(get_db)):
-    """Aprueba el pago de una venta web y actualiza su estado a PENDIENTE para que pase a Logística."""
+    """Aprueba el pago de una venta web, actualiza su estado a PENDIENTE y notifica al cliente vía Brevo B."""
     factura = db.query(Factura).filter(Factura.id == factura_id).first()
     if not factura:
         raise HTTPException(status_code=404, detail="Orden de venta no encontrada.")
@@ -234,6 +234,28 @@ def aprobar_pago_venta_web(factura_id: int, db: Session = Depends(get_db)):
     # Transición clave de estado: Pasa de POR APROBAR a PENDIENTE (disponible para Bodega/Logística)
     factura.estado_despacho = "PENDIENTE"
     db.commit()
+    db.refresh(factura)
+
+    # Buscar el correo del cliente para enviarle la notificación de pago aprobado
+    correo_cliente = ""
+    if factura.cliente_id:
+        cli = db.query(Cliente).filter(Cliente.id == factura.cliente_id).first()
+        if cli and cli.correo:
+            correo_cliente = cli.correo
+    if not correo_cliente and factura.entidad_ruc:
+        cli = db.query(Cliente).filter(Cliente.ruc_cedula == factura.entidad_ruc).first()
+        if cli and cli.correo:
+            correo_cliente = cli.correo
+
+    # Disparar el correo de logística al cliente vía Brevo B
+    if correo_cliente:
+        enviar_correo_pago_aprobado(
+            correo_cliente=correo_cliente,
+            nombre_cliente=factura.entidad_nombre or "Cliente",
+            pedido_id=factura.numero_factura
+        )
+    else:
+        print(f"⚠️ Advertencia: La orden #{factura.numero_factura} no tiene un correo de cliente asociado para notificar el pago aprobado.")
     
     return {
         "status": "success",
