@@ -849,47 +849,56 @@ function getVal(ids, defaultVal = "") {
 }
 
 function limpiarEstadoYFormularioPostCompra() {
+    // 1. Vaciar el carrito y actualizar contadores
     carrito = [];
     actualizarCarritoUI();
     
-    // 1. Cerrar de forma segura el drawer del carrito
+    // 2. Cerrar el drawer del carrito si está abierto
     const drawer = document.getElementById("drawer-carrito");
     if (drawer) drawer.classList.add('hidden');
 
-    // 2. Cerrar y remover el modal de checkout de WhatsApp/Correo por completo
+    // 3. Ocultar inmediatamente el modal de checkout
     const modalCheckout = document.getElementById('modalWhatsAppCheckout');
     if (modalCheckout) {
         modalCheckout.style.display = 'none';
         modalCheckout.classList.add('hidden');
     }
 
-    // 3. Limpiar cualquier capa oscura de fondo (overlay) residual que bloquee clics
+    // 4. Limpiar cualquier capa oscura residual (overlay)
     document.querySelectorAll('.fixed, .absolute').forEach(el => {
         if (el.style.background && el.style.background.includes('rgba')) {
             el.remove();
         }
     });
 
-    // 4. Resetear formulario de checkout si existe
+    // 5. Resetear el formulario de checkout
     const formCheckout = document.getElementById('formCheckoutWapp');
     if (formCheckout) {
         formCheckout.reset();
     }
 
-    // 5. Crear un banner verde temporal de éxito
+    // 6. IR DIRECTAMENTE A LA PÁGINA INICIAL de forma limpia
+    irAInicio();
+
+    // 7. Mostrar el mensaje de éxito ya ubicado en la página de inicio
     const bannerExito = document.createElement('div');
-    bannerExito.className = "fixed inset-x-0 top-10 mx-auto max-w-md bg-emerald-600 text-white px-6 py-5 rounded-2xl shadow-2xl z-[99999] text-center animate-bounce transition-all border-2 border-white";
+    bannerExito.className = "fixed inset-x-0 top-10 mx-auto max-w-md bg-emerald-600 text-white px-6 py-5 rounded-2xl shadow-2xl z-[99999] text-center transition-all border-2 border-white";
     bannerExito.innerHTML = `
         <h3 class="font-black text-lg">🎉 ¡Pedido Exitoso!</h3>
         <p class="text-xs mt-1 text-emerald-50 font-medium">Tu orden fue procesada correctamente. Gracias por tu compra.</p>
     `;
     document.body.appendChild(bannerExito);
 
-    // 6. Esperar 3 segundos, retirar el banner y restaurar la vista de inicio/tienda de forma limpia
+    // Lanzar animación de celebración si está disponible
+    if (typeof st !== 'undefined' && st.balloons) {
+        st.balloons();
+    }
+
+    // 8. Retirar el banner suavemente después de 3.5 segundos
     setTimeout(() => {
-        bannerExito.remove();
-        irAInicio(); // Vuelve a la pantalla principal restaurando todos los eventos y visibilidad
-    }, 3000);
+        bannerExito.style.opacity = '0';
+        setTimeout(() => bannerExito.remove(), 300);
+    }, 3500);
 }
 
 // --- CHECKOUT VÍA WHATSAPP ---
