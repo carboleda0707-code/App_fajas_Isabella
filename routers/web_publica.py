@@ -259,7 +259,6 @@ def listar_inventario_publico(categoria: Optional[str] = Query(None), db: Sessio
         
     productos_db = query.all()
     
-    # Comprobar si hay campaña festiva web activa
     campana_festiva = obtener_campana_festiva_activa(db)
     porcentaje_festivo = float(campana_festiva.get("porcentaje", 0.0)) if campana_festiva else 0.0
     
@@ -277,7 +276,6 @@ def listar_inventario_publico(categoria: Optional[str] = Query(None), db: Sessio
                 en_oferta_prod = bool(getattr(prod, 'en_oferta', False))
                 desc_oferta_prod = float(getattr(prod, 'descuento_oferta', 0.0) or 0.0)
                 
-                # Jerarquía: 1. Campaña Festiva Web activa, 2. Descuento variante, 3. Oferta producto
                 if porcentaje_festivo > 0:
                     porcentaje_aplicado = porcentaje_festivo
                 else:
@@ -559,11 +557,9 @@ async def _procesar_checkout_comun(
     if not lista_items:
         raise HTTPException(status_code=400, detail="El carrito está vacío.")
 
-    # Verificar si hay campaña festiva web activa
     campana_festiva = obtener_campana_festiva_activa(db)
     porcentaje_festivo = float(campana_festiva.get("porcentaje", 0.0)) if campana_festiva else 0.0
 
-    # Validar y recalcular precios de los ítems según campaña festiva activa
     total_pedido = 0.0
     items_validados = []
     for item in lista_items:
@@ -595,25 +591,21 @@ async def _procesar_checkout_comun(
         item_copia['sku'] = sku_p
         items_validados.append(item_copia)
     
-    # Procesar subida de la imagen del comprobante de pago
     file_url = ""
     comprobante_bytes = None
     comprobante_nombre = None
 
     if comprobante:
         try:
-            # Leer los bytes crudos primero para el correo
             comprobante_bytes = await comprobante.read()
             comprobante_nombre = comprobante.filename or "comprobante_pago.jpg"
             
-            # Subir una copia a Cloudinary para el panel administrativo
             upload_result = cloudinary.uploader.upload(comprobante_bytes)
             file_url = upload_result.get("secure_url", comprobante_nombre)
         except Exception as e:
             print(f"⚠️ Advertencia al procesar comprobante: {e}")
             file_url = comprobante_nombre if comprobante_nombre else "comprobante_adjunto"
 
-    # Lógica de Plan Acumulativo
     es_acumulativo = (metodo_pago == "Plan Acumulativo")
     saldo_pendiente = 0.0
     estado_acumulativo = "COMPLETADO"
@@ -624,7 +616,6 @@ async def _procesar_checkout_comun(
             raise HTTPException(status_code=400, detail="El abono inicial no puede superar el total de la orden.")
         estado_acumulativo = "EN_PROCESO" if saldo_pendiente > 0 else "COMPLETADO"
 
-    # --- ZONA HORARIA DE ECUADOR ---
     fecha_ecuador = datetime.now(ZoneInfo("America/Guayaquil")).date()
     prefijo_ym = fecha_ecuador.strftime('%y%m')
     
@@ -634,7 +625,6 @@ async def _procesar_checkout_comun(
     
     tipo_factura_str = f"VENTA WEB {tipo_venta.upper()}"
     
-    # 1. CREAR LA FACTURA
     nueva_factura = Factura(
         tipo_factura=tipo_factura_str,
         numero_factura=num_factura_str,
@@ -657,7 +647,6 @@ async def _procesar_checkout_comun(
     db.commit()
     db.refresh(nueva_factura)
 
-    # Registrar el pago general
     monto_pago = abono_inicial if es_acumulativo else total_pedido
     if monto_pago > 0:
         pago = Pago(
@@ -668,7 +657,6 @@ async def _procesar_checkout_comun(
         )
         db.add(pago)
 
-    # 2. SI ES PLAN ACUMULATIVO
     if es_acumulativo and abono_inicial > 0:
         nuevo_abono = AbonoPlanAcumulativo(
             factura_id=nueva_factura.id,
@@ -719,9 +707,9 @@ def enviar_correo_background(
 ):
     server = None
     try:
-        puerto_ssl = 465  # Fuerza conexión directa por puerto 465 SSL
+        puerto_ssl = int(smtp_port) if smtp_port else 465
         print("==========================================")
-        print("🔍 [CHIVATO SMTP SSL BACKGROUND] Iniciando envío por Puerto 465 SSL...")
+        print(f"🔍 [CHIVATO SMTP SSL BACKGROUND] Iniciando envío por Puerto {puerto_ssl}...")
         print(f"📌 Servidor: {smtp_server}:{puerto_ssl} | Emisor: {emisor}")
         print(f"📌 Destinatarios: {destinatarios}")
 
@@ -732,7 +720,6 @@ def enviar_correo_background(
         
         msg.attach(MIMEText(cuerpo_html, 'html', 'utf-8'))
 
-        # Adjuntar comprobante si existe
         if comprobante_bytes and comprobante_nombre:
             part = MIMEBase('application', 'octet-stream')
             part.set_payload(comprobante_bytes)
@@ -740,7 +727,6 @@ def enviar_correo_background(
             part.add_header('Content-Disposition', f'attachment; filename="{comprobante_nombre}"')
             msg.attach(part)
 
-        # Conexión cifrada SSL directa desde el puerto 465
         print(f"🔌 Conectando directamente a {smtp_server}:{puerto_ssl} vía SMTP_SSL...")
         server = smtplib.SMTP_SSL(str(smtp_server), puerto_ssl, timeout=15)
         server.login(emisor, password)
