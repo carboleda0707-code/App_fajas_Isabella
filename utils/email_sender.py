@@ -1,6 +1,13 @@
 import os
 import requests
 import base64
+from config import (
+    BREVO_VENTAS_API_KEY, 
+    BREVO_CLIENTES_API_KEY, 
+    EMAIL_VENTAS_ORIGEN, 
+    EMAIL_DESTINO_VENTAS, 
+    EMAIL_CLIENTES_ORIGEN
+)
 
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 
@@ -8,9 +15,9 @@ def enviar_correo_nueva_venta(datos_pedido: dict, comprobante_bytes: bytes = Non
     """
     CUENTA A (Brevo): Notificación interna al equipo de ventas cuando se registra un pedido web.
     """
-    api_key = os.getenv("BREVO_VENTAS_API_KEY")
-    remitente = os.getenv("EMAIL_VENTAS_ORIGEN", "ventas@fajasisabella.com")
-    destinatario = os.getenv("EMAIL_DESTINO_VENTAS", "carboleda0707@gmail.com")
+    api_key = BREVO_VENTAS_API_KEY or os.getenv("BREVO_VENTAS_API_KEY")
+    remitente = EMAIL_VENTAS_ORIGEN or "ventasfajasisabellaec@gmail.com"
+    destinatario = EMAIL_DESTINO_VENTAS or "ventasfajasisabellaec@gmail.com"
 
     if not api_key:
         print("⚠️ Advertencia: BREVO_VENTAS_API_KEY no está configurada.")
@@ -69,8 +76,8 @@ def enviar_correo_pago_aprobado(correo_cliente: str, nombre_cliente: str, pedido
     """
     CUENTA B (Brevo): Notificación directa al cliente final cuando haces clic en 'Aprobar Pago'.
     """
-    api_key = os.getenv("BREVO_CLIENTES_API_KEY")
-    remitente = os.getenv("EMAIL_CLIENTES_ORIGEN", "despachos@fajasisabella.com")
+    api_key = BREVO_CLIENTES_API_KEY or os.getenv("BREVO_CLIENTES_API_KEY")
+    remitente = EMAIL_CLIENTES_ORIGEN or "logisticafajasisabellaec@gmail.com"
 
     if not api_key:
         print("⚠️ Advertencia: BREVO_CLIENTES_API_KEY no está configurada.")
