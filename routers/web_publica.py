@@ -1,6 +1,7 @@
 import hashlib
 import urllib.parse
 import smtplib
+import socket
 from datetime import datetime, date
 from zoneinfo import ZoneInfo
 from email.mime.multipart import MIMEMultipart
@@ -540,11 +541,11 @@ async def _procesar_checkout_comun(
             ruc_cedula=ruc_cedula,
             nombre=razon_social,
             correo=reg_correo,
+            password=password_hash_temp,
             telefono=telefono,
             direccion=direccion,
             ciudad=ciudad,
-            cliente_web=True,
-            password=password_hash_temp
+            cliente_web=True
         )
         db.add(cliente_db)
         db.commit()
@@ -709,10 +710,8 @@ async def _procesar_checkout_comun(
 
 
 # ==============================================================================
-# FUNCIÓN DE ENVÍO DE CORREO EN SEGUNDO PLANO (BACKGROUND TASKS)
+# FUNCIÓN DE ENVÍO DE CORREO EN SEGUNDO PLANO (PUERTO 465 SSL IMPLÍCITO)
 # ==============================================================================
-
-import socket
 
 def enviar_correo_background(
     smtp_server, smtp_port, emisor, password, destinatarios, 
@@ -720,14 +719,11 @@ def enviar_correo_background(
 ):
     server = None
     try:
+        puerto_ssl = 465  # Fuerza conexión directa por puerto 465 SSL
         print("==========================================")
-        print("🔍 [CHIVATO SMTP BACKGROUND] Iniciando envío (Forzando IPv4)...")
-        print(f"📌 Servidor: {smtp_server}:{smtp_port} | Emisor: {emisor}")
+        print("🔍 [CHIVATO SMTP SSL BACKGROUND] Iniciando envío por Puerto 465 SSL...")
+        print(f"📌 Servidor: {smtp_server}:{puerto_ssl} | Emisor: {emisor}")
         print(f"📌 Destinatarios: {destinatarios}")
-        
-        # Resolver la IP por IPv4 estrictamente para evitar el error [Errno 101] Network is unreachable
-        ip_servidor = socket.gethostbyname(str(smtp_server))
-        print(f"🌐 IP resuelta para {smtp_server}: {ip_servidor}")
 
         msg = MIMEMultipart("alternative")
         msg['From'] = f"{empresa} <{emisor}>"
@@ -736,19 +732,24 @@ def enviar_correo_background(
         
         msg.attach(MIMEText(cuerpo_html, 'html', 'utf-8'))
 
-        # Conectar usando la IP directa por IPv4
-        server = smtplib.SMTP(ip_servidor, int(smtp_port), timeout=15)
-        server.ehlo()
-        server.starttls()
-        server.ehlo()
-        
+        # Adjuntar comprobante si existe
+        if comprobante_bytes and comprobante_nombre:
+            part = MIMEBase('application', 'octet-stream')
+            part.set_payload(comprobante_bytes)
+            encoders.encode_base64(part)
+            part.add_header('Content-Disposition', f'attachment; filename="{comprobante_nombre}"')
+            msg.attach(part)
+
+        # Conexión cifrada SSL directa desde el puerto 465
+        print(f"🔌 Conectando directamente a {smtp_server}:{puerto_ssl} vía SMTP_SSL...")
+        server = smtplib.SMTP_SSL(str(smtp_server), puerto_ssl, timeout=15)
         server.login(emisor, password)
         server.sendmail(emisor, destinatarios, msg.as_string().encode('utf-8'))
         server.quit()
-        print("✅ [CHIVATO SMTP BACKGROUND]: ¡Correo enviado exitosamente!")
+        print("✅ [CHIVATO SMTP SSL BACKGROUND]: ¡Correo enviado exitosamente!")
         
     except Exception as smtp_err:
-        print(f"❌ [CHIVATO SMTP BACKGROUND ERROR]: {type(smtp_err).__name__}: {str(smtp_err)}")
+        print(f"❌ [CHIVATO SMTP SSL BACKGROUND ERROR]: {type(smtp_err).__name__}: {str(smtp_err)}")
     finally:
         if server:
             try:
