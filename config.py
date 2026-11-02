@@ -10,7 +10,7 @@ if os.path.exists(config_file_path):
 # Datos Principales de la Empresa (Leyendo de Railway o del config.ini con fallback seguro)
 NOMBRE_EMPRESA = os.getenv("NOMBRE_EMPRESA") or config.get("EMPRESA", "nombre", fallback="Fajas Isabella")
 TELEFONO_WHATSAPP = os.getenv("TELEFONO_WHATSAPP") or config.get("EMPRESA", "telefono_whatsapp", fallback="+593 98 538 9751")
-CORREO_EMPRESA = os.getenv("CORREO_EMPRESA") or config.get("EMPRESA", "correo_contacto", fallback="ventas@fajasisabella.com")
+CORREO_EMPRESA = os.getenv("CORREO_EMPRESA") or config.get("EMPRESA", "correo_contacto", fallback="carboleda0707@gmail.com")
 DIRECCION_EMPRESA = os.getenv("DIRECCION_EMPRESA") or config.get("EMPRESA", "direccion_local", fallback="Guayaquil, Ecuador")
 
 # Redes Sociales

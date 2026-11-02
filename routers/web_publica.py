@@ -717,11 +717,14 @@ def enviar_correo_background(
             "content-type": "application/json"
         }
 
-        to_list = [{"email": dest} for dest in destinatarios]
+        # 📧 Destinatario principal (El cliente que compra)
+        # tomamos el primer elemento de la lista destinatarios
+        correo_cliente = destinatarios[0] if destinatarios else CORREO_EMPRESA
 
         payload = {
-            "sender": {"name": empresa, "email": emisor or "ventas@fajasisabella.com"},
-            "to": to_list,
+            "sender": {"name": empresa, "email": emisor},  # 👈 Usa directamente el emisor válido
+            "to": [{"email": correo_cliente}],
+            "bcc": [{"email": CORREO_EMPRESA}],             # 🕵️ Copia oculta para Fajas Isabella (No duplica consumo)
             "subject": f"🛍️ Confirmación de Pedido #{num_factura} - {empresa}",
             "htmlContent": cuerpo_html
         }
