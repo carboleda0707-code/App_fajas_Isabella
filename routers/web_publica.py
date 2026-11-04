@@ -482,6 +482,25 @@ def registrar_cliente_web(
         "cliente": {"id": nuevo_cliente.id, "nombre": nuevo_cliente.nombre, "correo": nuevo_cliente.correo}
     }
 
+@router.get("/api/web/cliente/buscar/{ruccedula}")
+def buscar_cliente_por_ruc(ruccedula: str, db: Session = Depends(get_db)):
+    """Busca un cliente por su RUC o Cédula para autocompletar el formulario de pago."""
+    cliente = db.query(Cliente).filter(Cliente.ruc_cedula == ruccedula).first()
+    
+    if not cliente:
+        return {"encontrado": False}
+        
+    return {
+        "encontrado": True,
+        "nombre": getattr(cliente, 'nombre', ''),
+        "telefono": getattr(cliente, 'telefono', ''),
+        "correo": getattr(cliente, 'correo', ''),
+        "provincia": getattr(cliente, 'provincia', ''),
+        "ciudad": getattr(cliente, 'ciudad', ''),
+        "direccion": getattr(cliente, 'direccion', ''),
+        "referencia": getattr(cliente, 'referencia', '')
+    }
+
 
 # ==============================================================================
 # FUNCIÓN AUXILIAR COMÚN PARA PROCESAR PEDIDOS (CON VALIDACIÓN ESTRICTA)
@@ -502,8 +521,16 @@ async def _procesar_checkout_comun(
     tipo_venta: str,
     metodo_pago: str,
     abono_inicial: float,
+    accept_lopdp: Optional[bool], # <-- Nuevo parámetro LOPDP
     db: Session
 ):
+    # --- VALIDACIÓN ESTRICTA LOPDP (ECUADOR) ---
+    if not accept_lopdp:
+        raise HTTPException(
+            status_code=400, 
+            detail="Debe aceptar los Términos y la Ley de Protección de Datos Personales (LOPDP) para procesar el pedido."
+        )
+
     # --- VALIDACIÓN ESTRICTA DE CAMPOS OBLIGATORIOS ---
     if not ruc_cedula or not ruc_cedula.strip():
         raise HTTPException(status_code=400, detail="El RUC o Cédula es obligatorio.")
@@ -719,6 +746,7 @@ async def checkout_whatsapp(
     items: str = Form(...),
     metodo_pago: Optional[str] = Form("Transferencia"),
     abono_inicial: Optional[float] = Form(0.0),
+    accept_lopdp: bool = Form(...), # <-- Capturado aquí
     comprobante: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
@@ -726,7 +754,7 @@ async def checkout_whatsapp(
         res = await _procesar_checkout_comun(
             nombre, telefono, correo, ruc_cedula, razon_social,
             provincia, ciudad, direccion, referencia, items, comprobante, "WHATSAPP",
-            metodo_pago, abono_inicial, db
+            metodo_pago, abono_inicial, accept_lopdp, db
         )
         
         detalle_texto = ""

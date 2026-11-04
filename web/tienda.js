@@ -613,7 +613,6 @@ function abrirModal(productoId) {
                     <span class="text-[10px] font-bold text-rose-600 tracking-wider uppercase bg-rose-50 px-2.5 py-1 rounded-md">${productoSeleccionado.categoria}</span>
                     <h3 class="text-lg font-extrabold text-slate-900 leading-snug mt-1.5 mb-1">${productoSeleccionado.nombre}</h3>
                     
-                    <!-- BLOQUE DE PRECIOS Y DESCUENTOS DINÁMICOS EN EL MODAL -->
                     <div class="mt-2 space-y-1">
                         <span id="etiqueta-descuento" class="inline-block bg-rose-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider mb-1" style="display: none;"></span>
                         <div class="flex items-center gap-3">
@@ -848,39 +847,40 @@ function getVal(ids, defaultVal = "") {
     return defaultVal;
 }
 
+function validarLopdpAceptado() {
+    const checkLopdp = document.getElementById('check_lopdp');
+    if (checkLopdp && !checkLopdp.checked) {
+        alert("⚠️ Debes leer y aceptar los Términos y la Ley de Protección de Datos (LOPDP) para continuar.");
+        checkLopdp.focus();
+        return false;
+    }
+    return true;
+}
+
 function limpiarEstadoYFormularioPostCompra() {
-    // 1. Vaciar el carrito y actualizar contadores
     carrito = [];
     actualizarCarritoUI();
     
-    // 2. Cerrar el drawer del carrito si está abierto
     const drawer = document.getElementById("drawer-carrito");
     if (drawer) drawer.classList.add('hidden');
 
-    // 3. Ocultar inmediatamente el modal de checkout
     const modalCheckout = document.getElementById('modalWhatsAppCheckout');
     if (modalCheckout) {
         modalCheckout.style.display = 'none';
         modalCheckout.classList.add('hidden');
     }
 
-    // 4. Limpiar cualquier capa oscura residual (overlay)
     document.querySelectorAll('.fixed, .absolute').forEach(el => {
         if (el.style.background && el.style.background.includes('rgba')) {
             el.remove();
         }
     });
 
-    // 5. Resetear el formulario de checkout
     const formCheckout = document.getElementById('formCheckoutWapp');
-    if (formCheckout) {
-        formCheckout.reset();
-    }
+    if (formCheckout) formCheckout.reset();
 
-    // 6. IR DIRECTAMENTE A LA PÁGINA INICIAL de forma limpia
     irAInicio();
 
-    // 7. Mostrar el mensaje de éxito ya ubicado en la página de inicio
     const bannerExito = document.createElement('div');
     bannerExito.className = "fixed inset-x-0 top-10 mx-auto max-w-md bg-emerald-600 text-white px-6 py-5 rounded-2xl shadow-2xl z-[99999] text-center transition-all border-2 border-white";
     bannerExito.innerHTML = `
@@ -889,12 +889,6 @@ function limpiarEstadoYFormularioPostCompra() {
     `;
     document.body.appendChild(bannerExito);
 
-    // Lanzar animación de celebración si está disponible
-    if (typeof st !== 'undefined' && st.balloons) {
-        st.balloons();
-    }
-
-    // 8. Retirar el banner suavemente después de 3.5 segundos
     setTimeout(() => {
         bannerExito.style.opacity = '0';
         setTimeout(() => bannerExito.remove(), 300);
@@ -904,6 +898,7 @@ function limpiarEstadoYFormularioPostCompra() {
 // --- CHECKOUT VÍA WHATSAPP ---
 async function procesarPedidoWhatsApp(event) {
     if (event) event.preventDefault();
+    if (!validarLopdpAceptado()) return;
     
     if (carrito.length === 0) {
         alert("Tu carrito está vacío.");
@@ -922,11 +917,6 @@ async function procesarPedidoWhatsApp(event) {
 
     if (!nombreCliente || !telefonoCliente || !correoCliente || !rucCedula || !razonSocial || !provincia || !ciudad || !direccion) {
         alert("⚠️ Por favor completa todos los campos obligatorios del formulario.");
-        return;
-    }
-
-    if (!correoCliente.includes('@')) {
-        alert("⚠️ Ingresa un correo electrónico válido para recibir las notificaciones.");
         return;
     }
 
@@ -952,6 +942,7 @@ async function procesarPedidoWhatsApp(event) {
     formData.append("referencia", referencia);
     formData.append("items", JSON.stringify(carrito));
     formData.append("comprobante", archivoComprobante);
+    formData.append("acepta_lopdp", "true");
 
     try {
         const res = await fetch('/api/web/auth/checkout-whatsapp', {
@@ -961,20 +952,15 @@ async function procesarPedidoWhatsApp(event) {
         
         const data = await res.json();
         if (res.ok && data.status === 'success' && data.whatsapp_url) {
-            if (ventanaWhatsApp) {
-                ventanaWhatsApp.location.href = data.whatsapp_url;
-            } else {
-                window.open(data.whatsapp_url, '_blank');
-            }
+            if (ventanaWhatsApp) ventanaWhatsApp.location.href = data.whatsapp_url;
+            else window.open(data.whatsapp_url, '_blank');
             limpiarEstadoYFormularioPostCompra();
         } else {
             if (ventanaWhatsApp) ventanaWhatsApp.close();
-            const detalleError = typeof data.detail === 'object' ? JSON.stringify(data.detail) : (data.detail || "Intente nuevamente.");
-            alert("Error al procesar el pedido: " + detalleError);
+            alert("Error al procesar el pedido: " + (data.detail || "Intente nuevamente."));
         }
     } catch (e) {
         if (ventanaWhatsApp) ventanaWhatsApp.close();
-        console.error("Error de conexión:", e);
         alert("Error de conexión al procesar el pedido.");
     }
 }
@@ -982,14 +968,13 @@ async function procesarPedidoWhatsApp(event) {
 // --- CHECKOUT VÍA CORREO ---
 async function procesarPedidoCorreo(event) {
     if (event) event.preventDefault();
+    if (!validarLopdpAceptado()) return;
     
-    // 1. Validar que el carrito no esté vacío
     if (!carrito || carrito.length === 0) {
         alert("⚠️ Tu carrito está vacío.");
         return;
     }
 
-    // 2. Extraer y limpiar datos del formulario
     const nombreCliente = getVal(['wapp_nombre', 'nombre-cliente', 'nombre'], '').trim();
     const telefonoCliente = getVal(['wapp_telefono', 'telefono-cliente', 'telefono'], '').trim();
     const correoCliente = getVal(['wapp_correo', 'correo-cliente', 'correo'], '').trim();
@@ -1000,27 +985,19 @@ async function procesarPedidoCorreo(event) {
     const direccion = getVal(['wapp_direccion', 'direccion-cliente', 'direccion'], '').trim();
     const referencia = getVal(['wapp_referencia', 'referencia-cliente', 'referencia'], '').trim();
 
-    // 3. Validación estricta de datos personales y de envío
     if (!nombreCliente || !telefonoCliente || !correoCliente || !rucCedula || !razonSocial || !provincia || !ciudad || !direccion) {
-        alert("⚠️ Por favor completa todos los campos obligatorios del formulario (Nombre, Teléfono, Correo, RUC/Cédula y Dirección).");
+        alert("⚠️ Por favor completa todos los campos obligatorios del formulario.");
         return;
     }
 
-    if (!correoCliente.includes('@')) {
-        alert("⚠️ Por favor ingresa un correo electrónico válido para enviarte el estado de tu pedido.");
-        return;
-    }
-
-    // 4. Validación obligatoria del Comprobante de Pago
-    const inputComprobante = document.getElementById('wapp_comprobante') || document.getElementById('input-comprobante-pago') || document.getElementById('comprobante');
+    const inputComprobante = document.getElementById('wapp_comprobante') || document.getElementById('input-comprobante-pago');
     const archivoComprobante = inputComprobante && inputComprobante.files[0] ? inputComprobante.files[0] : null;
 
     if (!archivoComprobante) {
-        alert("⚠️ Es obligatorio adjuntar tu comprobante de pago o transferencia para procesar el pedido.");
+        alert("⚠️ Es obligatorio adjuntar tu comprobante de pago.");
         return;
     }
 
-    // 5. Preparar datos para enviar a FastAPI
     const formData = new FormData();
     formData.append("nombre", nombreCliente);
     formData.append("telefono", telefonoCliente);
@@ -1033,8 +1010,8 @@ async function procesarPedidoCorreo(event) {
     formData.append("referencia", referencia);
     formData.append("items", JSON.stringify(carrito));
     formData.append("comprobante", archivoComprobante);
+    formData.append("acepta_lopdp", "true");
 
-    // Si es plan acumulativo, incluir parámetros
     if (typeof esPlanAcumulativoActivo !== 'undefined' && esPlanAcumulativoActivo) {
         const abonoInput = parseFloat(document.getElementById('input-abono-inicial')?.value) || 0;
         formData.append("metodo_pago", "Plan Acumulativo");
@@ -1051,31 +1028,26 @@ async function procesarPedidoCorreo(event) {
         });
         
         const data = await res.json();
-        
         if (res.ok && data.status === 'success') {
-            // Limpia carrito, oculta modales y muestra banner de éxito sin bloquear la pantalla
             limpiarEstadoYFormularioPostCompra();
         } else {
-            const detalleError = typeof data.detail === 'object' ? JSON.stringify(data.detail) : (data.detail || "Intente nuevamente.");
-            alert("❌ Error al procesar el pedido por correo: " + detalleError);
+            alert("❌ Error al procesar el pedido por correo: " + (data.detail || "Intente nuevamente."));
         }
     } catch (e) {
-        console.error("Error de conexión:", e);
-        alert("❌ Error de conexión con el servidor al procesar el pedido.");
+        alert("❌ Error de conexión con el servidor.");
     }
 }
 
 // --- PAGO CON TARJETA VÍA PAYMENTEZ ---
 async function procesarPagoPaymentez(event) {
     if (event) event.preventDefault();
+    if (!validarLopdpAceptado()) return;
     
-    // 1. Validar que el carrito no esté vacío
     if (!carrito || carrito.length === 0) {
         alert("⚠️ Tu carrito está vacío.");
         return;
     }
 
-    // 2. Extraer y limpiar datos del formulario
     const nombreCliente = getVal(['wapp_nombre', 'nombre-cliente', 'nombre'], '').trim();
     const telefonoCliente = getVal(['wapp_telefono', 'telefono-cliente', 'telefono'], '').trim();
     const correoCliente = getVal(['wapp_correo', 'correo-cliente', 'correo'], '').trim();
@@ -1086,19 +1058,12 @@ async function procesarPagoPaymentez(event) {
     const direccion = getVal(['wapp_direccion', 'direccion-cliente', 'direccion'], '').trim();
     const referencia = getVal(['wapp_referencia', 'referencia-cliente', 'referencia'], '').trim();
 
-    // 3. Validación estricta de datos personales y de envío (Obligatorios para la factura y la pasarela)
     if (!nombreCliente || !telefonoCliente || !correoCliente || !rucCedula || !razonSocial || !provincia || !ciudad || !direccion) {
-        alert("⚠️ Por favor completa todos los campos obligatorios del formulario antes de pagar con tarjeta.");
-        return;
-    }
-
-    if (!correoCliente.includes('@')) {
-        alert("⚠️ Por favor ingresa un correo electrónico válido para recibir el comprobante de tu pago online.");
+        alert("⚠️ Por favor completa todos los campos obligatorios.");
         return;
     }
 
     try {
-        // 4. Preparar payload con los datos del cliente, el total y los ítems
         const payload = {
             monto: calcularTotalCarrito(),
             cliente_nombre: nombreCliente,
@@ -1110,10 +1075,10 @@ async function procesarPagoPaymentez(event) {
             ciudad: ciudad,
             direccion: direccion,
             referencia: referencia,
-            items: carrito
+            items: carrito,
+            acepta_lopdp: true
         };
 
-        // 5. Enviar solicitud a la API para iniciar la sesión de Paymentez
         const res = await fetch('/api/web/auth/paymentez-session', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1127,15 +1092,13 @@ async function procesarPagoPaymentez(event) {
         } else if (res.ok && data.status === 'success' && data.checkout_url && data.checkout_url !== '#') {
             window.location.href = data.checkout_url;
         } else {
-            // Modo simulado o sandbox (cuando devuelve respuesta de prueba)
             alert(data.mensaje || "Iniciando pasarela segura de Paymentez...");
             if (data.mode === 'sandbox_simulado') {
                 limpiarEstadoYFormularioPostCompra();
             }
         }
     } catch (e) {
-        console.error("Error de pasarela Paymentez:", e);
-        alert("❌ No se pudo conectar con la pasarela de pagos Paymentez. Intente nuevamente.");
+        alert("❌ No se pudo conectar con la pasarela de pagos Paymentez.");
     }
 }
 
@@ -1177,7 +1140,6 @@ function eliminarDelCarrito(index) {
 function toggleCarrito() {
     const drawer = document.getElementById("drawer-carrito");
     if (!drawer) return;
-    
     if (drawer.classList.contains('hidden')) {
         drawer.classList.remove('hidden');
         actualizarCarritoUI();
@@ -1337,4 +1299,42 @@ function cerrarSesion() {
     cerrarModalPerfil();
     actualizarBotonCuentaNav();
     alert("Has cerrado sesión.");
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const inputRuc = document.getElementById('wapp_ruc') || document.getElementById('ruccedula') || document.getElementById('ruc');
+
+    if (inputRuc) {
+        inputRuc.addEventListener('blur', async function() {
+            const rucCedula = this.value.trim();
+            if (rucCedula.length < 10) return;
+
+            try {
+                const response = await fetch(`/api/web/cliente/buscar/${rucCedula}`);
+                const data = await response.json();
+
+                if (data.encontrado) {
+                    setCampoFormulario(['wapp_nombre', 'nombre', 'razon_social'], data.nombre);
+                    setCampoFormulario(['wapp_telefono', 'telefono'], data.telefono);
+                    setCampoFormulario(['wapp_correo', 'correo'], data.correo);
+                    setCampoFormulario(['wapp_provincia', 'provincia'], data.provincia);
+                    setCampoFormulario(['wapp_ciudad', 'ciudad'], data.ciudad);
+                    setCampoFormulario(['wapp_direccion', 'direccion'], data.direccion);
+                    setCampoFormulario(['wapp_referencia', 'referencia'], data.referencia);
+                }
+            } catch (error) {
+                console.error("Error al consultar el cliente:", error);
+            }
+        });
+    }
+});
+
+function setCampoFormulario(selectors, valor) {
+    for (const sel of selectors) {
+        const elemento = document.getElementById(sel) || document.querySelector(`[name="${sel}"]`);
+        if (elemento) {
+            elemento.value = valor || '';
+            break;
+        }
+    }
 }

@@ -9,6 +9,9 @@ import pandas as pd
 
 API_URL = os.getenv("API_URL", "http://localhost:8000/api")
 
+# Detección automática de entorno en la nube (Railway)
+is_railway = os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("RAILWAY_PROJECT_ID") or os.getenv("PORT")
+
 DEFAULT_EMBED = '<blockquote class="instagram-media" data-instgrm-captioned data-instgrm-permalink="https://www.instagram.com/reel/DQIK9pLDl4l/?utm_source=ig_embed&amp;utm_campaign=loading" data-instgrm-version="14" style=" background:#FFF; border:0; border-radius:3px; box-shadow:0 0 1px 0 rgba(0,0,0,0.5),0 1px 10px 0 rgba(0,0,0,0.15); margin: 1px; max-width:540px; min-width:326px; padding:0; width:99.375%; width:-webkit-calc(100% - 2px); width:calc(100% - 2px);"><div style="padding:16px;"> <a href="https://www.instagram.com/reel/DQIK9pLDl4l/?utm_source=ig_embed&amp;utm_campaign=loading" style=" background:#FFFFFF; line-height:0; padding:0 0; text-align:center; text-decoration:none; width:100%;" target="_blank"> <div style=" display: flex; flex-direction: row; align-items: center;"> <div style="background-color: #F4F4F4; border-radius: 50%; flex-grow: 0; height: 40px; margin-right: 14px; width: 40px;"></div> <div style="display: flex; flex-direction: column; flex-grow: 1; justify-content: center;"> <div style=" background-color: #F4F4F4; border-radius: 4px; flex-grow: 0; height: 14px; margin-bottom: 6px; width: 100px;"></div> <div style=" background-color: #F4F4F4; border-radius: 4px; flex-grow: 0; height: 14px; width: 60px;"></div></div></div><div style="padding: 19% 0;"></div> <div style="display:block; height:50px; margin:0 auto 12px; width:50px;"></div><div style="padding-top: 8px;"> <div style=" color:#3897f0; font-family:Arial,sans-serif; font-size:14px; font-style:normal; font-weight:550; line-height:18px;">Ver esta publicación en Instagram</div></div><div style="padding: 12.5% 0;"></div></div></a><p style=" color:#c9c8cd; font-family:Arial,sans-serif; font-size:14px; line-height:17px; margin-bottom:0; margin-top:8px; overflow:hidden; padding:8px 0 7px; text-align:center; text-overflow:ellipsis; white-space:nowrap;"><a href="https://www.instagram.com/reel/DQIK9pLDl4l/?utm_source=ig_embed&amp;utm_campaign=loading" style=" color:#c9c8cd; font-family:Arial,sans-serif; font-size:14px; font-style:normal; font-weight:normal; line-height:17px; text-decoration:none;" target="_blank">Una publicación compartida de FAJAS ISABELLA (@fajasisabella.ec)</a></p></div></blockquote>'
 
 def cargar_config_db():
@@ -43,6 +46,41 @@ def guardar_seccion_db(seccion: str, contenido: dict):
     finally:
         db.close()
 
+def subir_archivo_inteligente(archivo_subido, subfolder: str, url_anterior: str) -> str:
+    """
+    Sube a Cloudinary si está en Railway. 
+    Si está en entorno local, guarda el archivo físicamente en web/img/home/... y retorna la ruta local.
+    """
+    if archivo_subido is None:
+        return url_anterior
+    
+    if is_railway:
+        try:
+            resultado = cloudinary.uploader.upload(
+                archivo_subido.getvalue(), 
+                folder=f"fajas_isabella/home/{subfolder}", 
+                resource_type="auto"
+            )
+            if resultado.get("secure_url"):
+                return resultado.get("secure_url")
+        except Exception as e:
+            str_lit.warning(f"No se pudo subir a Cloudinary: {e}")
+        return url_anterior
+    else:
+        try:
+            ruta_carpeta = os.path.join("web", "img", "home", subfolder)
+            os.makedirs(ruta_carpeta, exist_ok=True)
+            ruta_archivo = os.path.join(ruta_carpeta, archivo_subido.name)
+            
+            with open(ruta_archivo, "wb") as f:
+                f.write(archivo_subido.getbuffer())
+                
+            # Retorna la ruta relativa que consume la web local
+            return f"/img/home/{subfolder}/{archivo_subido.name}"
+        except Exception as e:
+            str_lit.error(f"Error guardando archivo localmente: {e}")
+            return url_anterior
+
 def render_home_admin():
     str_lit.markdown("### 🌐 Panel de Gestión del Home Web y Campañas (PostgreSQL)")
     str_lit.markdown("Actualiza el contenido multimedia, los textos, gestiona las campañas web y analiza su rendimiento financiero.")
@@ -65,7 +103,6 @@ def render_home_admin():
             sec05_cfg = config.get("sec05", {})
             slides_data = []
             
-            # Opciones de destino disponibles para los botones de los slides
             opciones_destino = {
                 "Catálogo General": "index.html#catalogo",
                 "Nuevos Modelos": "index.html#nuevo",
@@ -82,12 +119,10 @@ def render_home_admin():
                 s_titulo = str_lit.text_input(f"Título Principal {i}", value=s_cfg.get("titulo", f"Título de Ejemplo {i}"))
                 s_desc = str_lit.text_area(f"Descripción {i}", value=s_cfg.get("descripcion", f"Descripción de la diapositiva {i}..."))
                 
-                # Fila dividida para el Botón y su Destino
                 col_b1, col_b2 = str_lit.columns(2)
                 with col_b1:
                     s_btn_texto = str_lit.text_input(f"Texto del Botón {i}", value=s_cfg.get("btn_texto", "Ver Colección"))
                 with col_b2:
-                    # Intentar recuperar la opción seleccionada previamente si existe
                     destino_actual_guardado = s_cfg.get("btn_destino", "index.html#catalogo")
                     indice_default = 0
                     for idx_opt, (k_opt, v_opt) in enumerate(opciones_destino.items()):
@@ -98,7 +133,6 @@ def render_home_admin():
                     s_btn_nombre_destino = str_lit.selectbox(f"¿A dónde se dirige? ({i})", list(opciones_destino.keys()), index=indice_default, key=f"sel_dest_{i}")
                     s_btn_destino = opciones_destino[s_btn_nombre_destino]
 
-                # Control deslizante para el tiempo de transición del banner
                 s_tiempo = str_lit.slider(
                     f"⏱️ Tiempo de Transición (segundos) - Slide {i}", 
                     min_value=2, 
@@ -125,15 +159,7 @@ def render_home_admin():
             if subm_sec05:
                 payload_sec05 = {}
                 for idx, data in enumerate(slides_data, start=1):
-                    img_url = data["imagen_actual"]
-                    archivo_subido = data["file_uploader"]
-                    if archivo_subido is not None:
-                        try:
-                            resultado = cloudinary.uploader.upload(archivo_subido.getvalue(), folder="fajas_isabella/home/slider", resource_type="auto")
-                            if resultado.get("secure_url"):
-                                img_url = resultado.get("secure_url")
-                        except Exception as e:
-                            str_lit.warning(f"No se pudo subir a Cloudinary (Slide {idx}): {e}")
+                    img_url = subir_archivo_inteligente(data["file_uploader"], "slider", data["imagen_actual"])
                     
                     payload_sec05[f"slide{idx}"] = {
                         "tag": data["tag"], 
@@ -147,7 +173,7 @@ def render_home_admin():
                     }
                 
                 if guardar_seccion_db("sec05", payload_sec05):
-                    str_lit.success("✅ ¡Sección 0.5 subida a Cloudinary y guardada con éxito en PostgreSQL!")
+                    str_lit.success("✅ ¡Sección 0.5 guardada con éxito en PostgreSQL!")
 
     # --- SECCIÓN 1 ---
     with tab1:
@@ -164,13 +190,7 @@ def render_home_admin():
             subm_sec1 = str_lit.form_submit_button("💾 Guardar Cambios de Sección 1 en BD", use_container_width=True)
             if subm_sec1:
                 multimedia_url = sec1_cfg.get("multimedia", "banner_historia.jpg")
-                if archivo_sec1 is not None:
-                    try:
-                        resultado = cloudinary.uploader.upload(archivo_sec1.getvalue(), folder="fajas_isabella/home/historia", resource_type="auto")
-                        if resultado.get("secure_url"):
-                            multimedia_url = resultado.get("secure_url")
-                    except Exception as e:
-                        str_lit.warning(f"Error al subir a Cloudinary: {e}")
+                multimedia_url = subir_archivo_inteligente(archivo_sec1, "historia", multimedia_url)
                 
                 payload_sec1 = {
                     "titulo": nuevo_titulo, "subtitulo": nuevo_subtitulo, "parrafo1": nuevo_p1,
@@ -220,18 +240,9 @@ def render_home_admin():
 
             subm_sec3 = str_lit.form_submit_button("💾 Guardar Cambios de Sección 3 en BD", use_container_width=True)
             if subm_sec3:
-                def subir_pub_nube(archivo, url_anterior):
-                    if archivo is not None:
-                        try:
-                            res = cloudinary.uploader.upload(archivo.getvalue(), folder="fajas_isabella/home/publicidad", resource_type="auto")
-                            return res.get("secure_url", url_anterior)
-                        except Exception as e:
-                            str_lit.warning(f"Error subiendo a Cloudinary: {e}")
-                    return url_anterior
-
-                m1 = subir_pub_nube(p1_file, p1_cfg.get("multimedia", "publi_1.jpg"))
-                m2 = subir_pub_nube(p2_file, p2_cfg.get("multimedia", "publi_2.jpg"))
-                m3 = subir_pub_nube(p3_file, p3_cfg.get("multimedia", "publi_3.jpg"))
+                m1 = subir_archivo_inteligente(p1_file, "publicidad", p1_cfg.get("multimedia", "publi_1.jpg"))
+                m2 = subir_archivo_inteligente(p2_file, "publicidad", p2_cfg.get("multimedia", "publi_2.jpg"))
+                m3 = subir_archivo_inteligente(p3_file, "publicidad", p3_cfg.get("multimedia", "publi_3.jpg"))
 
                 payload_sec3 = {
                     "card1": {"tag": p1_tag, "titulo": p1_title, "descripcion": p1_desc, "link_texto": p1_link, "multimedia": m1},
@@ -244,7 +255,7 @@ def render_home_admin():
     # --- CAMPAÑA MASIVA WEB (FESTIVO) ---
     with tab_campana:
         str_lit.subheader("🎉 Campaña Masiva Web (Descuento Festivo General)")
-        str_lit.info("💡 Este descuento aplica automáticamente a **todos los productos y variantes** exclusivamente para la **Tienda Web** (WhatsApp, Correo, Paymentez) durante el tiempo de validez configurado. No afecta ventas físicas manuales ni planes acumulativos.")
+        str_lit.info("💡 Este descuento aplica automáticamente a **todos los productos y variantes** exclusivamente para la **Tienda Web** durante el tiempo de validez configurado.")
 
         campana_cfg = config.get("campana_festiva", {})
         activo_def = campana_cfg.get("activo", False)
@@ -267,7 +278,7 @@ def render_home_admin():
 
         with str_lit.form("form_campana_festiva"):
             activar_campana = str_lit.checkbox("🟢 Activar Campaña Masiva Web", value=activo_def)
-            nombre_campana = str_lit.text_input("Nombre / Motivo de la Campaña", value=nombre_def, placeholder="Ej: San Valentín / Black Friday")
+            nombre_campana = str_lit.text_input("Nombre / Motivo de la Campaña", value=nombre_def)
             porcentaje_campana = str_lit.number_input("Porcentaje de Descuento (%)", min_value=0.0, max_value=100.0, value=porcentaje_def, step=1.0)
             
             str_lit.markdown("---")
@@ -302,7 +313,7 @@ def render_home_admin():
     # --- ANÁLISIS Y REPORTE DE CAMPAÑA WEB ---
     with tab_analisis:
         str_lit.subheader("📊 Análisis de Campaña Web e Ítems Más Vendidos")
-        str_lit.markdown("Consulta el rendimiento financiero de cualquier campaña o período festivo web, desglosado por productos más vendidos y por factura.")
+        str_lit.markdown("Consulta el rendimiento financiero de cualquier campaña o período festivo web.")
 
         col_f1, col_f2 = str_lit.columns(2)
         with col_f1:
@@ -339,10 +350,7 @@ def render_home_admin():
                         monto_item = float(m.valor_neto or 0.0)
 
                         if sku_item not in conteo_items:
-                            conteo_items[sku_item] = {
-                                "unidades": 0,
-                                "total_recaudado": 0.0
-                            }
+                            conteo_items[sku_item] = {"unidades": 0, "total_recaudado": 0.0}
                         conteo_items[sku_item]["unidades"] += cant_vendida
                         conteo_items[sku_item]["total_recaudado"] += monto_item
 
@@ -378,43 +386,14 @@ def render_home_admin():
                     m4.metric("📈 Ticket Promedio", f"${ticket_promedio:,.2f}")
 
                     str_lit.divider()
-                    
                     str_lit.markdown("##### 🏆 Ranking de Ítems / Prendas Más Vendidos")
                     df_items = pd.DataFrame(data_items)
                     if not df_items.empty:
                         df_items = df_items.sort_values(by="Unidades Vendidas", ascending=False)
                         str_lit.dataframe(
-                            df_items, 
-                            use_container_width=True, 
-                            hide_index=True,
-                            column_config={
-                                "Total Ingresos ($)": str_lit.column_config.NumberColumn(format="$ %.2f")
-                            }
+                            df_items, use_container_width=True, hide_index=True,
+                            column_config={"Total Ingresos ($)": str_lit.column_config.NumberColumn(format="$ %.2f")}
                         )
-
-                    str_lit.divider()
-
-                    str_lit.markdown("##### 📋 Registro Detallado por Factura")
-                    data_detalle = []
-                    for f in facturas_web:
-                        data_detalle.append({
-                            "Factura": f.numero_factura,
-                            "Fecha": str(f.fecha_factura),
-                            "Cliente": f.entidad_nombre,
-                            "RUC / Cédula": f.entidad_ruc,
-                            "Canal / Tipo": f.tipo_factura,
-                            "Total ($)": float(f.total_factura or 0.0)
-                        })
-
-                    df_reporte = pd.DataFrame(data_detalle)
-                    str_lit.dataframe(
-                        df_reporte, 
-                        use_container_width=True, 
-                        hide_index=True,
-                        column_config={
-                            "Total ($)": str_lit.column_config.NumberColumn(format="$ %.2f")
-                        }
-                    )
                 else:
                     db_ses.close()
                     str_lit.warning("⚠️ No se encontraron ventas web registradas en el rango de fechas seleccionado.")
