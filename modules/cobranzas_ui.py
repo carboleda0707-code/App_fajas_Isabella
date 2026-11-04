@@ -6,7 +6,7 @@ def render_gestion_cobranzas(api_url: str):
     st.markdown("Registra nuevos abonos de clientes y gestiona la cartera activa con saldo pendiente.")
 
     # --------------------------------------------------------------------------
-    # OBTENER DATOS DE LA CARTERA PARA LOS FILTROS
+    # OBTENER DATOS DE LA CARTERA
     # --------------------------------------------------------------------------
     listado_planes = []
     cartera_total = 0.0
@@ -23,44 +23,62 @@ def render_gestion_cobranzas(api_url: str):
             saldo_pendiente_total = datos_res.get("saldo_pendiente", 0.0)
             planes_activos = datos_res.get("planes_activos", 0)
             listado_planes = datos_res.get("planes", [])
-    except Exception:
-        pass
+    except Exception as e:
+        st.warning(f"No se pudo conectar con la API de cobranzas: {e}")
 
     # --------------------------------------------------------------------------
-    # 1. FORMULARIO DE INGRESO / APLICACIÓN DE PAGOS CON FILTRO INTELIGENTE
+    # 1. FORMULARIO DE INGRESO CON BÚSQUEDA FLEXIBLE Y VISUALIZACIÓN
     # --------------------------------------------------------------------------
     with st.expander("➕ Registrar Nuevo Abono / Aplicar Pago", expanded=True):
         
-        # Filtro por RUC, Cédula o Cliente
         filtro_busqueda = st.text_input(
-            "🔍 Buscar cliente por RUC, Cédula o Nombre para filtrar órdenes:",
+            "🔍 Buscar cliente por RUC, Cédula o Nombre:",
             placeholder="Escribe el RUC, Cédula o nombre del cliente..."
         ).strip().lower()
 
-        # Filtrar las órdenes que tienen saldo pendiente según la búsqueda
+        # Filtrar órdenes con saldo pendiente evaluando múltiples nombres posibles de campos
         ordenes_filtradas = []
         for plan in listado_planes:
-            # Asumiendo que el plan trae ruc/cedula o nombre
-            cliente_str = str(plan.get('cliente', '')).lower()
-            ruc_str = str(plan.get('ruc_cedula', '')).lower()
-            factura_str = str(plan.get('numero_factura', '')).lower()
-            
-            if not filtro_busqueda or (filtro_busqueda in cliente_str or filtro_busqueda in ruc_str or filtro_busqueda in factura_str):
+            # Extraer campos de forma segura sin importar cómo los envíe la API
+            cliente_nombre = str(plan.get('cliente') or plan.get('entidad_nombre') or 'Cliente General').lower()
+            cliente_ruc = str(plan.get('ruc_cedula') or plan.get('ruc') or plan.get('entidad_ruc') or '').lower()
+            num_factura = str(plan.get('numero_factura') or plan.get('id') or '').lower()
+            saldo_val = float(plan.get('saldo_pendiente', 0.0))
+
+            # Coincidencia con el filtro de búsqueda
+            coincide = (
+                not filtro_busqueda or 
+                filtro_busqueda in cliente_nombre or 
+                filtro_busqueda in cliente_ruc or 
+                filtro_busqueda in num_factura
+            )
+
+            if coincide and saldo_val > 0:
+                # Guardar datos normalizados para el selectbox
+                plan['nombre_limpio'] = plan.get('cliente') or plan.get('entidad_nombre') or 'Cliente'
+                plan['ruc_limpio'] = plan.get('ruc_cedula') or plan.get('ruc') or plan.get('entidad_ruc') or 'S/N'
+                ordenes_filtradas.append(plan)
+
+        # Si no hay texto de filtro, mostrar todas las que tengan saldo para comodidad
+        if not filtro_busqueda and not ordenes_filtradas:
+            for plan in listado_planes:
                 if float(plan.get('saldo_pendiente', 0.0)) > 0:
+                    plan['nombre_limpio'] = plan.get('cliente') or plan.get('entidad_nombre') or 'Cliente'
+                    plan['ruc_limpio'] = plan.get('ruc_cedula') or plan.get('ruc') or plan.get('entidad_ruc') or 'S/N'
                     ordenes_filtradas.append(plan)
 
-        if not ordenes_filtradas and listado_planes:
-            st.warning("⚠️ No se encontraron órdenes con saldo pendiente para ese filtro.")
-
-        # Crear opciones legibles para el selectbox
         opciones_map = {}
         for p in ordenes_filtradas:
-            label = f"Factura #{p.get('numero_factura')} | Cliente: {p.get('cliente')} | Saldo Pendiente: ${p.get('saldo_pendiente', 0):.2f}"
+            # 👇 AQUÍ SE MUESTRA CLARAMENTE EL NOMBRE Y EL RUC/CÉDULA AL LADO EN EL SELECTOR
+            label = f"Factura #{p.get('numero_factura')} | 👤 {p.get('nombre_limpio')} (RUC/CI: {p.get('ruc_limpio')}) | Saldo: ${float(p.get('saldo_pendiente', 0)):.2f}"
             opciones_map[label] = p.get('id')
+
+        if not opciones_map:
+            st.info("ℹ️ No hay órdenes con saldo pendiente que coincidan con la búsqueda.")
 
         with st.form("form_nuevo_abono", clear_on_submit=True):
             seleccion_orden = st.selectbox(
-                "Seleccione la Orden / Factura con saldo pendiente:",
+                "Seleccione la Orden / Factura del cliente:",
                 options=list(opciones_map.keys()) if opciones_map else ["No hay órdenes disponibles"]
             )
             
@@ -74,12 +92,12 @@ def render_gestion_cobranzas(api_url: str):
             with col_f3:
                 referencia = st.text_input("Número de Referencia / Comprobante:", placeholder="Ej. #TRX-984201")
             with col_f4:
-                observacion = st.text_input("Observación / Nota:", placeholder="Ej. Segundo abono quincenal")
+                observacion = st.text_input("Observación / Nota:", placeholder="Ej. Abono quincenal")
 
             btn_guardar_pago = st.form_submit_button("💳 Registrar Pago / Abono", use_container_width=True)
 
             if btn_guardar_pago:
-                if not opciones_map or seleccion_orden not in opciones_map:
+                if not opciones_map or seleccion_orden not in opciones_map or seleccion_orden == "No hay órdenes disponibles":
                     st.error("⚠️ Debe seleccionar una orden válida con saldo pendiente.")
                 elif monto_abono <= 0:
                     st.error("⚠️ El monto a abonar debe ser mayor a $0.00.")
@@ -126,9 +144,9 @@ def render_gestion_cobranzas(api_url: str):
             with st.container():
                 c1, c2, c3, c4, c5 = st.columns([1.5, 2.5, 1.5, 1.5, 2])
                 c1.write(f"**Factura:** #{plan.get('numero_factura')}")
-                c2.write(f"**Cliente:** {plan.get('cliente')}")
+                c2.write(f"**Cliente:** {plan.get('cliente') or plan.get('entidad_nombre')}")
                 c3.write(f"**Total:** ${plan.get('total', 0):.2f}")
                 c4.write(f"**Saldo:** :red[${plan.get('saldo_pendiente', 0):.2f}]")
                 with c5:
                     if st.button(f"🔎 Seleccionar", key=f"btn_sel_{plan.get('id')}"):
-                        st.info(f"Orden #{plan.get('numero_factura')} lista para abonar arriba.")
+                        st.info(f"Orden #{plan.get('numero_factura')} lista para abonar.")
