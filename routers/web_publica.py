@@ -727,7 +727,22 @@ async def _procesar_checkout_comun(
         "comprobante_nombre": comprobante_nombre
     }
 
-
+@router.get("/api/web/pedidos/ultimo-reciente")
+def obtener_ultimo_pedido_reciente(db: Session = Depends(get_db)):
+    """Devuelve el ID y el total del último pedido registrado para la alerta en vivo."""
+    try:
+        ultimo = db.query(Factura).order_by(Factura.id.desc()).first()
+        if not ultimo:
+            return {"id": 0, "numero_factura": "0000", "total": 0.0, "cliente": "Ninguno"}
+        return {
+            "id": ultimo.id,
+            "numero_factura": ultimo.numero_factura,
+            "total": float(ultimo.total_factura or 0.0),
+            "cliente": ultimo.entidad_nombre or "Cliente Web"
+        }
+    except Exception as e:
+        return {"id": 0, "numero_factura": "0000", "total": 0.0, "cliente": "Error"}
+    
 # ==============================================================================
 # ENDPOINTS DE CHECKOUT (WHATSAPP Y CORREO)
 # ==============================================================================
@@ -867,3 +882,23 @@ def obtener_pedidos_cliente(cliente_id: int, db: Session = Depends(get_db)):
             "numero_guia": f.numero_guia or "Por emitir"
         })
     return resultado
+
+# ==============================================================================
+# ENDPOINT PARA ALERTAS EN VIVO EN EL PANEL ADMINISTRATIVO
+# ==============================================================================
+
+@router.get("/api/web/pedidos/ultimo-reciente")
+def obtener_ultimo_pedido_reciente(db: Session = Depends(get_db)):
+    """Devuelve el ID y el total del último pedido registrado para la alerta en vivo."""
+    try:
+        ultimo = db.query(Factura).order_by(Factura.id.desc()).first()
+        if not ultimo:
+            return {"id": 0, "numero_factura": "0000", "total": 0.0, "cliente": "Ninguno"}
+        return {
+            "id": ultimo.id,
+            "numero_factura": ultimo.numero_factura,
+            "total": float(ultimo.total_factura or 0.0),
+            "cliente": ultimo.entidad_nombre or "Cliente Web"
+        }
+    except Exception:
+        return {"id": 0, "numero_factura": "0000", "total": 0.0, "cliente": "Error"}

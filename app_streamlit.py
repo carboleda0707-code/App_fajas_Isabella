@@ -7,6 +7,7 @@ if current_dir not in sys.path:
     sys.path.append(current_dir)
 
 import streamlit as st
+import streamlit.components.v1 as components
 from modules.login_admin import render_login_admin
 
 from modules.inventario_ui import render_inventario
@@ -60,6 +61,125 @@ if "rol_actual" not in st.session_state:
 if not st.session_state["autenticado"]:
     render_login_admin()
     st.stop()
+
+# --- WIDGET DE NOTIFICACIONES EN TIEMPO REAL (AUDIO, CONFETI, TARJETA Y PESTAÑA INTERMITENTE) ---
+def render_live_notifications_widget(api_url: str):
+    """Inyecta el sistema de alertas flotantes, sonido, confeti y parpadeo de pestaña de forma segura."""
+    widget_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    </head>
+    <body>
+        <script>
+            (function() {{
+                const parentDoc = window.parent.document;
+                const originalTitle = parentDoc.title;
+                let flashTimer = null;
+
+                // 1. Asegurar etiqueta de audio en la ventana principal
+                if (!parentDoc.getElementById('sound-cash')) {{
+                    const audioTag = parentDoc.createElement('audio');
+                    audioTag.id = 'sound-cash';
+                    audioTag.preload = 'auto';
+                    audioTag.innerHTML = '<source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">';
+                    parentDoc.body.appendChild(audioTag);
+                }}
+
+                let ultimoIdConocido = null;
+                const apiUrl = "{api_url}/web/pedidos/ultimo-reciente";
+
+                async function verificarNuevosPedidos() {{
+                    try {{
+                        const res = await fetch(apiUrl);
+                        if (!res.ok) return;
+                        const data = await res.json();
+                        
+                        if (!data || typeof data.id === 'undefined') return;
+
+                        if (ultimoIdConocido !== null && data.id > ultimoIdConocido) {{
+                            dispararAlertaVenta(data.numero_factura || '0000', data.total || 0.0, data.cliente || 'Cliente');
+                        }}
+                        ultimoIdConocido = data.id;
+                    }} catch (e) {{
+                        // Silenciar errores menores de red
+                    }}
+                }}
+
+                function iniciarParpadeoPestaña(numFactura) {{
+                    if (flashTimer) clearInterval(flashTimer);
+                    let toggle = false;
+                    flashTimer = setInterval(() => {{
+                        parentDoc.title = toggle ? "🎉 ¡Nueva Venta #" + numFactura + "!" : originalTitle;
+                        toggle = !toggle;
+                    }}, 1000);
+
+                    const detenerParpadeo = () => {{
+                        if (!parentDoc.hidden) {{
+                            clearInterval(flashTimer);
+                            parentDoc.title = originalTitle;
+                            parentDoc.removeEventListener('visibilitychange', detenerParpadeo);
+                            parentDoc.removeEventListener('mousemove', detenerParpadeo);
+                        }}
+                    }};
+                    parentDoc.addEventListener('visibilitychange', detenerParpadeo);
+                    parentDoc.addEventListener('mousemove', detenerParpadeo);
+                }}
+
+                function dispararAlertaVenta(numFactura, total, cliente) {{
+                    // A. Reproducir audio
+                    const sound = parentDoc.getElementById('sound-cash');
+                    if (sound) {{
+                        sound.currentTime = 0;
+                        sound.play().catch(err => console.log("Audio bloqueado por políticas del navegador", err));
+                    }}
+
+                    // B. Lanzar confeti
+                    if (typeof confetti === 'function') {{
+                        confetti({{
+                            particleCount: 150,
+                            spread: 90,
+                            origin: {{ y: 0.7 }}
+                        }});
+                    }}
+
+                    // C. Parpadear título de la pestaña si está minimizada
+                    iniciarParpadeoPestaña(numFactura);
+
+                    // D. Crear tarjeta flotante en la esquina inferior derecha
+                    const card = parentDoc.createElement('div');
+                    card.style.position = 'fixed';
+                    card.style.bottom = '30px';
+                    card.style.right = '30px';
+                    card.style.backgroundColor = '#e11d48';
+                    card.style.color = '#ffffff';
+                    card.style.padding = '18px 25px';
+                    card.style.borderRadius = '16px';
+                    card.style.boxShadow = '0 15px 30px rgba(0,0,0,0.4)';
+                    card.style.fontWeight = 'bold';
+                    card.style.fontSize = '15px';
+                    card.style.zIndex = '99999999';
+                    card.style.fontFamily = 'sans-serif';
+                    card.style.border = '2px solid #ffffff';
+                    card.innerHTML = "🎉 ¡Nueva Venta en Directo!<br><span style='font-size:13px; font-weight:normal;'>Factura #" + numFactura + " - " + cliente + " ($" + Number(total).toFixed(2) + ")</span>";
+                    
+                    parentDoc.body.appendChild(card);
+                    setTimeout(() => {{ card.remove(); }}, 10000);
+                }}
+
+                // Consultar la API cada 20 segundos
+                setInterval(verificarNuevosPedidos, 20000);
+                verificarNuevosPedidos();
+            }})();
+        </script>
+    </body>
+    </html>
+    """
+    components.html(widget_html, height=0, width=0)
+
+# Activar el sistema de notificaciones en vivo
+render_live_notifications_widget(st.session_state["API_URL"])
 
 # --- INFORMACIÓN Y CERRAR SESIÓN EN SIDEBAR ---
 st.sidebar.markdown(f"👤 **Usuario:** {st.session_state['usuario_actual']}")
