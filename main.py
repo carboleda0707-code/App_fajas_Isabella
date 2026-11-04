@@ -15,17 +15,16 @@ from routers import (
     auth_web, 
     logistica, 
     acumulativo, 
-    multimedia,
-    cobranzas  # <--- ROUTER DE COBRANZAS Y ABONOS
+    cobranzas
 )
 
 app = FastAPI(
     title="Fajas Isabella - Sistema Modular API", 
     version="5.0",
-    description="API RESTful unificada para gestión de inventarios, e-commerce, cobranzas acumulativas y logística."
+    description="API RESTful unificada para gestión de inventarios, e-commerce y cobranzas acumulativas."
 )
 
-# --- CONFIGURACIÓN DE CORS (PERMITIR PETICIONES DESDE EL PANEL Y TIENDA WEB) ---
+# --- CONFIGURACIÓN DE CORS ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -42,12 +41,11 @@ def home():
 @app.get("/admin")
 @app.get("/panel")
 def redirigir_admin():
-    # Redirige dinámicamente al panel de Streamlit o a localhost según el entorno
     panel_url = os.getenv("STREAMLIT_PANEL_URL", "http://localhost:8501")
     return RedirectResponse(url=panel_url)
 
 # --- ROUTERS DEL NEGOCIO ---
-app.include_router(web_publica.router, tags=["Web Pública"])  # Rutas directas y /api/web
+app.include_router(web_publica.router, tags=["Web Pública"])
 app.include_router(ventas.router, prefix="/api", tags=["Ventas"])
 app.include_router(clientes.router, prefix="/api", tags=["Clientes"])
 app.include_router(proveedores.router, prefix="/api", tags=["Proveedores"])
@@ -56,9 +54,8 @@ app.include_router(compras.router, prefix="/api", tags=["Compras"])
 app.include_router(reportes.router, prefix="/api", tags=["Reportes"])
 app.include_router(logistica.router, tags=["Logística y Despachos"])
 app.include_router(auth_web.router, tags=["Autenticación Web"])
-app.include_router(acumulativo.router_acumulativo, tags=["Plan Acumulativo"])  # Prefijo /api/web/acumulativo
-app.include_router(cobranzas.router, tags=["Cobranzas y Abonos"])             # Prefijo /api/cobranzas
-app.include_router(multimedia.router, tags=["Multimedia Híbrida"])            # Caché inteligente y fallback local
+app.include_router(acumulativo.router_acumulativo, tags=["Plan Acumulativo"])
+app.include_router(cobranzas.router, tags=["Cobranzas y Abonos"])
 
 # --- ARCHIVOS ESTÁTICOS ---
 if os.path.exists("web"):
