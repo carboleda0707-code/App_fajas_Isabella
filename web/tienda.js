@@ -848,11 +848,12 @@ function getVal(ids, defaultVal = "") {
 }
 
 function validarLopdpAceptado() {
+    // Validar obligatoriamente la LOPDP antes de continuar con el pedido
     const checkLopdp = document.getElementById('check_lopdp');
     if (checkLopdp && !checkLopdp.checked) {
-        alert("⚠️ Debes leer y aceptar los Términos y la Ley de Protección de Datos (LOPDP) para continuar.");
+        alert("⚠️ Debes leer y aceptar los Términos y la Ley de Protección de Datos (LOPDP) para continuar con tu compra.");
         checkLopdp.focus();
-        return false;
+        return false; // Retorna false para detener la ejecución correctamente
     }
     return true;
 }
@@ -942,7 +943,19 @@ async function procesarPedidoWhatsApp(event) {
     formData.append("referencia", referencia);
     formData.append("items", JSON.stringify(carrito));
     formData.append("comprobante", archivoComprobante);
-    formData.append("acepta_lopdp", "true");
+    
+    // Envío correcto del estado del checkbox LOPDP con el nombre exacto que espera FastAPI
+    const checkLopdp = document.getElementById('check_lopdp');
+    formData.append('accept_lopdp', checkLopdp ? checkLopdp.checked : false);
+
+    if (typeof esPlanAcumulativoActivo !== 'undefined' && esPlanAcumulativoActivo) {
+        const abonoInput = parseFloat(document.getElementById('input-abono-inicial')?.value) || 0;
+        formData.append("metodo_pago", "Plan Acumulativo");
+        formData.append("abono_inicial", abonoInput);
+    } else {
+        formData.append("metodo_pago", "Transferencia");
+        formData.append("abono_inicial", 0.0);
+    }
 
     try {
         const res = await fetch('/api/web/auth/checkout-whatsapp', {
@@ -1010,7 +1023,10 @@ async function procesarPedidoCorreo(event) {
     formData.append("referencia", referencia);
     formData.append("items", JSON.stringify(carrito));
     formData.append("comprobante", archivoComprobante);
-    formData.append("acepta_lopdp", "true");
+    
+    // Envío correcto del estado dinámico del checkbox LOPDP
+    const checkLopdp = document.getElementById('check_lopdp');
+    formData.append('accept_lopdp', checkLopdp ? checkLopdp.checked : false);
 
     if (typeof esPlanAcumulativoActivo !== 'undefined' && esPlanAcumulativoActivo) {
         const abonoInput = parseFloat(document.getElementById('input-abono-inicial')?.value) || 0;
@@ -1031,7 +1047,9 @@ async function procesarPedidoCorreo(event) {
         if (res.ok && data.status === 'success') {
             limpiarEstadoYFormularioPostCompra();
         } else {
-            alert("❌ Error al procesar el pedido por correo: " + (data.detail || "Intente nuevamente."));
+            // Conversión segura de detalles de error para evitar [object Object]
+            const errorMsg = typeof data.detail === 'object' ? JSON.stringify(data.detail, null, 2) : data.detail;
+            alert("❌ Error al procesar el pedido por correo:\n" + (errorMsg || "Intente nuevamente."));
         }
     } catch (e) {
         alert("❌ Error de conexión con el servidor.");
@@ -1063,6 +1081,8 @@ async function procesarPagoPaymentez(event) {
         return;
     }
 
+    const checkLopdp = document.getElementById('check_lopdp');
+
     try {
         const payload = {
             monto: calcularTotalCarrito(),
@@ -1076,7 +1096,7 @@ async function procesarPagoPaymentez(event) {
             direccion: direccion,
             referencia: referencia,
             items: carrito,
-            acepta_lopdp: true
+            accept_lopdp: checkLopdp ? checkLopdp.checked : false
         };
 
         const res = await fetch('/api/web/auth/paymentez-session', {

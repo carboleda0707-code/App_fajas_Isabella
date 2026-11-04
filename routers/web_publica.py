@@ -800,18 +800,21 @@ async def checkout_correo(
     ciudad: str = Form(...),
     direccion: str = Form(...),
     referencia: Optional[str] = Form(None),
+    codigo_sucursal: Optional[str] = Form("policentro"),
     items: str = Form(...),
     metodo_pago: Optional[str] = Form("Transferencia"),
     abono_inicial: Optional[float] = Form(0.0),
+    accept_lopdp: bool = Form(...),  # 👈 Agrégalo aquí
     comprobante: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
+    
     try:
         # Procesar orden en BD
         res = await _procesar_checkout_comun(
             nombre, telefono, correo, ruc_cedula, razon_social,
             provincia, ciudad, direccion, referencia, items, comprobante, "CORREO",
-            metodo_pago, abono_inicial, db
+            metodo_pago, abono_inicial, accept_lopdp, db
         )
         
         # Preparar datos para el correo exclusivo a Ventas (Cuenta A de Brevo)
