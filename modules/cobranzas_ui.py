@@ -1,70 +1,98 @@
 import streamlit as st
 import requests
 
-def render_gestion_cobranzas(api_url):
-    st.markdown("### 📊 Gestión Financiera - Planes Acumulativos y Cobranza")
-    
-    if st.button("🔄 Actualizar Reporte de Cartera", key="btn_refrescar_cartera"):
+def render_gestion_cobranzas(api_url: str):
+    st.header("📊 Gestión Financiera - Planes Acumulativos y Cobranza")
+    st.markdown("Registra nuevos abonos de clientes y gestiona la cartera activa con saldo pendiente.")
+
+    # --------------------------------------------------------------------------
+    # 1. FORMULARIO DE INGRESO / APLICACIÓN DE PAGOS Y ABONOS
+    # --------------------------------------------------------------------------
+    with st.expander("➕ Registrar Nuevo Abono / Aplicar Pago", expanded=True):
+        with st.form("form_nuevo_abono", clear_on_submit=True):
+            col_f1, col_f2, col_f3 = st.columns(3)
+            
+            with col_f1:
+                factura_id = st.number_input("ID de Factura / Plan:", min_value=1, step=1)
+            with col_f2:
+                monto_abono = st.number_input("Monto a Abonar ($):", min_value=0.01, step=0.50, format="%.2f")
+            with col_f3:
+                metodo_pago = st.selectbox("Método de Pago:", ["Transferencia", "Efectivo", "Depósito", "Tarjeta"])
+
+            col_f4, col_f5 = st.columns(2)
+            with col_f4:
+                referencia = st.text_input("Número de Referencia / Comprobante:", placeholder="Ej. #TRX-984201")
+            with col_f5:
+                observacion = st.text_input("Observación / Nota:", placeholder="Ej. Segundo abono quincenal")
+
+            btn_guardar_pago = st.form_submit_button("💳 Registrar Pago / Abono", use_container_width=True)
+
+            if btn_guardar_pago:
+                if not factura_id or monto_abono <= 0:
+                    st.error("⚠️ Debe ingresar un ID de factura válido y un monto mayor a $0.00.")
+                else:
+                    payload = {
+                        "factura_id": int(factura_id),
+                        "monto": float(monto_abono),
+                        "metodo_pago": metodo_pago,
+                        "referencia_bancaria": referencia,
+                        "observacion": observacion
+                    }
+                    try:
+                        res = requests.post(f"{api_url}/cobranzas/registrar-abono", json=payload, timeout=8)
+                        if res.status_code in [200, 201]:
+                            st.success(f"✅ ¡Abono de ${monto_abono:.2f} registrado exitosamente en la Factura #{factura_id}!")
+                            st.rerun()
+                        else:
+                            detail = res.json().get("detail", "Error al procesar abono")
+                            st.error(f"❌ Error: {detail}")
+                    except Exception as err:
+                        st.error(f"❌ Error de conexión con la API: {err}")
+
+    st.markdown("---")
+
+    # --------------------------------------------------------------------------
+    # 2. MÉTRICAS GENERALES DE CARTERA
+    # --------------------------------------------------------------------------
+    if st.button("🔄 Actualizar Reporte de Cartera", key="btn_refresh_cobranzas"):
         st.rerun()
 
+    cartera_total = 0.0
+    total_recaudado = 0.0
+    saldo_pendiente = 0.0
+    planes_activos = 0
+    listado_planes = []
+
     try:
-        # Construimos la URL base limpia removiendo '/api' si estuviera duplicado y apuntando directo al endpoint
-        base_limpia = api_url.removesuffix("/api").rstrip("/")
-        url_endpoint = f"{base_limpia}/api/web/acumulativo/admin/cartera-acumulativa"
+        res_resumen = requests.get(f"{api_url}/cobranzas/resumen", timeout=6)
+        if res_resumen.status_code == 200:
+            datos_res = res_resumen.json()
+            cartera_total = datos_res.get("cartera_total", 0.0)
+            total_recaudado = datos_res.get("total_recaudado", 0.0)
+            saldo_pendiente = datos_res.get("saldo_pendiente", 0.0)
+            planes_activos = datos_res.get("planes_activos", 0)
+            listado_planes = datos_res.get("planes", [])
+    except Exception:
+        pass
 
-        res = requests.get(url_endpoint, timeout=5)
-        
-        if res.status_code == 200:
-            data = res.json()
-            resumen = data.get("resumen", {})
-            detalles = data.get("detalles", [])
+    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+    col_m1.metric("Cartera Activa Total", f"${cartera_total:,.2f}")
+    col_m2.metric("Total Recaudado", f"${total_recaudado:,.2f}")
+    col_m3.metric("Saldo Pendiente", f"${saldo_pendiente:,.2f}")
+    col_m4.metric("Planes Activos", str(planes_activos))
 
-            # --- TARJETAS KPI ---
-            col1, col2, col3, col4 = st.columns(4)
-            col1.metric("Cartera Activa Total", f"${resumen.get('total_cartera', 0.0):.2f}")
-            col2.metric("Total Recaudado", f"${resumen.get('total_recaudado', 0.0):.2f}")
-            col3.metric("Saldo Pendiente", f"${resumen.get('total_pendiente', 0.0):.2f}")
-            col4.metric("Planes Activos", resumen.get('planes_activos', 0))
+    st.markdown("### 📋 Listado Detallado de Clientes con Saldo Pendiente")
 
-            st.divider()
-            st.markdown("##### 📋 Listado Detallado de Clientes con Saldo Pendiente")
-
-            if not detalles:
-                st.info("No hay planes acumulativos registrados actualmente.")
-                return
-
-            # Renderizar tabla detallada con opciones de recordatorio
-            for item in detalles:
-                with st.container():
-                    c_info1, c_info2, c_info3, c_info4 = st.columns([2, 2, 2, 2])
-                    
-                    with c_info1:
-                        st.markdown(f"**Factura:** #{item['numero_factura']}")
-                        st.caption(f"Fecha: {item['fecha']}")
-                    with c_info2:
-                        st.markdown(f"**Cliente:** {item['cliente']}")
-                        st.caption(f"📞 {item['telefono']}")
-                    with c_info3:
-                        st.markdown(f"Total: **${item['total_orden']:.2f}**")
-                        st.markdown(f"Abonado: <span style='color:green;'>**${item['total_abonado']:.2f}**</span>", unsafe_allow_html=True)
-                    with c_info4:
-                        st.markdown(f"Pendiente: <span style='color:red;'>**${item['saldo_pendiente']:.2f}**</span>", unsafe_allow_html=True)
-                        st.markdown(f"Estado: **{item['estado']}**")
-
-                    # Enlace directo para enviar recordatorio por WhatsApp
-                    telefono_limpio = item['telefono'].replace("+", "").strip()
-                    mensaje_wapp = f"Hola {item['cliente']} 👋, te saludamos de Fajas Isabella. Te recordamos que tu pedido #{item['numero_factura']} tiene un saldo pendiente de ${item['saldo_pendiente']:.2f} en tu Plan Acumulativo. ¿Deseas realizar tu abono hoy? 😊"
-                    url_wapp = f"https://wa.me/{telefono_limpio}?text={requests.utils.quote(mensaje_wapp)}"
-                    
-                    st.markdown(f"""
-                        <a href="{url_wapp}" target="_blank" style="text-decoration:none;">
-                            <button style="background-color:#16a34a; color:white; border:none; padding:6px 12px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">
-                                📲 Enviar Recordatorio por WhatsApp
-                            </button>
-                        </a>
-                    """, unsafe_allow_html=True)
-                    st.divider()
-        else:
-            st.error(f"Error al conectar con el servidor de cobranzas (Código {res.status_code}): {res.text}")
-    except Exception as e:
-        st.warning(f"No se pudo cargar la cartera acumulativa: {e}")
+    if not listado_planes:
+        st.info("No hay planes acumulativos registrados actualmente o no hay saldo pendiente por cobrar.")
+    else:
+        for plan in listado_planes:
+            with st.container():
+                c1, c2, c3, c4, c5 = st.columns([1.5, 2.5, 1.5, 1.5, 2])
+                c1.write(f"**Factura:** #{plan.get('numero_factura')}")
+                c2.write(f"**Cliente:** {plan.get('cliente')}")
+                c3.write(f"**Total:** ${plan.get('total', 0):.2f}")
+                c4.write(f"**Saldo:** :red[${plan.get('saldo_pendiente', 0):.2f}]")
+                with c5:
+                    if st.button(f"💵 Abonar", key=f"btn_abono_{plan.get('id')}"):
+                        st.info(f"Factura #{plan.get('id')} seleccionada. Ingrese el monto arriba.")
