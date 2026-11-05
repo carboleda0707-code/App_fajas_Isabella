@@ -551,20 +551,16 @@ function buscarProducto() {
 
 function abrirModal(productoId) {
     productoSeleccionado = productos.find(p => p.id === productoId);
-
-    // --- CHIVATO DE DIAGNÓSTICO ---
-    console.log("🕵️‍♂️ [CHIVATO] Producto seleccionado:", productoSeleccionado);
-    console.log("📦 [CHIVATO] Variantes que llegaron a la web:", productoSeleccionado ? productoSeleccionado.variantes : "No encontrado");
-    // -----------------------------
-   
     if (!productoSeleccionado) return;
 
     const variantes = productoSeleccionado.variantes || [];
     const tallas = [...new Set(variantes.map(v => v.talla))];
-    const colores = [...new Set(variantes.map(v => v.color))];
 
     tallaSeleccionada = tallas[0] || "S";
-    colorSeleccionado = colores[0] || "Negro";
+    
+    // Filtrar colores disponibles solo para la primera talla seleccionada por defecto
+    const coloresDisponiblesParaTalla = [...new Set(variantes.filter(v => v.talla === tallaSeleccionada).map(v => v.color))];
+    colorSeleccionado = coloresDisponiblesParaTalla[0] || variantes[0]?.color || "Negro";
     cantidadSeleccionada = 1;
 
     let listaMedia = [];
@@ -638,16 +634,7 @@ function abrirModal(productoId) {
                     <div>
                         <label class="text-xs font-bold text-slate-800 block mb-1.5">Color:</label>
                         <div class="flex gap-2 flex-wrap" id="selector-colores">
-                            ${colores.map((c, idx) => {
-                                let bgHex = "#1e293b";
-                                const cLower = c.toLowerCase();
-                                if (cLower.includes('beige') || cLower.includes('nude') || cLower.includes('arena')) bgHex = "#d4b293";
-                                else if (cLower.includes('blanco')) bgHex = "#ffffff";
-                                else if (cLower.includes('azul')) bgHex = "#2563eb";
-                                else if (cLower.includes('vino') || cLower.includes('rojo')) bgHex = "#9f1239";
-                                else if (cLower.includes('gris')) bgHex = "#64748b";
-                                return `<button onclick="seleccionarColor('${c}')" id="btn-color-${c}" type="button" class="btn-color flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-xl font-bold border ${idx === 0 ? 'bg-slate-900 text-white border-slate-900 shadow-xs' : 'bg-white text-slate-700 border-slate-300'} transition cursor-pointer"><span class="w-3.5 h-3.5 rounded-full border border-slate-300 inline-block shadow-2xs" style="background-color: ${bgHex};"></span><span>${c}</span></button>`;
-                            }).join('')}
+                            <!-- Se renderiza dinámicamente según la talla -->
                         </div>
                     </div>
                     <div class="bg-rose-50/60 border border-rose-100 p-3.5 rounded-2xl">
@@ -669,7 +656,9 @@ function abrirModal(productoId) {
 
     document.getElementById("modal-contenido").innerHTML = contenido;
     document.getElementById("modal-producto").classList.remove("hidden");
-    actualizarDetalleVariante();
+    
+    // Actualizar colores y detalles de la primera talla seleccionada
+    actualizarColoresDisponibles();
 }
 
 function cambiarMediaModal(url, esVideo) {
@@ -710,6 +699,49 @@ function obtenerVarianteActual() {
         || productoSeleccionado.variantes[0];
 }
 
+function actualizarColoresDisponibles() {
+    if (!productoSeleccionado || !productoSeleccionado.variantes) return;
+
+    // Obtener solo los colores que existen para la talla actual seleccionada
+    const variantesDeTalla = productoSeleccionado.variantes.filter(v => v.talla === tallaSeleccionada);
+    const coloresDisponibles = [...new Set(variantesDeTalla.map(v => v.color))];
+
+    // Si el color actual ya no está disponible en esta talla, seleccionamos el primero disponible
+    if (!coloresDisponibles.includes(colorSeleccionado)) {
+        colorSeleccionado = coloresDisponibles[0] || "";
+    }
+
+    const contenedorColores = document.getElementById("selector-colores");
+    if (!contenedorColores) return;
+
+    contenedorColores.innerHTML = coloresDisponibles.map((c, idx) => {
+        let bgHex = "#1e293b";
+        const cLower = c.toLowerCase();
+        if (cLower.includes('beige') || cLower.includes('nude') || cLower.includes('arena') || cLower.includes('cocoa')) bgHex = "#d4b293";
+        else if (cLower.includes('blanco')) bgHex = "#ffffff";
+        else if (cLower.includes('azul')) bgHex = "#2563eb";
+        else if (cLower.includes('vino') || cLower.includes('rojo')) bgHex = "#9f1239";
+        else if (cLower.includes('gris')) bgHex = "#64748b";
+        else if (cLower.includes('negro')) bgHex = "#000000";
+
+        const esSeleccionado = (c === colorSeleccionado || (idx === 0 && !colorSeleccionado));
+        if (esSeleccionado && !colorSeleccionado) colorSeleccionado = c;
+
+        const clasesBtn = esSeleccionado 
+            ? "bg-slate-900 text-white border-slate-900 shadow-xs" 
+            : "bg-white text-slate-700 border-slate-300";
+
+        return `
+            <button onclick="seleccionarColor('${c}')" id="btn-color-${c}" type="button" class="btn-color flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-xl font-bold border ${clasesBtn} transition cursor-pointer">
+                <span class="w-3.5 h-3.5 rounded-full border border-slate-300 inline-block shadow-2xs" style="background-color: ${bgHex};"></span>
+                <span>${c}</span>
+            </button>
+        `;
+    }).join('');
+
+    actualizarDetalleVariante();
+}
+
 function seleccionarTalla(talla) {
     tallaSeleccionada = talla;
     document.querySelectorAll(".btn-talla").forEach(b => {
@@ -721,12 +753,32 @@ function seleccionarTalla(talla) {
         btn.classList.remove("bg-white", "text-slate-700", "border-slate-300");
         btn.classList.add("bg-rose-600", "text-white", "border-rose-600");
     }
-    
+
+    // Actualizar los colores disponibles al cambiar de talla
+    actualizarColoresDisponibles();
+}
+
+
+function seleccionarTalla(talla) {
+    tallaSeleccionada = talla;
+    document.querySelectorAll(".btn-talla").forEach(b => {
+        b.classList.remove("bg-rose-600", "text-white", "border-rose-600");
+        b.classList.add("bg-white", "text-slate-700", "border-slate-300");
+    });
+    const btn = document.getElementById(`btn-talla-${talla}`);
+    if (btn) {
+        btn.classList.remove("bg-white", "text-slate-700", "border-slate-300");
+        btn.classList.add("bg-rose-600", "text-white", "border-rose-600");
+    }
+
+    // Actualizar colores disponibles según la nueva talla elegida
+    actualizarColoresDisponibles();
+
     const variante = obtenerVarianteActual();
     const imgElem = document.getElementById("modal-imagen-producto");
     if (imgElem && productoSeleccionado) {
-        const urlFoto = (variante && variante.imagen_url && variante.imagen_url.trim() !== "" && variante.imagen_url !== "None") 
-            ? variante.imagen_url 
+        const urlFoto = (variante && variante.imagen_url && variante.imagen_url.trim() !== "" && variante.imagen_url !== "null")
+            ? variante.imagen_url
             : productoSeleccionado.imagen_url;
         imgElem.src = obtenerRutaImagenProducto(urlFoto);
     }
@@ -1198,6 +1250,10 @@ function abrirModalAuth() {
     const modal = document.getElementById('modal-auth');
     if (modal) modal.classList.remove('hidden');
 }
+
+
+
+
 
 function cerrarModalAuth() {
     const modal = document.getElementById('modal-auth');
