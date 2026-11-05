@@ -258,62 +258,65 @@ def listar_inventario_publico(categoria: Optional[str] = Query(None), db: Sessio
     campana_festiva = obtener_campana_festiva_activa(db)
     porcentaje_festivo = float(campana_festiva.get("porcentaje", 0.0)) if campana_festiva else 0.0
     
-    # Diccionario para agrupar las variantes bajo un mismo nombre base de producto
+    # Diccionario para agrupar registros de la tabla productos que comparten el mismo nombre base
     productos_agrupados = {}
     
     for prod in productos_db:
-        nombre_base = prod.nombre.strip().title() if prod.nombre else "Sin Nombre"
-        variantes = [v for v in prod.variantes if (getattr(v, 'stock_actual', 0) or getattr(v, 'stock', 0)) > 0]
-        
-        if variantes:
-            if nombre_base not in productos_agrupados:
-                productos_agrupados[nombre_base] = {
-                    "id": prod.id,
-                    "nombre": nombre_base,
-                    "modelo": getattr(prod, 'modelo', nombre_base),
-                    "categoria": prod.categoria,
-                    "imagen_url": getattr(prod, 'imagen_url', '') or '',
-                    "imagen_1": getattr(prod, 'imagen_1', '') or '',
-                    "imagen_2": getattr(prod, 'imagen_2', '') or '',
-                    "imagen_3": getattr(prod, 'imagen_3', '') or '',
-                    "imagen_4": getattr(prod, 'imagen_4', '') or '',
-                    "video_url": getattr(prod, 'video_url', '') or '',
-                    "cartilla_url": getattr(prod, 'cartilla_url', '') or '',
-                    "en_liquidacion": bool(getattr(prod, 'en_liquidacion', False)),
-                    "es_nuevo": bool(getattr(prod, 'es_nuevo', False)),
-                    "en_oferta": bool(getattr(prod, 'en_oferta', False)) or (porcentaje_festivo > 0),
-                    "descuento_oferta": porcentaje_festivo if porcentaje_festivo > 0 else float(getattr(prod, 'descuento_oferta', 0.0) or 0.0),
-                    "variantes": []
-                }
+        stock_val = getattr(prod, 'stock_actual', 0) or getattr(prod, 'stock', 0) or getattr(prod, 'stock_minimo', 0)
+        if stock_val <= 0:
+            continue
             
-            for v in variantes:
-                stock_val = getattr(v, 'stock_actual', 0) or getattr(v, 'stock', 0)
-                precio_original = float(v.precio)
-                desc_var = float(getattr(v, 'descuento_porcentaje', 0.0) or 0.0)
-                en_oferta_prod = bool(getattr(prod, 'en_oferta', False))
-                desc_oferta_prod = float(getattr(prod, 'descuento_oferta', 0.0) or 0.0)
-                
-                if porcentaje_festivo > 0:
-                    porcentaje_aplicado = porcentaje_festivo
-                else:
-                    porcentaje_aplicado = desc_var if desc_var > 0 else (desc_oferta_prod if en_oferta_prod else 0.0)
-                    
-                precio_final = precio_original * (1 - (porcentaje_aplicado / 100.0)) if porcentaje_aplicado > 0 else precio_original
+        nombre_base = prod.nombre.strip() if prod.nombre else "Sin Nombre"
+        
+        if nombre_base not in productos_agrupados:
+            productos_agrupados[nombre_base] = {
+                "id": prod.id,
+                "nombre": nombre_base,
+                "modelo": getattr(prod, 'modelo', nombre_base),
+                "categoria": prod.categoria,
+                "imagen_url": getattr(prod, 'imagen_url', '') or '',
+                "imagen_1": getattr(prod, 'imagen_1', '') or '',
+                "imagen_2": getattr(prod, 'imagen_2', '') or '',
+                "imagen_3": getattr(prod, 'imagen_3', '') or '',
+                "imagen_4": getattr(prod, 'imagen_4', '') or '',
+                "video_url": getattr(prod, 'video_url', '') or '',
+                "cartilla_url": getattr(prod, 'cartilla_url', '') or '',
+                "en_liquidacion": bool(getattr(prod, 'en_liquidacion', False)),
+                "es_nuevo": bool(getattr(prod, 'es_nuevo', False)),
+                "en_oferta": bool(getattr(prod, 'en_oferta', False)) or (porcentaje_festivo > 0),
+                "descuento_oferta": porcentaje_festivo if porcentaje_festivo > 0 else float(getattr(prod, 'descuento_oferta', 0.0) or 0.0),
+                "variantes": []
+            }
+        
+        precio_original = float(getattr(prod, 'precio', 0) or 0)
+        desc_var = float(getattr(prod, 'descuento_porcentaje', 0.0) or 0.0)
+        en_oferta_prod = bool(getattr(prod, 'en_oferta', False))
+        desc_oferta_prod = float(getattr(prod, 'descuento_oferta', 0.0) or 0.0)
+        
+        if porcentaje_festivo > 0:
+            porcentaje_aplicado = porcentaje_festivo
+        else:
+            porcentaje_aplicado = desc_var if desc_var > 0 else (desc_oferta_prod if en_oferta_prod else 0.0)
+            
+        precio_final = precio_original * (1 - (porcentaje_aplicado / 100.0)) if porcentaje_aplicado > 0 else precio_original
 
-                sku_v = v.sku
-                existentes_skus = [var["sku"] for var in productos_agrupados[nombre_base]["variantes"]]
-                if sku_v not in existentes_skus:
-                    productos_agrupados[nombre_base]["variantes"].append({
-                        "id": v.id,
-                        "sku": sku_v,
-                        "talla": str(v.talla).strip().upper() if v.talla else "",
-                        "color": str(v.color).strip().upper() if v.color else "",
-                        "precio": precio_original,
-                        "descuento_porcentaje": porcentaje_aplicado,
-                        "precio_final": round(precio_final, 2),
-                        "stock": stock_val,
-                        "imagen_url": getattr(v, 'imagen_url', '') or ''
-                    })
+        sku_v = getattr(prod, 'sku', f"SKU-{prod.id}")
+        talla_v = str(getattr(prod, 'talla', '') or '').strip().upper()
+        color_v = str(getattr(prod, 'color', '') or '').strip().upper()
+
+        existentes_skus = [var["sku"] for var in productos_agrupados[nombre_base]["variantes"]]
+        if sku_v not in existentes_skus:
+            productos_agrupados[nombre_base]["variantes"].append({
+                "id": prod.id,
+                "sku": sku_v,
+                "talla": talla_v,
+                "color": color_v,
+                "precio": precio_original,
+                "descuento_porcentaje": porcentaje_aplicado,
+                "precio_final": round(precio_final, 2),
+                "stock": stock_val,
+                "imagen_url": getattr(prod, 'imagen_url', '') or ''
+            })
             
     return list(productos_agrupados.values())
 
