@@ -551,6 +551,12 @@ function buscarProducto() {
 
 function abrirModal(productoId) {
     productoSeleccionado = productos.find(p => p.id === productoId);
+
+    // --- CHIVATO DE DIAGNÓSTICO ---
+    console.log("🕵️‍♂️ [CHIVATO] Producto seleccionado:", productoSeleccionado);
+    console.log("📦 [CHIVATO] Variantes que llegaron a la web:", productoSeleccionado ? productoSeleccionado.variantes : "No encontrado");
+    // -----------------------------
+   
     if (!productoSeleccionado) return;
 
     const variantes = productoSeleccionado.variantes || [];
