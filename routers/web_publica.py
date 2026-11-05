@@ -262,7 +262,7 @@ def listar_inventario_publico(categoria: Optional[str] = Query(None), db: Sessio
     productos_agrupados = {}
     
     for prod in productos_db:
-        nombre_base = prod.nombre.strip() if prod.nombre else "Sin Nombre"
+        nombre_base = prod.nombre.strip().title() if prod.nombre else "Sin Nombre"
         variantes = [v for v in prod.variantes if (getattr(v, 'stock_actual', 0) or getattr(v, 'stock', 0)) > 0]
         
         if variantes:

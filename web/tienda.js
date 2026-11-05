@@ -696,8 +696,11 @@ function cambiarCantidadModal(delta) {
 
 function obtenerVarianteActual() {
     if (!productoSeleccionado || !productoSeleccionado.variantes) return null;
-    return productoSeleccionado.variantes.find(v => v.talla === tallaSeleccionada && v.color === colorSeleccionado) 
-        || productoSeleccionado.variantes.find(v => v.talla === tallaSeleccionada) 
+    const tSel = String(tallaSeleccionada).trim().toUpperCase();
+    const cSel = String(colorSeleccionado).trim().toUpperCase();
+
+    return productoSeleccionado.variantes.find(v => String(v.talla).trim().toUpperCase() === tSel && String(v.color).trim().toUpperCase() === cSel) 
+        || productoSeleccionado.variantes.find(v => String(v.talla).trim().toUpperCase() === tSel) 
         || productoSeleccionado.variantes[0];
 }
 
