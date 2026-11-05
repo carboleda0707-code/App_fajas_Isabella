@@ -18,7 +18,8 @@ from modules.proveedores_ui import render_proveedores
 from modules.clientes_ui import render_clientes
 from modules.reportes_ui import render_reportes
 from modules.home_admin_ui import render_home_admin
-from modules.cobranzas_ui import render_gestion_cobranzas  # <--- NUEVO MÓDULO DE COBRANZAS ACUMULATIVAS
+from modules.cobranzas_ui import render_gestion_cobranzas
+from modules.dashboard_ui import render_dashboard_admin  # <--- NUEVO PANEL EJECUTIVO
 
 # Configuración general de la página
 st.set_page_config(
@@ -62,9 +63,8 @@ if not st.session_state["autenticado"]:
     render_login_admin()
     st.stop()
 
-# --- WIDGET DE NOTIFICACIONES EN TIEMPO REAL (AUDIO, CONFETI, TARJETA Y PESTAÑA INTERMITENTE) ---
+# --- WIDGET DE NOTIFICACIONES EN TIEMPO REAL ---
 def render_live_notifications_widget(api_url: str):
-    """Inyecta el sistema de alertas flotantes, sonido, confeti y parpadeo de pestaña de forma segura."""
     widget_html = f"""
     <!DOCTYPE html>
     <html>
@@ -78,7 +78,6 @@ def render_live_notifications_widget(api_url: str):
                 const originalTitle = parentDoc.title;
                 let flashTimer = null;
 
-                // 1. Asegurar etiqueta de audio en la ventana principal
                 if (!parentDoc.getElementById('sound-cash')) {{
                     const audioTag = parentDoc.createElement('audio');
                     audioTag.id = 'sound-cash';
@@ -102,9 +101,7 @@ def render_live_notifications_widget(api_url: str):
                             dispararAlertaVenta(data.numero_factura || '0000', data.total || 0.0, data.cliente || 'Cliente');
                         }}
                         ultimoIdConocido = data.id;
-                    }} catch (e) {{
-                        // Silenciar errores menores de red
-                    }}
+                    }} catch (e) {{}}
                 }}
 
                 function iniciarParpadeoPestaña(numFactura) {{
@@ -128,14 +125,12 @@ def render_live_notifications_widget(api_url: str):
                 }}
 
                 function dispararAlertaVenta(numFactura, total, cliente) {{
-                    // A. Reproducir audio
                     const sound = parentDoc.getElementById('sound-cash');
                     if (sound) {{
                         sound.currentTime = 0;
-                        sound.play().catch(err => console.log("Audio bloqueado por políticas del navegador", err));
+                        sound.play().catch(err => console.log("Audio bloqueado", err));
                     }}
 
-                    // B. Lanzar confeti
                     if (typeof confetti === 'function') {{
                         confetti({{
                             particleCount: 150,
@@ -144,10 +139,8 @@ def render_live_notifications_widget(api_url: str):
                         }});
                     }}
 
-                    // C. Parpadear título de la pestaña si está minimizada
                     iniciarParpadeoPestaña(numFactura);
 
-                    // D. Crear tarjeta flotante en la esquina inferior derecha
                     const card = parentDoc.createElement('div');
                     card.style.position = 'fixed';
                     card.style.bottom = '30px';
@@ -168,7 +161,6 @@ def render_live_notifications_widget(api_url: str):
                     setTimeout(() => {{ card.remove(); }}, 10000);
                 }}
 
-                // Consultar la API cada 20 segundos
                 setInterval(verificarNuevosPedidos, 20000);
                 verificarNuevosPedidos();
             }})();
@@ -178,7 +170,6 @@ def render_live_notifications_widget(api_url: str):
     """
     components.html(widget_html, height=0, width=0)
 
-# Activar el sistema de notificaciones en vivo
 render_live_notifications_widget(st.session_state["API_URL"])
 
 # --- INFORMACIÓN Y CERRAR SESIÓN EN SIDEBAR ---
@@ -192,7 +183,7 @@ if st.sidebar.button("🔒 Cerrar Sesión", use_container_width=True):
     st.session_state["rol_actual"] = None
     st.rerun()
 
-# --- MENÚ LATERAL INTELIGENTE (SOPORTE MULTI-ROL Y JERARQUÍA) ---
+# --- MENÚ LATERAL INTELIGENTE ---
 rol_actual_str = str(st.session_state["rol_actual"] or "").strip()
 
 es_administrador = "Administrador" in rol_actual_str
@@ -203,11 +194,11 @@ es_inventario = "Inventario" in rol_actual_str
 modulos_disponibles = []
 
 if es_administrador:
-    # El Administrador tiene acceso total a todos los módulos (incluyendo Cobranzas)
     modulos_disponibles = [
+        "📊 Panel Ejecutivo",       # <--- NUEVA PRESENTACIÓN EN EL MENÚ
         "📦 Inventario", 
         "💳 Ventas", 
-        "✨ Cobranzas Acumulativas",  # <--- NUEVA OPCIÓN EN EL MENÚ
+        "✨ Cobranzas Acumulativas",  
         "🚚 Logística",
         "📥 Compras", 
         "🏭 Proveedores",
@@ -216,26 +207,21 @@ if es_administrador:
         "🌐 Panel Web"
     ]
 else:
-    # Construcción dinámica según los permisos específicos asignados
     if es_ventas:
-        modulos_disponibles.extend(["💳 Ventas", "✨ Cobranzas Acumulativas", "👥 Clientes"])
+        modulos_disponibles.extend(["📊 Panel Ejecutivo", "💳 Ventas", "✨ Cobranzas Acumulativas", "👥 Clientes"])
     if es_logistica:
         modulos_disponibles.append("🚚 Logística")
     if es_inventario:
         modulos_disponibles.append("📦 Inventario")
     
-    # Fallback por seguridad si ningún rol coincide
     if not modulos_disponibles:
-        modulos_disponibles = ["📦 Inventario"]
+        modulos_disponibles = ["📊 Panel Ejecutivo", "📦 Inventario"]
 
-# Eliminar duplicados manteniendo orden
 modulos_disponibles = list(dict.fromkeys(modulos_disponibles))
 
-# 🧠 Inicializar el estado del menú si no existe
 if "menu_modulo_activo" not in st.session_state:
     st.session_state["menu_modulo_activo"] = modulos_disponibles[0]
 
-# 🛡️ Asegurar que si cambia el rol, la sección seleccionada siga siendo válida
 if st.session_state["menu_modulo_activo"] not in modulos_disponibles:
     st.session_state["menu_modulo_activo"] = modulos_disponibles[0]
 
@@ -273,12 +259,14 @@ with col_head2:
 st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
 
 # --- RENDERIZADO DE MÓDULOS ---
-if seccion == "📦 Inventario":
+if seccion == "📊 Panel Ejecutivo":
+    render_dashboard_admin(st.session_state["API_URL"])  # <--- NUEVA VISTA INTEGRADA
+elif seccion == "📦 Inventario":
     render_inventario()
 elif seccion == "💳 Ventas":
     render_ventas()
 elif seccion == "✨ Cobranzas Acumulativas":
-    render_gestion_cobranzas(st.session_state["API_URL"])  # <--- LLAMADA AL NUEVO MÓDULO DE SEGUIMIENTO
+    render_gestion_cobranzas(st.session_state["API_URL"])
 elif seccion == "🚚 Logística":
     render_logistica()
 elif seccion == "📥 Compras":
