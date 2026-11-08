@@ -50,19 +50,24 @@ def guardar_seccion_db(seccion: str, contenido: dict):
 
 async def subir_archivo_inteligente(archivo_subido, subfolder: str, url_anterior: str) -> str:
     """
-    Sube a Cloudflare R2 si está en Railway.
-    Garantiza compatibilidad entre UploadedFile de Streamlit (.name) y UploadFile (.filename).
+    Sube a Cloudflare R2 de forma segura adaptando el archivo de Streamlit.
     """
     if archivo_subido is None:
         return url_anterior
     
     if is_railway:
         try:
-            # Aseguramos que el objeto tenga el atributo 'filename' esperado por R2 Uploader
-            if not hasattr(archivo_subido, "filename") and hasattr(archivo_subido, "name"):
-                archivo_subido.filename = archivo_subido.name
+            # Creamos un objeto mock o adaptamos el archivo para que la función de R2 lo procese sin error de bytes
+            class StreamlitUploadAdapter:
+                def __init__(self, uploaded_file):
+                    self.filename = uploaded_file.name
+                    self._file = uploaded_file
+                async def read(self):
+                    self._file.seek(0)
+                    return self._file.read()
 
-            url_r2 = await subir_archivo_a_nube(archivo_subido, folder=f"fajas_isabella/home/{subfolder}")
+            adaptador = StreamlitUploadAdapter(archivo_subido)
+            url_r2 = await subir_archivo_a_nube(adaptador, folder=f"fajas_isabella/home/{subfolder}")
             if url_r2:
                 return url_r2
         except Exception as e:
