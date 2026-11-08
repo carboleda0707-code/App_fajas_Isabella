@@ -57,10 +57,11 @@ async def subir_archivo_inteligente(archivo_subido, subfolder: str, url_anterior
     
     if is_railway:
         try:
-            # Creamos un objeto mock o adaptamos el archivo para que la función de R2 lo procese sin error de bytes
+            # Adaptador completo con filename y content_type para R2
             class StreamlitUploadAdapter:
                 def __init__(self, uploaded_file):
                     self.filename = uploaded_file.name
+                    self.content_type = getattr(uploaded_file, "type", "image/jpeg")
                     self._file = uploaded_file
                 async def read(self):
                     self._file.seek(0)
