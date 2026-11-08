@@ -19,7 +19,7 @@ API_URL = st.session_state["API_URL"]
 API_BASE = API_URL.removesuffix("/api")
 
 def resolver_url_imagen(url_o_path: str) -> str:
-    """Retorna la URL correcta ya sea externa (Cloudinary https://) o local."""
+    """Retorna la URL correcta ya sea externa o local (Cloudflare R2)."""
     if not url_o_path:
         return ""
     if url_o_path.startswith("http://") or url_o_path.startswith("https://"):
@@ -92,7 +92,6 @@ def render_inventario():
 
             st.markdown("###### 🏷️ Variantes (Tallas, Colores, Precios, Stock y Descuento %)")
 
-            # Selector con icono de ayuda (?) para ahorrar líneas
             num_lineas_var = st.number_input(
                 "Número de líneas de variantes a registrar:", 
                 min_value=1, 
@@ -102,7 +101,6 @@ def render_inventario():
                 help="💡 Guía: En la primera línea define la combinación principal (Talla, Color, Precio y Stock). Agrega más filas si manejas otras tallas o colores.\n\n⚠️ Si usas modalidad Individual, el % de oferta base se aplicará a las variantes."
             )
 
-            # Construir datos iniciales según el número de líneas seleccionadas
             datos_iniciales = []
             for i in range(num_lineas_var):
                 datos_iniciales.append({
@@ -118,12 +116,11 @@ def render_inventario():
 
             df_inicial = pd.DataFrame(datos_iniciales)
 
-            # Editor de datos con hide_index=True para ocultar la primera columna de índices
             df_variantes_editado = st.data_editor(
                 df_inicial,
                 num_rows="fixed",
                 use_container_width=True,
-                hide_index=True,  # <--- Oculta la columna de la izquierda (índices 0, 1, 2...)
+                hide_index=True,
                 column_config={
                     "sku": st.column_config.TextColumn("SKU (Opcional)", width="small"),
                     "talla": st.column_config.TextColumn("Talla *", width="small"),
@@ -135,7 +132,6 @@ def render_inventario():
                     "stock_maximo": st.column_config.NumberColumn("Stock Máx.", min_value=0, step=1, width="small")
                 }
             )
-
 
         with col_der:
             st.markdown("##### 📸 Imagen Principal del Ítem")

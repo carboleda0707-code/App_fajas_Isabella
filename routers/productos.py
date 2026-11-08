@@ -4,7 +4,7 @@ from typing import Optional
 import re, unicodedata, json, io
 import pandas as pd
 from database import get_db, Producto, VarianteProducto, Categoria
-from utils.cloudinary_uploader import subir_archivo_a_nube
+from utils.r2_uploader import subir_archivo_a_nube
 
 router = APIRouter()
 
@@ -24,7 +24,6 @@ def listar_inventario(db: Session = Depends(get_db)):
         p_nom = p.nombre if p else f"Producto #{v.producto_id}"
         p_cat = p.categoria if p else "GENERAL"
         p_img = p.imagen_url if p else ""
-        v_img = v.imagen_url or ""
         
         prod_dict = {
             "nombre": p_nom, 
@@ -55,7 +54,7 @@ def listar_inventario(db: Session = Depends(get_db)):
             "Fecha Creación": str(v.fecha_creacion)[:10] if v.fecha_creacion else "",
             "Última Venta": str(v.fecha_ultima_venta)[:10] if v.fecha_ultima_venta else "Sin ventas",
             **prod_dict, 
-            "imagen_url": v.imagen_url or p_img, # <--- Asignado al final para que mande la variante
+            "imagen_url": v.imagen_url or p_img,
             "producto": prod_dict
         })
     return lista
@@ -168,7 +167,6 @@ async def actualizar_variante(
     v.stock_minimo = stock_minimo
     v.stock_maximo = stock_maximo
     
-    # SANEAMIENTO: Limpieza automática de descuentos
     val_desc_oferta = float(descuento_oferta) if (en_oferta or en_liquidacion) else 0.0
 
     if tipo_descuento == "GENERAL" or (not en_oferta and not en_liquidacion):
@@ -176,14 +174,12 @@ async def actualizar_variante(
     else:
         v.descuento_porcentaje = float(descuento_porcentaje)
     
-    # 1. Foto específica de la variante
     archivo_var = imagen_variante if (imagen_variante and imagen_variante.filename) else None
     if archivo_var:
         img_v_url = await subir_archivo_a_nube(archivo_var, folder="fajas_isabella/variantes")
         if img_v_url: 
             v.imagen_url = img_v_url
             
-    # 2. Foto del producto general e ítem + archivos adicionales
     if v.producto:
         v.sku = generar_sku_compacto(v.producto.nombre, v.talla, v.color)
         v.producto.categoria = categoria.strip()
@@ -212,7 +208,6 @@ async def actualizar_variante(
         if cartilla and cartilla.filename:
             v.producto.cartilla_url = await subir_archivo_a_nube(cartilla, folder="fajas_isabella/productos/cartillas")
 
-        # Saneamiento a todas las demás variantes del producto si se cambia a GENERAL
         if tipo_descuento == "GENERAL" or (not en_oferta and not en_liquidacion):
             db.query(VarianteProducto).filter(VarianteProducto.producto_id == v.producto.id).update({"descuento_porcentaje": 0.0})
         
@@ -316,7 +311,6 @@ async def crear_o_actualizar_producto(
             s_max = int(v_data.get("stock_maximo", 20))
             v_img = str(v_data.get("imagen_url", "")).strip()
 
-            # --- SANEAMIENTO Y REGLA DE ORO AUTOMÁTICA AL GUARDAR ---
             if tipo_descuento == "GENERAL" or (not en_oferta and not en_liquidacion):
                 desc_var = 0.0
             elif tipo_descuento == "INDIVIDUAL":

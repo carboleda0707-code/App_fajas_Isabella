@@ -2,10 +2,10 @@ import streamlit as str_lit
 import os
 import requests
 from database import SessionLocal, ConfiguracionWeb
-import cloudinary.uploader
 from datetime import datetime, time
 from zoneinfo import ZoneInfo
 import pandas as pd
+from utils.r2_uploader import subir_archivo_a_nube
 
 API_URL = os.getenv("API_URL", "http://localhost:8000/api")
 
@@ -46,9 +46,9 @@ def guardar_seccion_db(seccion: str, contenido: dict):
     finally:
         db.close()
 
-def subir_archivo_inteligente(archivo_subido, subfolder: str, url_anterior: str) -> str:
+async def subir_archivo_inteligente(archivo_subido, subfolder: str, url_anterior: str) -> str:
     """
-    Sube a Cloudinary si está en Railway. 
+    Sube a Cloudflare R2 si está en Railway. 
     Si está en entorno local, guarda el archivo físicamente en web/img/home/... y retorna la ruta local.
     """
     if archivo_subido is None:
@@ -56,15 +56,14 @@ def subir_archivo_inteligente(archivo_subido, subfolder: str, url_anterior: str)
     
     if is_railway:
         try:
-            resultado = cloudinary.uploader.upload(
-                archivo_subido.getvalue(), 
-                folder=f"fajas_isabella/home/{subfolder}", 
-                resource_type="auto"
-            )
-            if resultado.get("secure_url"):
-                return resultado.get("secure_url")
+            # Creamos un objeto compatible con UploadFile o usamos directamente la función asíncrona de R2
+            from fastapi import UploadFile
+            # Como Streamlit maneja archivos subidos como UploadedFile, simulamos el paso a R2
+            url_r2 = await subir_archivo_a_nube(archivo_subido, folder=f"fajas_isabella/home/{subfolder}")
+            if url_r2:
+                return url_r2
         except Exception as e:
-            str_lit.warning(f"No se pudo subir a Cloudinary: {e}")
+            str_lit.warning(f"No se pudo subir a Cloudflare R2: {e}")
         return url_anterior
     else:
         try:
@@ -75,7 +74,6 @@ def subir_archivo_inteligente(archivo_subido, subfolder: str, url_anterior: str)
             with open(ruta_archivo, "wb") as f:
                 f.write(archivo_subido.getbuffer())
                 
-            # Retorna la ruta relativa que consume la web local
             return f"/img/home/{subfolder}/{archivo_subido.name}"
         except Exception as e:
             str_lit.error(f"Error guardando archivo localmente: {e}")
@@ -157,9 +155,11 @@ def render_home_admin():
             subm_sec05 = str_lit.form_submit_button("💾 Guardar Cambios de Sección 0.5 en BD", use_container_width=True)
             
             if subm_sec05:
+                import asyncio
                 payload_sec05 = {}
                 for idx, data in enumerate(slides_data, start=1):
-                    img_url = subir_archivo_inteligente(data["file_uploader"], "slider", data["imagen_actual"])
+                    # Ejecución asíncrona de la subida inteligente a R2
+                    img_url = asyncio.run(subir_archivo_inteligente(data["file_uploader"], "slider", data["imagen_actual"]))
                     
                     payload_sec05[f"slide{idx}"] = {
                         "tag": data["tag"], 
@@ -189,8 +189,9 @@ def render_home_admin():
 
             subm_sec1 = str_lit.form_submit_button("💾 Guardar Cambios de Sección 1 en BD", use_container_width=True)
             if subm_sec1:
+                import asyncio
                 multimedia_url = sec1_cfg.get("multimedia", "banner_historia.jpg")
-                multimedia_url = subir_archivo_inteligente(archivo_sec1, "historia", multimedia_url)
+                multimedia_url = asyncio.run(subir_archivo_inteligente(archivo_sec1, "historia", multimedia_url))
                 
                 payload_sec1 = {
                     "titulo": nuevo_titulo, "subtitulo": nuevo_subtitulo, "parrafo1": nuevo_p1,
@@ -240,9 +241,10 @@ def render_home_admin():
 
             subm_sec3 = str_lit.form_submit_button("💾 Guardar Cambios de Sección 3 en BD", use_container_width=True)
             if subm_sec3:
-                m1 = subir_archivo_inteligente(p1_file, "publicidad", p1_cfg.get("multimedia", "publi_1.jpg"))
-                m2 = subir_archivo_inteligente(p2_file, "publicidad", p2_cfg.get("multimedia", "publi_2.jpg"))
-                m3 = subir_archivo_inteligente(p3_file, "publicidad", p3_cfg.get("multimedia", "publi_3.jpg"))
+                import asyncio
+                m1 = asyncio.run(subir_archivo_inteligente(p1_file, "publicidad", p1_cfg.get("multimedia", "publi_1.jpg")))
+                m2 = asyncio.run(subir_archivo_inteligente(p2_file, "publicidad", p2_cfg.get("multimedia", "publi_2.jpg")))
+                m3 = asyncio.run(subir_archivo_inteligente(p3_file, "publicidad", p3_cfg.get("multimedia", "publi_3.jpg")))
 
                 payload_sec3 = {
                     "card1": {"tag": p1_tag, "titulo": p1_title, "descripcion": p1_desc, "link_texto": p1_link, "multimedia": m1},

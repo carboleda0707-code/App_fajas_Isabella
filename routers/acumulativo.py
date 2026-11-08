@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from typing import Optional
-import cloudinary.uploader
+from utils.r2_uploader import subir_archivo_a_nube
 from database import get_db, Factura, AbonoPlanAcumulativo
 
 router_acumulativo = APIRouter(prefix="/api/web/acumulativo", tags=["Plan Acumulativo"])
@@ -18,7 +18,7 @@ async def crear_pedido_acumulativo(
 ):
     """
     Registra un pedido bajo la modalidad de Plan Acumulativo, 
-    calcula el saldo pendiente y guarda el comprobante inicial si existe.
+    calcula el saldo pendiente y guarda el comprobante inicial en Cloudflare R2 si existe.
     """
     saldo_inicial = total - abono_inicial
     if saldo_inicial < 0:
@@ -43,17 +43,13 @@ async def crear_pedido_acumulativo(
     db.commit()
     db.refresh(nueva_factura)
 
-    # 2. Subir comprobante a Cloudinary si fue adjuntado
+    # 2. Subir comprobante a Cloudflare R2 si fue adjuntado
     comprobante_url = None
-    if comprobante:
+    if comprobante and comprobante.filename:
         try:
-            upload_result = cloudinary.uploader.upload(
-                comprobante.file, 
-                folder="fajas_isabella/abonos_acumulativos"
-            )
-            comprobante_url = upload_result.get("secure_url")
+            comprobante_url = await subir_archivo_a_nube(comprobante, folder="fajas_isabella/abonos_acumulativos")
         except Exception as e:
-            print(f"Error al subir comprobante a Cloudinary: {e}")
+            print(f"Error al subir comprobante a Cloudflare R2: {e}")
 
     # 3. Registrar el primer abono si es mayor a 0
     if abono_inicial > 0:
@@ -85,7 +81,7 @@ async def registrar_nuevo_abono(
 ):
     """
     Registra un nuevo abono parcial para un plan acumulativo existente,
-    sube el comprobante a Cloudinary y descuenta automáticamente del saldo pendiente.
+    sube el comprobante a Cloudflare R2 y descuenta automáticamente del saldo pendiente.
     """
     factura = db.query(Factura).filter(
         Factura.id == factura_id, 
@@ -103,17 +99,13 @@ async def registrar_nuevo_abono(
             detail=f"El monto del abono (${monto:.2f}) supera el saldo pendiente (${saldo_actual:.2f})."
         )
 
-    # Subir comprobante a Cloudinary
+    # Subir comprobante a Cloudflare R2
     comprobante_url = None
-    if comprobante:
+    if comprobante and comprobante.filename:
         try:
-            upload_result = cloudinary.uploader.upload(
-                comprobante.file, 
-                folder="fajas_isabella/abonos_acumulativos"
-            )
-            comprobante_url = upload_result.get("secure_url")
+            comprobante_url = await subir_archivo_a_nube(comprobante, folder="fajas_isabella/abonos_acumulativos")
         except Exception as e:
-            print(f"Error al subir comprobante: {e}")
+            print(f"Error al subir comprobante a R2: {e}")
 
     # Registrar el abono en la base de datos
     abono = AbonoPlanAcumulativo(
@@ -149,7 +141,7 @@ async def registrar_nuevo_abono(
 async def obtener_cartera_acumulativa(db: Session = Depends(get_db)):
     """
     Retorna el resumen financiero y la lista detallada de todas las órdenes 
-    con plan acumulativo para el control diario de cobranza de forma blindada (Código 500 evitado).
+    con plan acumulativo para el control diario de cobranza de forma blindada.
     """
     try:
         facturas_acumulativas = db.query(Factura).filter(
@@ -164,12 +156,10 @@ async def obtener_cartera_acumulativa(db: Session = Depends(get_db)):
         for f in facturas_acumulativas:
             total_factura = float(f.total_factura or 0.0)
             
-            # Calcular recaudado de forma segura desde la relación de abonos
             recaudado = 0.0
             if hasattr(f, 'abonos_acumulativos') and f.abonos_acumulativos:
                 recaudado = sum(float(a.monto or 0.0) for a in f.abonos_acumulativos)
             
-            # Obtener saldo pendiente respaldado o calculado
             pendiente = float(getattr(f, 'saldo_pendiente', total_factura - recaudado) or 0.0)
             if pendiente < 0:
                 pendiente = 0.0

@@ -246,10 +246,13 @@ function obtenerRutaImagenProducto(imagenUrl) {
     if (!imagenUrl) return SVG_FALLBACK;
     let urlLimpia = String(imagenUrl).trim();
     if (urlLimpia === "" || urlLimpia === "/logo.png" || urlLimpia === "logo.png") return SVG_FALLBACK;
-    if (urlLimpia.startsWith("http://") || urlLimpia.startsWith("https://") || urlLimpia.startsWith("/")) return urlLimpia;
-    if (urlLimpia.includes('.') && !urlLimpia.startsWith('img/')) {
-        return `https://res.cloudinary.com/d82ff3dh/image/upload/v1793225915/fajas_isabella/home/${urlLimpia}`;
+    
+    // Si ya es una URL completa (Cloudflare R2 o externa), se retorna tal cual
+    if (urlLimpia.startsWith("http://") || urlLimpia.startsWith("https://") || urlLimpia.startsWith("/")) {
+        return urlLimpia;
     }
+    
+    // Si es un archivo local o relativo, se mapea correctamente a la ruta del servidor
     return `/img/${urlLimpia.split('/').pop().trim()}`;
 }
 

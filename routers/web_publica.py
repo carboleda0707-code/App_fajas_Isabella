@@ -14,7 +14,7 @@ import json
 import os
 import secrets
 import string
-import cloudinary.uploader
+from utils.r2_uploader import subir_archivo_a_nube
 from config import (
     NOMBRE_EMPRESA, TELEFONO_WHATSAPP, CORREO_EMPRESA, DIRECCION_EMPRESA,
     INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL, WHATSAPP_LINK
@@ -258,14 +258,12 @@ def listar_inventario_publico(categoria: Optional[str] = Query(None), db: Sessio
     campana_festiva = obtener_campana_festiva_activa(db)
     porcentaje_festivo = float(campana_festiva.get("porcentaje", 0.0)) if campana_festiva else 0.0
     
-    # Diccionario para agrupar todas las variantes de un mismo producto bajo su nombre base
     productos_agrupados = {}
     
     for prod in productos_db:
         nombre_base = prod.nombre.strip() if prod.nombre else "Sin Nombre"
         variantes = [v for v in prod.variantes if (getattr(v, 'stock_actual', 0) or getattr(v, 'stock', 0)) >= 0]
         
-        # Si el producto no tiene relación de variantes pero tiene precio, lo tratamos como su propia variante
         if not variantes and hasattr(prod, 'precio'):
             variantes = [prod]
 
@@ -533,17 +531,15 @@ async def _procesar_checkout_comun(
     tipo_venta: str,
     metodo_pago: str,
     abono_inicial: float,
-    accept_lopdp: Optional[bool], # <-- Nuevo parámetro LOPDP
+    accept_lopdp: Optional[bool],
     db: Session
 ):
-    # --- VALIDACIÓN ESTRICTA LOPDP (ECUADOR) ---
     if not accept_lopdp:
         raise HTTPException(
             status_code=400, 
             detail="Debe aceptar los Términos y la Ley de Protección de Datos Personales (LOPDP) para procesar el pedido."
         )
 
-    # --- VALIDACIÓN ESTRICTA DE CAMPOS OBLIGATORIOS ---
     if not ruc_cedula or not ruc_cedula.strip():
         raise HTTPException(status_code=400, detail="El RUC o Cédula es obligatorio.")
     if not razon_social or not razon_social.strip():
@@ -638,15 +634,16 @@ async def _procesar_checkout_comun(
     comprobante_bytes = None
     comprobante_nombre = None
 
-    if comprobante:
+    if comprobante and comprobante.filename:
         try:
             comprobante_bytes = await comprobante.read()
-            comprobante_nombre = comprobante.filename or "comprobante_pago.jpg"
+            comprobante_nombre = comprobante.filename
             
-            upload_result = cloudinary.uploader.upload(comprobante_bytes)
-            file_url = upload_result.get("secure_url", comprobante_nombre)
+            # Subida a Cloudflare R2 utilizando la función estándar unificada
+            file_url = await subir_archivo_a_nube(comprobante, folder="fajas_isabella/comprobantes")
+            await comprobante.seek(0)
         except Exception as e:
-            print(f"⚠️ Advertencia al procesar comprobante: {e}")
+            print(f"⚠️ Advertencia al subir comprobante a R2: {e}")
             file_url = comprobante_nombre if comprobante_nombre else "comprobante_adjunto"
 
     es_acumulativo = (metodo_pago == "Plan Acumulativo")
@@ -773,7 +770,7 @@ async def checkout_whatsapp(
     items: str = Form(...),
     metodo_pago: Optional[str] = Form("Transferencia"),
     abono_inicial: Optional[float] = Form(0.0),
-    accept_lopdp: bool = Form(...), # <-- Capturado aquí
+    accept_lopdp: bool = Form(...),
     comprobante: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
@@ -831,20 +828,17 @@ async def checkout_correo(
     items: str = Form(...),
     metodo_pago: Optional[str] = Form("Transferencia"),
     abono_inicial: Optional[float] = Form(0.0),
-    accept_lopdp: bool = Form(...),  # 👈 Agrégalo aquí
+    accept_lopdp: bool = Form(...),
     comprobante: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
-    
     try:
-        # Procesar orden en BD
         res = await _procesar_checkout_comun(
             nombre, telefono, correo, ruc_cedula, razon_social,
             provincia, ciudad, direccion, referencia, items, comprobante, "CORREO",
             metodo_pago, abono_inicial, accept_lopdp, db
         )
         
-        # Preparar datos para el correo exclusivo a Ventas (Cuenta A de Brevo)
         datos_pedido = {
             "num_factura": res['num_factura_str'],
             "razon_social": razon_social,
@@ -856,7 +850,6 @@ async def checkout_correo(
             "total": res['total_pedido']
         }
 
-        # Lanzar tarea en segundo plano hacia ventas@ / correo de empresa
         if os.getenv("BREVO_VENTAS_API_KEY"):
             background_tasks.add_task(
                 enviar_correo_nueva_venta,
@@ -894,23 +887,3 @@ def obtener_pedidos_cliente(cliente_id: int, db: Session = Depends(get_db)):
             "numero_guia": f.numero_guia or "Por emitir"
         })
     return resultado
-
-# ==============================================================================
-# ENDPOINT PARA ALERTAS EN VIVO EN EL PANEL ADMINISTRATIVO
-# ==============================================================================
-
-@router.get("/api/web/pedidos/ultimo-reciente")
-def obtener_ultimo_pedido_reciente(db: Session = Depends(get_db)):
-    """Devuelve el ID y el total del último pedido registrado para la alerta en vivo."""
-    try:
-        ultimo = db.query(Factura).order_by(Factura.id.desc()).first()
-        if not ultimo:
-            return {"id": 0, "numero_factura": "0000", "total": 0.0, "cliente": "Ninguno"}
-        return {
-            "id": ultimo.id,
-            "numero_factura": ultimo.numero_factura,
-            "total": float(ultimo.total_factura or 0.0),
-            "cliente": ultimo.entidad_nombre or "Cliente Web"
-        }
-    except Exception:
-        return {"id": 0, "numero_factura": "0000", "total": 0.0, "cliente": "Error"}
