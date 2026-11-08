@@ -26,7 +26,7 @@ def resolver_url_imagen(url_o_path: str) -> str:
         return url_o_path
     return f"{API_BASE}/{url_o_path.lstrip('/')}"
 
-def render_inventario():
+def render_logistica():
     st.markdown("<p style='color: black; font-weight: bold;'>🖼️ Productos e Inventarios</p>", unsafe_allow_html=True)   
     
     if "accion_inventario" not in st.session_state:
