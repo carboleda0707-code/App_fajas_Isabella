@@ -128,8 +128,14 @@ def render_home_admin():
                 s_desc = str_lit.text_area(f"Descripción {i}", value=s_cfg.get("descripcion", f"Descripción de la diapositiva {i}..."))
                 
                 col_b1, col_b2 = str_lit.columns(2)
+                
                 with col_b1:
-                    s_btn_texto = str_lit.text_input(f"Texto del Botón {i}", value=s_cfg.get("btn_texto", "Ver Colección"))
+                    # Extrae solo la etiqueta del botón limpiando enlaces previos
+                    texto_guardado = s_cfg.get("btn_texto", "Ver Colección")
+                    texto_limpio = texto_guardado.split("→")[0].strip()
+
+                    s_btn_texto = str_lit.text_input(f"Texto del Botón {i}", value=texto_limpio)
+                    
                 with col_b2:
                     destino_actual_guardado = s_cfg.get("btn_destino", "index.html#catalogo")
                     indice_default = 0
