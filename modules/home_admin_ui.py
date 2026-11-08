@@ -66,8 +66,7 @@ async def subir_archivo_inteligente(archivo_subido, subfolder: str, url_anterior
                     self._file.seek(0)
                     return self._file.read()
                 def seek(self, offset):
-                    self._file.seek(offset)
-                    return None  # Evita que el int retornado sea usado en un await
+                    return self._file.seek(offset)
 
             adaptador = StreamlitUploadAdapter(archivo_subido)
             url_r2 = await subir_archivo_a_nube(adaptador, folder=f"fajas_isabella/home/{subfolder}")
