@@ -1,10 +1,12 @@
 import streamlit as str_lit
 import os
 import requests
-from database import SessionLocal, ConfiguracionWeb
+import asyncio
+import pandas as pd
 from datetime import datetime, time
 from zoneinfo import ZoneInfo
-import pandas as pd
+
+from database import SessionLocal, ConfiguracionWeb
 from utils.r2_uploader import subir_archivo_a_nube
 
 API_URL = os.getenv("API_URL", "http://localhost:8000/api")
@@ -48,17 +50,18 @@ def guardar_seccion_db(seccion: str, contenido: dict):
 
 async def subir_archivo_inteligente(archivo_subido, subfolder: str, url_anterior: str) -> str:
     """
-    Sube a Cloudflare R2 si está en Railway. 
-    Si está en entorno local, guarda el archivo físicamente en web/img/home/... y retorna la ruta local.
+    Sube a Cloudflare R2 si está en Railway.
+    Garantiza compatibilidad entre UploadedFile de Streamlit (.name) y UploadFile (.filename).
     """
     if archivo_subido is None:
         return url_anterior
     
     if is_railway:
         try:
-            # Creamos un objeto compatible con UploadFile o usamos directamente la función asíncrona de R2
-            from fastapi import UploadFile
-            # Como Streamlit maneja archivos subidos como UploadedFile, simulamos el paso a R2
+            # Aseguramos que el objeto tenga el atributo 'filename' esperado por R2 Uploader
+            if not hasattr(archivo_subido, "filename") and hasattr(archivo_subido, "name"):
+                archivo_subido.filename = archivo_subido.name
+
             url_r2 = await subir_archivo_a_nube(archivo_subido, folder=f"fajas_isabella/home/{subfolder}")
             if url_r2:
                 return url_r2
@@ -108,7 +111,7 @@ def render_home_admin():
             }
             
             for i in range(1, 5):
-                str_lit.markdown(f"---")
+                str_lit.markdown("---")
                 str_lit.markdown(f"#### 🖼️ Diapositiva (Slide) {i}")
                 s_cfg = sec05_cfg.get(f"slide{i}", {})
                 
@@ -155,10 +158,8 @@ def render_home_admin():
             subm_sec05 = str_lit.form_submit_button("💾 Guardar Cambios de Sección 0.5 en BD", use_container_width=True)
             
             if subm_sec05:
-                import asyncio
                 payload_sec05 = {}
                 for idx, data in enumerate(slides_data, start=1):
-                    # Ejecución asíncrona de la subida inteligente a R2
                     img_url = asyncio.run(subir_archivo_inteligente(data["file_uploader"], "slider", data["imagen_actual"]))
                     
                     payload_sec05[f"slide{idx}"] = {
@@ -189,7 +190,6 @@ def render_home_admin():
 
             subm_sec1 = str_lit.form_submit_button("💾 Guardar Cambios de Sección 1 en BD", use_container_width=True)
             if subm_sec1:
-                import asyncio
                 multimedia_url = sec1_cfg.get("multimedia", "banner_historia.jpg")
                 multimedia_url = asyncio.run(subir_archivo_inteligente(archivo_sec1, "historia", multimedia_url))
                 
@@ -241,7 +241,6 @@ def render_home_admin():
 
             subm_sec3 = str_lit.form_submit_button("💾 Guardar Cambios de Sección 3 en BD", use_container_width=True)
             if subm_sec3:
-                import asyncio
                 m1 = asyncio.run(subir_archivo_inteligente(p1_file, "publicidad", p1_cfg.get("multimedia", "publi_1.jpg")))
                 m2 = asyncio.run(subir_archivo_inteligente(p2_file, "publicidad", p2_cfg.get("multimedia", "publi_2.jpg")))
                 m3 = asyncio.run(subir_archivo_inteligente(p3_file, "publicidad", p3_cfg.get("multimedia", "publi_3.jpg")))
