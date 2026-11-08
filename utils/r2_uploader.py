@@ -61,7 +61,9 @@ async def subir_archivo_a_nube(file: UploadFile, folder: str = "fajas_isabella")
             secure_url = f"{endpoint_url.rstrip('/')}/{bucket_name}/{unique_filename}"
             
         print(f"¡Subida exitosa a R2! URL: {secure_url}")
-        await file.seek(0)
+        
+        # Corregido: Llamada síncrona a seek(0) sin await
+        file.seek(0)
         return secure_url
         
     except Exception as e:
