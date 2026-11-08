@@ -247,12 +247,22 @@ function obtenerRutaImagenProducto(imagenUrl) {
     let urlLimpia = String(imagenUrl).trim();
     if (urlLimpia === "" || urlLimpia === "/logo.png" || urlLimpia === "logo.png") return SVG_FALLBACK;
     
-    // Si ya es una URL completa (Cloudflare R2 o externa), se retorna tal cual
-    if (urlLimpia.startsWith("http://") || urlLimpia.startsWith("https://") || urlLimpia.startsWith("/")) {
+    // Si ya es una URL completa (Cloudflare R2, S3 o externa), se retorna tal cual
+    if (urlLimpia.startsWith("http://") || urlLimpia.startsWith("https://")) {
+        return urlLimpia;
+    }
+
+    // Si empieza con barra inclinada, se retorna tal cual
+    if (urlLimpia.startsWith("/")) {
         return urlLimpia;
     }
     
-    // Si es un archivo local o relativo, se mapea correctamente a la ruta del servidor
+    // Si es una ruta interna de Cloudflare R2 guardada sin dominio (ej: fajas_isabella/home/...)
+    if (urlLimpia.includes("fajas_isabella/") || urlLimpia.includes("categorias/") || urlLimpia.includes("productos/")) {
+        return `https://pub-9b9c53a867b04745a2319686397d4a8c.r2.dev/${urlLimpia}`;
+    }
+    
+    // Respaldo por defecto para archivos locales sueltos
     return `/img/${urlLimpia.split('/').pop().trim()}`;
 }
 
